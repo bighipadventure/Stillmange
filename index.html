@@ -202,7 +202,6 @@ body.resizing * { user-select: none; }
 .bubble-item { justify-content: flex-start; }
 .bubble-item[aria-current="true"] { border-color: var(--accent, #0d66d0); background: rgba(13, 102, 208, .1); font-weight: 600; }
 .ai-sec { background: var(--accent-soft); }
-.model-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; align-items: center; }
 .ai-sec .note { color: var(--on-accent-soft); }
 .overall { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; }
 .progress { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
@@ -260,6 +259,7 @@ body.resizing * { user-select: none; }
 .insp-sec { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .insp-title { margin: 0; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .insp-title .lock { margin-left: auto; font-weight: 500; }
+.insp-title .title-action { margin-left: auto; font-weight: 500; }
 .insp-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .insp-head h2 { margin: 0; font-size: 15px; }
 .badge-lock { font-size: 10px; font-weight: 700; color: var(--on-accent-soft); background: var(--accent-soft); border-radius: 3px; padding: 0 5px; }
@@ -592,7 +592,6 @@ const USER_SETTINGS = {
   fileNamePrefix: "stillmange_",
   shareAppUrl: "https://bighipadventure.github.io/prompt-reel-images/",
   shareHandoff: { db: "stillmotion-handoff", store: "videos", importName: "stillmange", keyPrefix: "sg" },
-  shareUiPresets: { illustrious: "illustrious", pony: "pony", animagine: "xl", sdxl: "xl", sd15: "sd", flux: "flux", qwen: "qwen", anima: "anima" },
   pagesOrigin: "https://bighipadventure.github.io",
   backends: {
     a1111: { label: "SD WebUI（A1111 / Forge）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}", corsAny: "--api --cors-allow-origins-regex=.*" },
@@ -755,22 +754,34 @@ script_callbacks.on_app_started(on_app_started)
   },
   promptStyles: [["tags", "タグのみ"], ["mixed", "タグ＋自然文"], ["natural", "自然言語"]],
   modelFamilies: [
-    { id: "illustrious", label: "Illustrious（SDXL）", style: "tags", megapixels: 1, match: /illustrious|ilxl|wai[-_ ]?(nsfw|illustrious|ani)/i },
-    { id: "noobai", label: "NoobAI（SDXL）", style: "tags", megapixels: 1, match: /noob/i },
-    { id: "pony", label: "Pony（SDXL）", style: "tags", megapixels: 1, match: /pony|pdxl/i },
-    { id: "animagine", label: "Animagine XL", style: "tags", megapixels: 1, match: /animagine/i },
-    { id: "anima", label: "Anima", style: "mixed", megapixels: 1, match: /(^|[^a-z])anima($|[^a-z])/i },
-    { id: "sdxl", label: "SDXL（一般・実写系）", style: "mixed", megapixels: 1, match: /sdxl|xl(?=$|[^a-z])/i },
-    { id: "sd15", label: "SD 1.5", style: "tags", megapixels: 0.25, match: /sd[-_ ]?1\.?5|v1-5|(^|[^0-9])15($|[^0-9])/i },
-    { id: "flux", label: "Flux", style: "natural", megapixels: 1, match: /flux/i },
-    { id: "qwen", label: "Qwen-Image", style: "natural", megapixels: 1, match: /qwen/i },
-    { id: "custom", label: "その他（書き方を自分で選ぶ）", style: null, megapixels: null, match: null },
+    { id: "", label: "未選択（書き方を自分で選ぶ）", style: null, megapixels: null },
+    { id: "NovelAI", label: "NovelAI", style: "tags", megapixels: 1 },
+    { id: "illustrious", label: "illustrious", style: "tags", megapixels: 1 },
+    { id: "pony", label: "pony", style: "tags", megapixels: 1 },
+    { id: "klein", label: "klein", style: "natural", megapixels: 1 },
+    { id: "flux", label: "flux", style: "natural", megapixels: 1 },
+    { id: "qwen", label: "qwen", style: "natural", megapixels: 1 },
+    { id: "lumina", label: "lumina", style: "mixed", megapixels: 1 },
+    { id: "ernie", label: "ernie", style: "natural", megapixels: 1 },
+    { id: "krea", label: "krea", style: "natural", megapixels: 1 },
+    { id: "zit", label: "zit", style: "natural", megapixels: 1 },
+    { id: "xl", label: "xl（SDXL 系）", style: "mixed", megapixels: 1 },
+    { id: "sd", label: "sd（SD 1.5 系）", style: "tags", megapixels: 0.25 },
+    { id: "anima", label: "anima", style: "mixed", megapixels: 1 },
+    { id: "wan", label: "wan", style: "natural", megapixels: 1 },
+    { id: "pid", label: "pid", style: null, megapixels: 1 },
   ],
-  defaultFamily: "illustrious",
+  uiPresetRules: [
+    ["novelai", "NovelAI"], ["illustrious", "illustrious"], ["illust", "illustrious"], ["pony", "pony"], ["klein", "klein"],
+    ["flux", "flux"], ["qwen", "qwen"], ["lumina", "lumina"], ["ernie", "ernie"], ["krea", "krea"], ["zit", "zit"],
+    ["xl", "xl"], ["sd", "sd"], ["anima", "anima"], ["wan", "wan"], ["pid", "pid"],
+  ],
+  legacyFamilies: { illustrious: "illustrious", pony: "pony", animagine: "xl", anima: "anima", sdxl: "xl", sd15: "sd", flux: "flux", qwen: "qwen", custom: "", noobai: null },
+  defaultFamily: "",
   webuiSync: {
     a1111: ["model", "vae", "clipSkip"],
     comfy: ["model", "vae", "sampler", "scheduler", "steps", "cfg", "clipSkip"],
-    labels: { model: "モデル", vae: "VAE", sampler: "サンプラー", scheduler: "スケジューラー", steps: "ステップ数", cfg: "CFG", clipSkip: "Clip skip", family: "モデルの種類" },
+    labels: { model: "Checkpoint", vae: "VAE", sampler: "サンプラー", scheduler: "スケジューラー", steps: "ステップ数", cfg: "CFG", clipSkip: "Clip skip", family: "UI Preset" },
   },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
   llm: {
@@ -2458,9 +2469,10 @@ class Infotext {
     return /[,:"\n]/.test(s) ? JSON.stringify(s) : s;
   }
 
-  static build({ prompt, negative, loras, settings, seed, width, height, model, vae, uiPreset }) {
+  static build({ prompt, negative, loras, settings, seed, width, height, model, vae }) {
     const s = settings || {};
-    const loraTags = (loras || []).filter((l) => l.name && l.on !== false).map((l) => `<lora:${this.displayName(l.name)}:${Number(l.weight ?? 1)}>`);
+    const used = (loras || []).filter((l) => l.name && l.on !== false);
+    const loraTags = used.map((l) => `<lora:${this.displayName(l.name)}:${Number(l.weight ?? 1)}>`);
     const lines = [[String(prompt || "").trim(), ...loraTags].filter(Boolean).join(", ")];
     if ((negative || "").trim()) lines.push(`Negative prompt: ${negative.trim()}`);
     const auto = USER_SETTINGS.autoValues;
@@ -2470,7 +2482,7 @@ class Infotext {
       ["Model", this.displayName(model)], ["VAE", auto.includes(vae || "") ? null : this.displayName(vae)],
       ["Clip skip", Number(s.clipSkip) > 1 ? s.clipSkip : null],
       ...(s.hires ? [["Hires upscale", s.hrScale], ["Hires upscaler", s.hrUpscaler], ["Hires steps", s.hrSteps || null], ["Denoising strength", s.hrDenoise]] : []),
-      ["UI Preset", uiPreset],
+      ["Lora hashes", used.length ? used.map((l) => this.displayName(l.name)).join(", ") : null],
     ].filter(([, v]) => v !== null && v !== undefined && v !== "" && !Number.isNaN(v));
     lines.push(params.map(([k, v]) => `${k}: ${this.value(v)}`).join(", "));
     return lines.join("\n");
@@ -2893,6 +2905,10 @@ class Project {
     out.common = { ...base.common, ...(doc.common || {}) };
     out.common.settings = { ...USER_SETTINGS.defaultSettings, ...(out.common.settings || {}) };
     out.common.use ??= {};
+    if (!USER_SETTINGS.modelFamilies.some((f) => f.id === (out.common.family || ""))) {
+      const mapped = USER_SETTINGS.legacyFamilies[out.common.family];
+      out.common.family = mapped ?? this.guessFamily(out.common.model);
+    }
     out.common.prompt ??= {};
     out.panels = (doc.panels || []).map((p) => ({ ...this.newPanel(p.pts, p.gaps), ...p }));
     return out;
@@ -2913,7 +2929,7 @@ class Project {
 
   static family(doc) {
     const list = USER_SETTINGS.modelFamilies;
-    return list.find((f) => f.id === doc.common.family) || list[0];
+    return list.find((f) => f.id === (doc.common.family || "")) || list[0];
   }
 
   static promptStyle(doc) {
@@ -2921,9 +2937,9 @@ class Project {
   }
 
   static guessFamily(modelName) {
-    const name = String(modelName || "");
-    if (!name) return null;
-    return USER_SETTINGS.modelFamilies.find((f) => f.match && f.match.test(name))?.id || null;
+    const name = Infotext.displayName(modelName).toLowerCase();
+    if (!name) return "";
+    return (USER_SETTINGS.uiPresetRules.find(([match]) => name.includes(match)) || [])[1] || "";
   }
 
   static effectiveText(doc, panel, key) {
@@ -4300,32 +4316,32 @@ class InspectorView {
     const current = c.model || (backend === "comfy" ? "未選択" : "WebUI で選んでいるモデル");
     if (kind === "panel") {
       return h("div", { class: "insp-sec" },
-        h("h3", { class: "insp-title", text: "モデル（全コマ共通）" }),
-        h("p", { class: "note", text: `${current}（${fam.label}）。変えるときは「全コマ共通」タブで選びます。` }));
+        h("h3", { class: "insp-title", text: "Checkpoint（全コマ共通）" }),
+        h("p", { class: "note", text: `UI Preset: ${fam.id || "未選択"} ／ Checkpoint: ${current}。変えるときは「全コマ共通」タブで選びます。` }));
     }
-    const family = h("select", { "aria-label": "モデルの種類" });
+    const family = h("select", { "aria-label": "UI Preset" });
     fillSelect(family, USER_SETTINGS.modelFamilies.map((f) => [f.id, f.label]), fam.id);
     family.addEventListener("change", () => { this.app.setFamily(family.value); this.render(); });
     const model = this.choice(res.models, c.model || "", ["", backend === "comfy" ? "（選んでください）" : "（WebUI で選んでいるモデル）"], (v) => {
       c.model = v;
-      const guess = Project.guessFamily(v);
-      if (guess && guess !== c.family) this.app.setFamily(guess);
+      this.app.setFamily(Project.guessFamily(v));
       this.render();
     });
-    model.setAttribute("aria-label", "モデル");
+    model.setAttribute("aria-label", "Checkpoint");
     const vae = this.choice(res.vaes, c.vae || "", ["", "（自動）"], (v) => { c.vae = v; });
     vae.setAttribute("aria-label", "VAE");
     const styleLabel = (USER_SETTINGS.promptStyles.find(([v]) => v === Project.promptStyle(this.doc)) || [])[1];
     const sec = h("div", { class: "insp-sec" },
-      h("h3", { class: "insp-title", text: "モデル（全コマ共通）" }),
+      h("h3", { class: "insp-title" }, "Checkpoint（全コマ共通）",
+        h("button", { class: "mini title-action", text: "自動で探す", title: `接続中の ${USER_SETTINGS.backends[backend].short} で選んでいる設定を読み込みます`, onclick: () => this.app.detectFromWebui() })),
       h("div", { class: "set-grid" },
-        h("span", { class: "prop-label", text: "モデル" }),
-        h("div", { class: "model-row" }, model, h("button", { class: "mini", text: "自動で探す", title: `接続中の ${USER_SETTINGS.backends[backend].short} で選んでいる設定を読み込みます`, onclick: () => this.app.detectFromWebui() })),
-        h("span", { class: "prop-label", text: "モデルの種類" }), family,
+        h("span", { class: "prop-label", text: "UI Preset" }), family,
+        h("span", { class: "prop-label", text: "Checkpoint" }), model,
         h("span", { class: "prop-label", text: "VAE" }), vae));
+    sec.append(h("p", { class: "note", text: "UI Preset は Checkpoint 名から Prompt Reel と同じ決まりで自動で選びます（当てはまらないときは「未選択」）。" }));
     sec.append(h("p", { class: "note", text: `「自動で探す」で、接続中の ${USER_SETTINGS.backends[backend].short} の設定（${USER_SETTINGS.webuiSync[backend].map((k) => USER_SETTINGS.webuiSync.labels[k]).join("・")}）を読み込みます。` }));
     if (fam.style) {
-      sec.append(h("p", { class: "note", text: `文章AIの書き方: ${styleLabel}（モデルの種類から自動）` }));
+      sec.append(h("p", { class: "note", text: `文章AIの書き方: ${styleLabel}（UI Preset から自動）` }));
     } else {
       sec.append(h("span", { class: "prop-label", text: "プロンプトの書き方" }), h("div", { class: "seg", role: "group", "aria-label": "プロンプトの書き方" },
         USER_SETTINGS.promptStyles.map(([v, label]) => h("button", {
@@ -5493,10 +5509,7 @@ class App {
       if (mode === "empty" && !empty) continue;
       if (holder[key] !== v) { holder[key] = v; applied.push(key); }
     }
-    if (applied.includes("model")) {
-      const guess = Project.guessFamily(c.model);
-      if (guess) this.setFamily(guess);
-    }
+    if (applied.includes("model")) this.setFamily(Project.guessFamily(c.model));
     if (applied.length) this.inspector.render();
     return applied;
   }
@@ -5522,9 +5535,9 @@ class App {
 
   setFamily(id) {
     const c = this.doc.common;
-    const fam = USER_SETTINGS.modelFamilies.find((f) => f.id === id);
+    const fam = USER_SETTINGS.modelFamilies.find((f) => f.id === (id || ""));
     if (!fam) return;
-    c.family = id;
+    c.family = fam.id;
     if (fam.megapixels) c.settings.megapixels = fam.megapixels;
   }
 
@@ -5740,8 +5753,7 @@ class App {
         const c = this.doc.common;
         if (meta.model || part === "model") c.model = Names.match(meta.model, res.models) || "";
         if (meta.vae || part === "model") c.vae = Names.match(meta.vae, res.vaes) || "";
-        const guess = Project.guessFamily(c.model);
-        if (guess) this.setFamily(guess);
+        this.setFamily(Project.guessFamily(meta.model || c.model));
       }
       if (all || part === "loras") target.loras = meta.loras.map((l) => ({ name: Names.match(l.name, res.loras), weight: l.weight, on: true }));
       if (all || part === "settings") {
@@ -5884,20 +5896,49 @@ class App {
   }
 
   // PROMPT REEL
-  uiPreset() {
-    return USER_SETTINGS.shareUiPresets[Project.family(this.doc).id] || "";
+  static sniff(bytes) {
+    if (PngText.isPng(bytes)) return { mime: "image/png", ext: "png" };
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) return { mime: "image/jpeg", ext: "jpg" };
+    if (String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" && String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP") return { mime: "image/webp", ext: "webp" };
+    return { mime: "image/png", ext: "png" };
   }
 
-  pageInfotext(firstEntry) {
-    const c = this.doc.common;
+  async ownInfotext(bytes, kind) {
+    try { return (await MetaReader.read(new File([bytes], `x.${kind.ext}`, { type: kind.mime }))).raw || ""; } catch { return ""; }
+  }
+
+  pageInfotext(firstInfo) {
     const pg = this.doc.page;
-    const common = USER_SETTINGS.genres.map((g) => String(c.prompt[g.key] || "").trim()).filter(Boolean).join(", ");
-    const item = firstEntry?.dropped ? this.doc.library.find((l) => l.id === firstEntry.source) : null;
-    const prompt = common || firstEntry?.prompt || item?.meta?.prompt || "";
+    if (firstInfo) {
+      const lines = firstInfo.replace(/\r/g, "").split("\n");
+      const last = lines.length - 1;
+      lines[last] = lines[last].replace(/(^|, )Size: \d+x\d+/, `$1Size: ${pg.w}x${pg.h}`).replace(/(^|, )Seed: -?\d+(?=,|$)/, "").replace(/^, /, "");
+      return lines.join("\n");
+    }
+    const c = this.doc.common;
+    const prompt = USER_SETTINGS.genres.map((g) => String(c.prompt[g.key] || "").trim()).filter(Boolean).join(", ");
     return Infotext.build({
-      prompt, negative: c.negative || firstEntry?.negative || "", loras: common ? c.loras : (firstEntry?.loras || c.loras),
-      settings: { ...USER_SETTINGS.defaultSettings, ...c.settings, seed: -1 },
-      width: pg.w, height: pg.h, model: c.model || firstEntry?.model || item?.meta?.model, vae: c.vae, uiPreset: this.uiPreset(),
+      prompt, negative: c.negative, loras: c.loras, settings: { ...USER_SETTINGS.defaultSettings, ...c.settings, seed: -1 },
+      width: pg.w, height: pg.h, model: c.model, vae: c.vae,
+    });
+  }
+
+  baseItem() {
+    const lib = this.doc.library;
+    const panel = Layout.readingOrder(this.doc).find((p) => p.source && lib.some((l) => l.id === p.source));
+    if (panel) return lib.find((l) => l.id === panel.source);
+    return [...lib].reverse().find((l) => l.meta?.raw || l.meta?.prompt) || null;
+  }
+
+  baseInfotext() {
+    const item = this.baseItem();
+    const meta = item?.meta;
+    if (!meta) return "";
+    if (meta.raw) return meta.raw;
+    if (!meta.prompt) return "";
+    return Infotext.build({
+      prompt: meta.prompt, negative: meta.negative, loras: meta.loras, settings: meta.settings || {},
+      seed: meta.seed, width: meta.width || item.w, height: meta.height || item.h, model: meta.model, vae: meta.vae,
     });
   }
 
@@ -5908,25 +5949,25 @@ class App {
     return Infotext.build({
       prompt: entry.prompt, negative: entry.negative, loras: entry.loras, settings: entry.settings || {},
       seed: entry.seed ?? meta?.seed, width: entry.w, height: entry.h,
-      model: entry.model || meta?.model || this.doc.common.model, vae: meta?.vae || this.doc.common.vae, uiPreset: this.uiPreset(),
+      model: entry.model || meta?.model || this.doc.common.model, vae: meta?.vae || this.doc.common.vae,
     });
   }
 
   async panelImageFile(panel, entry, name) {
     const item = entry.dropped ? this.doc.library.find((l) => l.id === entry.source) : null;
-    if (item?.original && this.assets.has(item.original)) {
-      const blob = dataUrlToBlob(this.assets.dataUrl(item.original));
-      const ext = (blob.type.split("/")[1] || "png").replace("jpeg", "jpg");
-      return { blob, name: `${name}.${ext}`, mime: blob.type };
-    }
-    let bytes = new Uint8Array(await dataUrlToBlob(this.assets.dataUrl(entry.asset)).arrayBuffer());
+    const source = item?.original && this.assets.has(item.original) ? item.original : entry.asset;
+    let bytes = new Uint8Array(await dataUrlToBlob(this.assets.dataUrl(source)).arrayBuffer());
+    const kind = App.sniff(bytes);
+    const own = await this.ownInfotext(bytes, kind);
+    if (own) return { blob: new Blob([bytes], { type: kind.mime }), name: `${name}.${kind.ext}`, mime: kind.mime, info: own };
     if (!PngText.isPng(bytes)) {
-      const img = await this.assets.image(entry.asset);
+      const img = await this.assets.image(source);
       const canvas = h("canvas", { width: img.naturalWidth, height: img.naturalHeight });
       canvas.getContext("2d").drawImage(img, 0, 0);
       bytes = new Uint8Array(await (await new Promise((resolve) => canvas.toBlob(resolve, "image/png"))).arrayBuffer());
     }
-    return { blob: new Blob([PngText.withText(bytes, "parameters", this.entryInfotext(entry))], { type: "image/png" }), name: `${name}.png`, mime: "image/png" };
+    const info = this.entryInfotext(entry);
+    return { blob: new Blob([PngText.withText(bytes, "parameters", info)], { type: "image/png" }), name: `${name}.png`, mime: "image/png", info };
   }
 
   async buildShareFiles() {
@@ -5936,7 +5977,7 @@ class App {
     const files = [];
     for (const { p, n, entry } of panels) files.push(await this.panelImageFile(p, entry, `${prefix}${stamp}_panel${String(n).padStart(2, "0")}`));
     const pageBytes = new Uint8Array(await (await this.renderPageBlob()).arrayBuffer());
-    const page = PngText.withText(pageBytes, "parameters", this.pageInfotext(panels[0]?.entry));
+    const page = PngText.withText(pageBytes, "parameters", this.baseInfotext() || this.pageInfotext(files[0]?.info));
     files.unshift({ blob: new Blob([page], { type: "image/png" }), name: `${prefix}${stamp}_page.png`, mime: "image/png" });
     return { files, stamp, panels: panels.length };
   }
