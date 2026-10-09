@@ -298,6 +298,9 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
 .card { border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px 12px; background: var(--surface-2); display: flex; flex-direction: column; gap: 6px; }
 .card-title { margin: 0; font-size: 13px; font-weight: 700; }
 .copyline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.steps { margin: 8px 0 6px; padding-left: 20px; font-size: 12px; line-height: 1.6; }
+.steps li { margin-bottom: 4px; }
+.card code { overflow-wrap: anywhere; }
 .field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
 .field > input, .field > select { color: var(--ink); }
 .dict-list { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
@@ -461,6 +464,17 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <div class="copyline"><code id="cors-a1111"></code><button data-copy="cors-a1111">コピー</button></div>
       </div>
       <div class="card">
+        <h4 class="card-title">2+. Forge Neo を使う場合（必須）：拡張機能 stillmange-cors を入れる</h4>
+        <p class="note">Forge Neo は起動オプションだけでは接続が許可されないことがあるため、接続を許可する小さな拡張機能を入れます（このページのアドレス <code id="cors-ext-origins"></code> だけを許可します）。</p>
+        <button class="primary" id="cors-ext-download">stillmange-cors をダウンロード（ZIP）</button>
+        <ol class="steps">
+          <li>ZIP を Forge Neo の <code>extensions</code> フォルダに展開し、<code>extensions\stillmange-cors\scripts\stillmange_cors.py</code> となるようにします（<code>stillmange-cors</code> フォルダが二重にならないよう注意）。<br>Stability Matrix の場合: <code>Data\Packages\forge-neo\extensions</code></li>
+          <li>Forge Neo を停止 → 起動し直します。ログに <code>[stillmange-cors] v2 allowed origins: …</code> と出れば読み込まれています。</li>
+          <li>ブラウザで <code id="cors-ext-ping"></code> を開き、<code>{"ok":true, …}</code> と出れば準備完了です。</li>
+        </ol>
+        <p class="note">ログに <code>Exception in thread … (webui_worker)</code> が出ている場合は、起動途中で止まっているため拡張機能が読み込まれません。エラーに名前が出ている拡張機能（例: sd-webui-ar）を外してください。</p>
+      </div>
+      <div class="card">
         <h4 class="card-title">2'. ComfyUI を使う場合</h4>
         <p class="note">起動オプションに次の1行を追加して、起動し直します。「設定」→「画像生成の接続」で ComfyUI を選んでください。</p>
         <div class="copyline"><code id="cors-comfy"></code><button data-copy="cors-comfy">コピー</button></div>
@@ -532,6 +546,102 @@ const USER_SETTINGS = {
     comfy: { label: "ComfyUI", short: "ComfyUI", url: "http://127.0.0.1:8188", cors: "--enable-cors-header {origin}", corsAny: "--enable-cors-header *" },
   },
   defaultBackend: "a1111",
+  corsExtension: {
+    folder: "stillmange-cors",
+    zipName: "stillmange-cors.zip",
+    defaultOrigins: ["https://bighipadventure.github.io"],
+    pingPath: "/stillmange-cors/ping",
+    readme: `stillmange-cors（Stillmange 用の接続許可拡張機能）
+
+Forge Neo / A1111 に、Stillmange のページ（__ORIGINS_TEXT__）からの接続を許可します。
+ほかのサイトからの接続は許可しません。
+
+入れ方
+1. このフォルダ（stillmange-cors）を WebUI の extensions フォルダに置きます。
+   extensions\\stillmange-cors\\scripts\\stillmange_cors.py となれば正しい場所です。
+   （Stability Matrix の場合: Data\\Packages\\forge-neo\\extensions）
+2. WebUI を停止して、起動し直します。
+3. ログに「[stillmange-cors] v2 allowed origins: ...」と出れば読み込まれています。
+4. ブラウザで http://127.0.0.1:7860/stillmange-cors/ping を開き、{"ok": true, ...} と出れば準備完了です。
+
+ログに「Exception in thread ... (webui_worker)」が出ている場合は、起動の途中で止まっています。
+エラーに名前が出ている拡張機能を外してから、起動し直してください。
+
+外し方: extensions\\stillmange-cors フォルダを削除して、起動し直します。
+`,
+    source: `from modules import script_callbacks
+
+ALLOWED_ORIGINS = {
+__ORIGINS__
+}
+ALLOWED_METHODS = b"GET, POST, PUT, DELETE, OPTIONS"
+PREFLIGHT_MAX_AGE = b"600"
+PING_PATH = "/stillmange-cors/ping"
+VERSION = "2"
+
+
+class StillmangeCORS:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+        origin = headers.get("origin")
+        if origin not in ALLOWED_ORIGINS:
+            await self.app(scope, receive, send)
+            return
+        cors = [
+            (b"access-control-allow-origin", origin.encode("latin-1")),
+            (b"access-control-allow-credentials", b"true"),
+            (b"vary", b"Origin"),
+        ]
+        if scope["method"] == "OPTIONS" and "access-control-request-method" in headers:
+            requested = headers.get("access-control-request-headers", "*").encode("latin-1")
+            await send({
+                "type": "http.response.start",
+                "status": 200,
+                "headers": cors + [
+                    (b"access-control-allow-methods", ALLOWED_METHODS),
+                    (b"access-control-allow-headers", requested),
+                    (b"access-control-allow-private-network", b"true"),
+                    (b"access-control-max-age", PREFLIGHT_MAX_AGE),
+                    (b"content-length", b"0"),
+                ],
+            })
+            await send({"type": "http.response.body", "body": b""})
+            return
+        names = {name for name, _ in cors}
+
+        async def send_with_cors(message):
+            if message["type"] == "http.response.start":
+                kept = [h for h in message.get("headers", []) if h[0].lower() not in names]
+                message["headers"] = kept + cors
+            await send(message)
+
+        await self.app(scope, receive, send_with_cors)
+
+
+def ping():
+    return {"ok": True, "extension": "stillmange-cors", "version": VERSION, "allowed_origins": sorted(ALLOWED_ORIGINS)}
+
+
+def on_app_started(demo, app):
+    if getattr(app, "_stillmange_cors", False):
+        return
+    app._stillmange_cors = True
+    app.add_api_route(PING_PATH, ping, methods=["GET"])
+    build = app.build_middleware_stack
+    app.build_middleware_stack = lambda: StillmangeCORS(build())
+    app.middleware_stack = None
+    print(f"[stillmange-cors] v{VERSION} allowed origins: {', '.join(sorted(ALLOWED_ORIGINS))}  check: {PING_PATH}")
+
+
+script_callbacks.on_app_started(on_app_started)
+`,
+  },
   probeTimeoutMs: 2500,
   listTimeoutMs: 8000,
   pollIntervalMs: 1000,
@@ -727,7 +837,7 @@ Include every EMPTY panel number and no other panel.`,
   lockGroups: { negative: "ネガティブ", model: "モデル・VAE", loras: "LoRA", settings: "生成設定" },
   messages: {
     probeOk: "接続OK",
-    probeCors: "起動していますが、このページ（{origin}）からの接続が許可されていません（CORS）。起動オプションに入れた URL が「{origin}」と一字一句同じか（末尾の / や http と https の違いも）確認して、停止→起動し直してください。",
+    probeCors: "起動していますが、このページ（{origin}）からの接続が許可されていません（CORS）。起動オプションに入れた URL が「{origin}」と一字一句同じか（末尾の / や http と https の違いも）確認して、停止→起動し直してください。Forge Neo の場合は「設定」→「はじめに」から拡張機能 stillmange-cors をダウンロードして入れてください。",
     probeCorsFile: "このページをファイルから直接開いている（file://）ため、接続が許可されません。GitHub Pages など https:// の URL で開くか、起動オプションを「{line}」にして停止→起動し直してください。",
     llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません", error: "文章AI: エラー" },
     probeError: "接続はできましたが、エラー（{status}）が返りました。起動オプションに --api が入っているか、WebUI のログにエラーが出ていないか確認してください。",
@@ -780,6 +890,7 @@ Include every EMPTY panel number and no other panel.`,
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
     llmDone: "文章AIでプロンプトを作りました（{n} コマ）。",
     llmFailed: "コマ {n}: 文章AIがプロンプトを作れませんでした: {err}",
+    corsExtSaved: "stillmange-cors.zip を保存しました。WebUI の extensions フォルダに展開して、停止→起動し直してください。",
     autoNoEmpty: "プロンプトが空いているコマがありません。おまかせ生成は、プロンプトが空のコマだけを埋めます。",
     autoNoSource: "材料になる画像がありません。生成した画像を左の「素材」かコマにドロップしてから押してください。",
     autoPlanning: "文章AIが画像から状況を読み取り、ページの流れを考えています…",
@@ -2012,6 +2123,86 @@ class LlmClient {
     text = text.replace(/<think>[\s\S]*?<\/think>/g, "");
     if (text.includes("</think>")) text = text.split("</think>").pop();
     return text.trim();
+  }
+}
+
+// ===== ZIP (STORED, NO COMPRESSION) =====
+class ZipWriter {
+  static crcTable = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  static crc32(bytes) {
+    let c = 0xffffffff;
+    for (const b of bytes) c = this.crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+  static dosTime(d) {
+    return {
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+      date: ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+    };
+  }
+
+  static build(files) {
+    const enc = new TextEncoder();
+    const { time, date } = this.dosTime(new Date());
+    const parts = [], central = [];
+    let offset = 0;
+    for (const f of files) {
+      const name = enc.encode(f.path);
+      const data = typeof f.data === "string" ? enc.encode(f.data) : f.data;
+      const crc = this.crc32(data);
+      const local = new DataView(new ArrayBuffer(30));
+      [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, time, 2], [12, date, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, name.length, 2], [28, 0, 2]]
+        .forEach(([o, v, n]) => (n === 4 ? local.setUint32(o, v, true) : local.setUint16(o, v, true)));
+      const dir = new DataView(new ArrayBuffer(46));
+      [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, time, 2], [14, date, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4], [28, name.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, offset, 4]]
+        .forEach(([o, v, n]) => (n === 4 ? dir.setUint32(o, v, true) : dir.setUint16(o, v, true)));
+      parts.push(local, name, data);
+      central.push(dir, name);
+      offset += 30 + name.length + data.length;
+    }
+    const size = central.reduce((s, p) => s + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    [[0, 0x06054b50, 4], [4, 0, 2], [6, 0, 2], [8, files.length, 2], [10, files.length, 2], [12, size, 4], [16, offset, 4], [20, 0, 2]]
+      .forEach(([o, v, n]) => (n === 4 ? end.setUint32(o, v, true) : end.setUint16(o, v, true)));
+    return new Blob([...parts, ...central, end], { type: "application/zip" });
+  }
+}
+
+// ===== CORS EXTENSION FOR FORGE (DOWNLOAD) =====
+class CorsExtension {
+  static origins() {
+    const cfg = USER_SETTINGS.corsExtension;
+    const page = Net.pageOrigin();
+    return [...new Set([...(page ? [page] : []), ...cfg.defaultOrigins])];
+  }
+
+  static pingUrl(baseUrl) {
+    return `${String(baseUrl || USER_SETTINGS.backends.a1111.url).replace(/\/+$/, "")}${USER_SETTINGS.corsExtension.pingPath}`;
+  }
+
+  static zip() {
+    const cfg = USER_SETTINGS.corsExtension;
+    const origins = this.origins();
+    const source = cfg.source.replace("__ORIGINS__", origins.map((o) => `    ${JSON.stringify(o)},`).join("\n"));
+    const readme = cfg.readme.replace("__ORIGINS_TEXT__", origins.join(" / ")).replace(/\n/g, "\r\n");
+    return ZipWriter.build([
+      { path: `${cfg.folder}/scripts/stillmange_cors.py`, data: source },
+      { path: `${cfg.folder}/README.txt`, data: readme },
+    ]);
+  }
+
+  static download() {
+    downloadBlob(this.zip(), USER_SETTINGS.corsExtension.zipName);
   }
 }
 
@@ -3778,6 +3969,12 @@ class SettingsView {
     $("cors-a1111").textContent = Net.corsLine("a1111");
     $("cors-comfy").textContent = Net.corsLine("comfy");
     $("llm-origin").textContent = Net.pageOrigin() || "*";
+    $("cors-ext-origins").textContent = CorsExtension.origins().join(" / ");
+    $("cors-ext-ping").textContent = CorsExtension.pingUrl(this.app.store.data.urls.a1111);
+    on($("cors-ext-download"), "click", () => {
+      CorsExtension.download();
+      this.app.status(USER_SETTINGS.messages.corsExtSaved);
+    });
     document.querySelectorAll("#settings [data-copy]").forEach((b) => on(b, "click", () => {
       navigator.clipboard?.writeText($(b.dataset.copy).textContent);
       b.textContent = USER_SETTINGS.messages.copied;
@@ -3914,6 +4111,7 @@ class SettingsView {
     document.querySelectorAll("#backend-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.backend === d.backend)));
     $("backend-url").value = d.urls[d.backend];
     $("save-images").checked = !!d.saveImages;
+    $("cors-ext-ping").textContent = CorsExtension.pingUrl(d.urls.a1111);
     $("llm-url").value = d.llm.url;
     $("llm-vision").checked = !!d.llm.vision;
     $("llm-temp").value = d.llm.temperature;
