@@ -207,6 +207,10 @@ body.resizing * { user-select: none; }
 #page-svg.dragging * { pointer-events: none; }
 #page-svg { overflow: visible; user-select: none; -webkit-user-select: none; }
 #page-svg image { pointer-events: none; -webkit-user-drag: none; }
+#page-svg.cutting { cursor: crosshair; }
+#page-svg .cut-line { stroke: #e0245e; stroke-width: 3; stroke-dasharray: 10 6; vector-effect: non-scaling-stroke; pointer-events: none; }
+#page-svg .cut-dot { fill: #ffffff; stroke: #e0245e; stroke-width: 2.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+#page-svg .cut-dot.fixed { fill: #e0245e; }
 #page-svg .img-box { fill: none; stroke: #e68619; stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .h-vertex.h-img { fill: #ffffff; stroke: #e68619; cursor: nwse-resize; opacity: .85; }
 #page-svg .h-rotate { fill: #e68619; stroke: #ffffff; stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; opacity: .85; }
@@ -227,6 +231,13 @@ body.resizing * { user-select: none; }
 #page-svg .drop-panel { fill: rgba(13, 102, 208, .25); stroke: #0d66d0; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .shade { fill: rgba(0, 0, 0, .5); pointer-events: none; }
 #page-svg .shade.error { fill: rgba(150, 20, 20, .45); }
+#page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .9s linear infinite; pointer-events: none; }
+#page-svg .spinner.idle { opacity: .45; animation-duration: 2.4s; }
+#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .22); }
+#page-svg .spin-arc { fill: none; stroke: #ffffff; stroke-linecap: round; }
+#page-svg .state-text.sub { font-weight: 500; opacity: .85; }
+@keyframes sm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation: none; } }
 #page-svg .state-text { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,.6); }
 #page-svg .num-bg { fill: #0d66d0; opacity: .85; pointer-events: none; }
 #page-svg .num { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
@@ -334,6 +345,10 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <h2 class="psec-title">① コマ割りテンプレート</h2>
         <div class="psec-body">
           <div class="tpl-grid" id="tpl-grid"></div>
+          <div class="prop"><span class="prop-label">配置を反転</span><div class="row">
+            <button id="flip-layout-x" title="コマの配置を左右反転します（画像そのものは反転しません）">⇆ 左右</button>
+            <button id="flip-layout-y" title="コマの配置を上下反転します（画像そのものは反転しません）">⇅ 上下</button>
+          </div></div>
           <div class="prop"><span class="prop-label">用紙</span><select id="page-preset" aria-label="用紙"></select></div>
           <div class="prop"><span class="prop-label">区切り</span><div class="seg" id="gutter-mode" role="group" aria-label="区切り"></div></div>
           <div class="prop"><span class="prop-label">ページの色</span><div class="seg" id="page-color" role="group" aria-label="ページの色"></div></div>
@@ -355,6 +370,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
             <div class="row">
               <button id="split-h" title="上下に分ける">⬒ 上下に分割</button>
               <button id="split-v" title="左右に分ける">◨ 左右に分割</button>
+              <button id="cut-panel" title="コマの辺を2か所クリックして、その2点を結ぶ線で分けます（斜めも可。Esc で中止）">✂ 2点で分割</button>
             </div>
             <div class="row">
               <button id="scale-up">＋ 拡大</button>
@@ -363,6 +379,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
             </div>
             <div class="row">
               <button id="add-panel">＋ 新しいコマを置く</button>
+              <button id="merge-panels" title="Shift / Ctrl を押しながら隣り合うコマを選んで押すと、1つのコマにまとめます">選択したコマを結合</button>
             </div>
           </div>
           <div class="tool-group">
@@ -376,6 +393,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
               <div class="seg" id="panel-mono" role="group" aria-label="このコマの画像の色"></div>
             </div>
             <div class="row">
+              <button id="img-center" title="拡大・回転・反転はそのままで、画像をコマの中央に戻す">画像をコマの中央へ</button>
               <button id="reset-view" title="位置・拡大・回転・反転を元に戻す">画像の位置・向きを戻す</button>
               <button class="danger" id="img-clear" title="選択中のコマに入っている画像を削除（コマは残ります）">画像を削除</button>
             </div>
@@ -431,6 +449,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
           <button class="mini" id="cv-undo" title="戻る（Ctrl+Z）">↶ 戻る</button>
           <button class="mini" id="cv-redo" title="やり直す（Ctrl+Shift+Z）">↷ やり直す</button>
           <button class="mini danger" id="cv-delete" title="選択中のコマ・吹き出しを削除（Delete）">削除</button>
+          <button class="mini" id="cv-center-image" title="拡大・回転・反転はそのままで、選択中のコマの画像をコマの中央に戻す" hidden>画像を中央へ</button>
           <button class="mini danger" id="cv-clear-images" title="選択中のコマに入っている画像を削除（コマは残ります）">画像を削除</button>
           <button class="mini" id="cv-reset" title="コマの形を選んでいるテンプレートの形に戻す">形を元に戻す</button>
         </div>
@@ -677,7 +696,8 @@ script_callbacks.on_app_started(on_app_started)
   previewSide: 2048,
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
-  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
+  spinner: { size: 0.09, min: 28, max: 80, stroke: 0.2, arc: 0.28, periodMs: 900 },
+  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, minCutArea: 0.02, cutSnap: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
     presets: [
@@ -877,7 +897,19 @@ Include every EMPTY panel number and no other panel.`,
     hintImage: "コマの画像をドラッグで動かします。選んだコマの画像の四隅の□で拡大縮小、上の○で回転（Shift で15°刻み）。マウスホイールでも拡大縮小できます。反転は下のボタンで。ダブルクリックで元に戻ります。",
     needPanel: "先にコマを選んでください。",
     needEdge: "先に区切り（区切りの丸）を選んでください。",
-    mergeNoNeighbor: "この区切りの両側に、ぴったり同じ辺を持つコマがありません（T字の区切りは結合できません）。",
+    cutFirst: "分割の1点目：選んだコマの辺をクリックしてください（Esc で中止）。",
+    cutSecond: "分割の2点目：もう1か所、辺をクリックしてください。2点を結ぶ線でコマを分けます（Esc で中止）。",
+    cutOnEdge: "選んだコマの辺（枠線）の近くをクリックしてください。",
+    cutSame: "その2点では分けられません。離れた別の辺の点を選んでください。",
+    cutDone: "コマを2つに分けました（「戻る」で元に戻せます）。",
+    cutCancelled: "分割をやめました。",
+    mergeNeedTwo: "結合するコマを2つ以上選んでください（Shift / Ctrl を押しながらコマを押すと追加できます）。",
+    mergeApart: "選んだコマが隣り合っていないため結合できません（辺どうしが接している、ひと続きのコマを選んでください）。",
+    mergeMixed: "置いたコマ（オレンジの角）と、ページに並んだコマは結合できません。",
+    mergedPanels: "{n} コマを1つに結合しました（「戻る」で元に戻せます）。",
+    flippedX: "コマの配置を左右反転しました。",
+    flippedY: "コマの配置を上下反転しました。",
+    mergeNoNeighbor: "この区切りの反対側にコマがないため結合できません（ページの外枠や、置いたコマの辺は結合できません）。",
     splitFailed: "このコマは分割できませんでした。",
     templateApplied: "テンプレート「{name}」にしました。前のコマの内容は、読む順に引き継いでいます。",
     noPanels: "コマがありません。テンプレートを選んでください。",
@@ -1101,9 +1133,17 @@ class Geo {
       const d = dists[i] || 0;
       return { p: [p[0] + nrm[0] * d, p[1] + nrm[1] * d], e };
     });
-    return pts.map((_, j) => {
+    return pts.flatMap((v, j) => {
       const a = lines[(j - 1 + n) % n], b = lines[j];
-      return this.intersect(a.p, a.e, b.p, b.e);
+      const cross = a.e[0] * b.e[1] - a.e[1] * b.e[0];
+      const dot = a.e[0] * b.e[0] + a.e[1] * b.e[1];
+      const da = dists[(j - 1 + n) % n] || 0, db = dists[j] || 0;
+      if (Math.abs(cross) < 1e-9 && dot > 0 && Math.abs(da - db) > 1e-6) {
+        const pa = this.intersect(a.p, a.e, v, [-a.e[1], a.e[0]]);
+        const pb = this.intersect(b.p, b.e, v, [-b.e[1], b.e[0]]);
+        return [pa, pb];
+      }
+      return [this.intersect(a.p, a.e, b.p, b.e)];
     });
   }
 
@@ -1145,7 +1185,8 @@ class Geo {
         if (!lu || !lv) { p.splice(i, 1); f.splice(i, 1); changed = true; break; }
         const cross = (u[0] * v[1] - u[1] * v[0]) / (lu * lv);
         const dot = u[0] * v[0] + u[1] * v[1];
-        if (Math.abs(cross) < USER_SETTINGS.geometry.collinear && dot > 0) { p.splice(i, 1); f.splice(i, 1); changed = true; break; }
+        const prevFlag = f[(i - 1 + f.length) % f.length];
+        if (Math.abs(cross) < USER_SETTINGS.geometry.collinear && dot > 0 && prevFlag === f[i]) { p.splice(i, 1); f.splice(i, 1); changed = true; break; }
       }
     }
     return { pts: p, flags: f };
@@ -1240,7 +1281,12 @@ class Layout {
     const p = [target[0], target[1]];
     const onX0 = Math.abs(o[0] - live.x0) <= eps, onX1 = Math.abs(o[0] - live.x1) <= eps;
     const onY0 = Math.abs(o[1] - live.y0) <= eps, onY1 = Math.abs(o[1] - live.y1) <= eps;
-    if (!((onX0 || onX1) && (onY0 || onY1))) {
+    const straight = this.straightAt(doc, orig, o);
+    if (straight && !((onX0 || onX1) && (onY0 || onY1))) {
+      const t = Math.min(Math.max(Geo.segInfo(p, straight[0], straight[1]).t, 0.02), 0.98);
+      p[0] = straight[0][0] + (straight[1][0] - straight[0][0]) * t;
+      p[1] = straight[0][1] + (straight[1][1] - straight[0][1]) * t;
+    } else if (!((onX0 || onX1) && (onY0 || onY1))) {
       outer: for (let j = 0; j < orig.length; j++) {
         if (doc.panels[j].floating) continue;
         const pts = orig[j];
@@ -1268,6 +1314,49 @@ class Layout {
     p[0] = Math.min(Math.max(p[0], live.x0), live.x1);
     p[1] = Math.min(Math.max(p[1], live.y0), live.y1);
     return p;
+  }
+
+  static straightAt(doc, orig, o) {
+    const eps = USER_SETTINGS.geometry.eps;
+    for (let j = 0; j < orig.length; j++) {
+      if (doc.panels[j].floating) continue;
+      const pts = orig[j];
+      for (let k = 0; k < pts.length; k++) {
+        if (!Geo.near(pts[k], o, eps)) continue;
+        const a = pts[(k - 1 + pts.length) % pts.length], b = pts[(k + 1) % pts.length];
+        const info = Geo.segInfo(o, a, b);
+        if (info.d <= eps && info.t > 0.01 && info.t < 0.99) return [a, b];
+      }
+    }
+    return null;
+  }
+
+  static ensureVertex(doc, pt) {
+    const eps = USER_SETTINGS.geometry.eps;
+    for (const q of doc.panels) {
+      if (q.floating) continue;
+      for (let k = 0; k < q.pts.length; k++) {
+        const c = q.pts[k], d = q.pts[(k + 1) % q.pts.length];
+        const info = Geo.segInfo(pt, c, d);
+        if (info.d > eps || Geo.near(pt, c, eps) || Geo.near(pt, d, eps) || info.t <= 0 || info.t >= 1) continue;
+        q.pts.splice(k + 1, 0, [pt[0], pt[1]]);
+        q.gaps.splice(k + 1, 0, q.gaps[k]);
+        break;
+      }
+    }
+  }
+
+  static neighborsAcross(doc, panel, k) {
+    const eps = USER_SETTINGS.geometry.eps;
+    const [a, b] = this.edgeEnds(panel, k);
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return doc.panels.filter((q) => q !== panel && !q.floating && q.pts.some((c, m) => {
+      const d = q.pts[(m + 1) % q.pts.length];
+      const ic = Geo.segInfo(c, a, b), id = Geo.segInfo(d, a, b);
+      if (ic.d > eps || id.d > eps) return false;
+      const lo = Math.max(0, Math.min(ic.t, id.t)), hi = Math.min(1, Math.max(ic.t, id.t));
+      return (hi - lo) * len > eps;
+    }));
   }
 
   static chain(doc, orig, a, b) {
@@ -1416,47 +1505,139 @@ class Layout {
     return added;
   }
 
-  static merge(doc, panel, k) {
-    if (panel.floating) return false;
+  static boundaryPoint(panel, pt, snap) {
+    let best = null;
+    panel.pts.forEach((a, k) => {
+      const b = panel.pts[(k + 1) % panel.pts.length];
+      const info = Geo.segInfo(pt, a, b);
+      const t = Math.min(Math.max(info.t, 0), 1);
+      const q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      const d = Math.hypot(pt[0] - q[0], pt[1] - q[1]);
+      if (!best || d < best.d) best = { pt: q, k, d };
+    });
+    if (!best) return null;
+    const corner = panel.pts.find((v) => Math.hypot(v[0] - best.pt[0], v[1] - best.pt[1]) <= snap);
+    if (corner) best.pt = [...corner];
+    return best;
+  }
+
+  static cutChord(doc, panel, p, q) {
     const eps = USER_SETTINGS.geometry.eps;
-    const na = panel.pts.length;
-    const a = panel.pts[k], b = panel.pts[(k + 1) % na];
-    let other = null, j = -1;
-    for (const q of doc.panels) {
-      if (q === panel || q.floating) continue;
-      for (let i = 0; i < q.pts.length; i++) {
-        if (Geo.near(q.pts[i], b, eps) && Geo.near(q.pts[(i + 1) % q.pts.length], a, eps)) { other = q; j = i; break; }
+    const pts = panel.pts.map((v) => [...v]), gaps = [...panel.gaps];
+    const place = (pt) => {
+      const at = pts.findIndex((v) => Geo.near(v, pt, eps));
+      if (at >= 0) return at;
+      for (let k = 0; k < pts.length; k++) {
+        const info = Geo.segInfo(pt, pts[k], pts[(k + 1) % pts.length]);
+        if (info.d <= eps && info.t > 0 && info.t < 1) {
+          pts.splice(k + 1, 0, [pt[0], pt[1]]);
+          gaps.splice(k + 1, 0, gaps[k]);
+          return k + 1;
+        }
       }
-      if (other) break;
+      return -1;
+    };
+    if (place(p) < 0 || place(q) < 0) return "off";
+    const ip = pts.findIndex((v) => Geo.near(v, p, eps)), iq = pts.findIndex((v) => Geo.near(v, q, eps));
+    if (ip === iq) return "same";
+    const n = pts.length;
+    const walk = (from, to) => {
+      const out = [], flags = [];
+      for (let i = from; ; i = (i + 1) % n) {
+        out.push(pts[i]);
+        flags.push(gaps[i]);
+        if (i === to) break;
+      }
+      return { out, flags };
+    };
+    const cutFlag = panel.floating ? false : this.gapFor(doc.page.gutterMode, p, q);
+    const A = walk(ip, iq), B = walk(iq, ip);
+    A.flags[A.flags.length - 1] = cutFlag;
+    B.flags[B.flags.length - 1] = cutFlag;
+    const min = USER_SETTINGS.geometry.minCutArea * Math.abs(Geo.area(panel.pts));
+    if (A.out.length < 3 || B.out.length < 3 || Math.abs(Geo.area(A.out)) < min || Math.abs(Geo.area(B.out)) < min) return "edge";
+    const [big, small] = Math.abs(Geo.area(A.out)) >= Math.abs(Geo.area(B.out)) ? [A, B] : [B, A];
+    const a = Geo.removeCollinear(big.out, big.flags), b = Geo.removeCollinear(small.out, small.flags);
+    panel.pts = a.pts;
+    panel.gaps = a.flags;
+    const added = Project.newPanel(b.pts, b.flags);
+    added.floating = !!panel.floating;
+    doc.panels.splice(doc.panels.indexOf(panel) + 1, 0, added);
+    return "ok";
+  }
+
+  static mergeMany(doc, panels, keep) {
+    const eps = USER_SETTINGS.geometry.eps;
+    if (panels.length < 2) return "few";
+    if (panels.some((p) => p.floating) && !panels.every((p) => p.floating)) return "mixed";
+    const corners = panels.flatMap((p) => p.pts);
+    const edges = [];
+    panels.forEach((p, pi) => p.pts.forEach((a, k) => {
+      const b = p.pts[(k + 1) % p.pts.length];
+      const cuts = corners
+        .map((c) => ({ c, info: Geo.segInfo(c, a, b) }))
+        .filter(({ c, info }) => info.d <= eps && info.t > 0 && info.t < 1 && !Geo.near(c, a, eps) && !Geo.near(c, b, eps))
+        .sort((u, v) => u.info.t - v.info.t)
+        .map(({ c }) => c);
+      const chain = [a, ...cuts, b];
+      for (let i = 0; i + 1 < chain.length; i++) {
+        if (!Geo.near(chain[i], chain[i + 1], eps)) edges.push({ a: chain[i], b: chain[i + 1], gap: p.gaps[k], pi, used: false });
+      }
+    }));
+    for (const e of edges) {
+      if (e.used) continue;
+      const twin = edges.find((f) => !f.used && f !== e && f.pi !== e.pi && Geo.near(f.a, e.b, eps) && Geo.near(f.b, e.a, eps));
+      if (twin) { e.used = true; twin.used = true; }
     }
-    if (!other) return false;
-    const nb = other.pts.length;
+    const rest = edges.filter((e) => !e.used);
+    if (rest.length === edges.length) return "apart";
     const pts = [], flags = [];
-    for (let s = 0; s < na; s++) {
-      const idx = (k + 1 + s) % na;
-      pts.push(panel.pts[idx]);
-      flags.push(idx === k ? other.gaps[(j + 1) % nb] : panel.gaps[idx]);
+    let cur = rest[0], last = null;
+    while (cur && !cur.used) {
+      cur.used = true;
+      pts.push(cur.a);
+      flags.push(cur.gap);
+      last = cur;
+      cur = rest.find((e) => !e.used && Geo.near(e.a, last.b, eps));
     }
-    for (let s = 0; s < nb - 2; s++) {
-      const idx = (j + 2 + s) % nb;
-      pts.push(other.pts[idx]);
-      flags.push(other.gaps[idx]);
-    }
+    if (rest.some((e) => !e.used) || !Geo.near(last.b, pts[0], eps)) return "apart";
     const cleaned = Geo.removeCollinear(pts, flags);
-    panel.pts = cleaned.pts;
-    panel.gaps = cleaned.flags;
-    if (!panel.images.length && other.images.length) {
-      panel.images = other.images;
-      panel.current = other.current;
+    if (cleaned.pts.length < 3) return "apart";
+    keep.pts = cleaned.pts.map((v) => [...v]);
+    keep.gaps = cleaned.flags;
+    const donor = panels.find((p) => p !== keep && p.images.length);
+    if (!keep.images.length && donor) {
+      keep.images = donor.images;
+      keep.current = donor.current;
     }
-    doc.panels.splice(doc.panels.indexOf(other), 1);
-    return true;
+    keep.view = Project.freshView();
+    const gone = new Set(panels.filter((p) => p !== keep).map((p) => p.id));
+    for (const b of doc.bubbles || []) if (gone.has(b.panelId)) b.panelId = keep.id;
+    doc.panels = doc.panels.filter((p) => !gone.has(p.id));
+    return "ok";
+  }
+
+  static flip(doc, axis) {
+    const pg = doc.page;
+    const mirror = ([x, y]) => (axis === "x" ? [pg.w - x, y] : [x, pg.h - y]);
+    for (const p of doc.panels) {
+      const n = p.pts.length;
+      const old = p.gaps;
+      p.pts = p.pts.map(mirror).reverse();
+      p.gaps = p.pts.map((_, j) => old[(n - 2 - j + n) % n]);
+    }
+    for (const b of doc.bubbles || []) {
+      [b.x, b.y] = mirror([b.x, b.y]);
+      if (b.tail) b.tail = mirror(b.tail);
+    }
   }
 
   static toggleEdge(doc, panel, k) {
     const eps = USER_SETTINGS.geometry.eps;
-    const [a, b] = this.edgeEnds(panel, k);
+    const [a, b] = this.edgeEnds(panel, k).map((v) => [...v]);
     const value = !panel.gaps[k];
+    this.ensureVertex(doc, a);
+    this.ensureVertex(doc, b);
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     for (const q of doc.panels) {
       if (q.floating) continue;
@@ -3067,6 +3248,7 @@ class CanvasView {
     this.svg = $("page-svg");
     this.selectedId = null;
     this.selection = new Set();
+    this.cutTool = null;
     this.selectedEdge = null;
     this.selectedBubble = null;
     this.drag = null;
@@ -3221,7 +3403,11 @@ class CanvasView {
       const b = p.pts[(k + 1) % p.pts.length];
       if (Layout.isBorderEdge(v, b, live)) return;
       const mid = [(v[0] + b[0]) / 2, (v[1] + b[1]) / 2];
-      if (!edges.some((e) => Geo.near(e.mid, mid, eps * 2))) edges.push({ mid, pid: p.id, k, gap: p.gaps[k] });
+      const len = Math.hypot(b[0] - v[0], b[1] - v[1]);
+      const same = edges.findIndex((e) => Geo.near(e.mid, mid, eps * 2));
+      const entry = { mid, pid: p.id, k, gap: p.gaps[k], len };
+      if (same < 0) edges.push(entry);
+      else if (len < edges[same].len - eps) edges[same] = entry;
     }));
     vertices.sort((a, b) => Number(b.floating) - Number(a.floating));
     const clear = edges.filter((e) => !vertices.some((v) => !v.floating && Geo.near(v.pt, e.mid, eps * 2)));
@@ -3247,8 +3433,7 @@ class CanvasView {
     const order = Layout.readingOrder(doc);
     const fs = Math.max(pg.w, pg.h) * USER_SETTINGS.page.numberSize;
     this.badges = order.map((p, i) => {
-      const bb = Geo.bbox(this.insets.get(p.id));
-      const cx = bb.x1 - fs * 0.9, cy = bb.y + fs * 0.9;
+      const [cx, cy] = this.badgeAt(this.insets.get(p.id), fs);
       over.push(`<circle class="num-bg" cx="${cx}" cy="${cy}" r="${fs * 0.7}"/><text class="num" x="${cx}" y="${cy}" font-size="${fs}">${i + 1}</text>`);
       return { id: p.id, c: [cx, cy], r: fs * USER_SETTINGS.geometry.badgeHit };
     });
@@ -3258,9 +3443,9 @@ class CanvasView {
       if (!st) continue;
       const inset = this.insets.get(p.id);
       const bb = Geo.bbox(inset);
-      const label = { writing: "AIが作成中", queued: "順番待ち", running: `生成中 ${Math.round((st.progress || 0) * 100)}%`, error: "エラー" }[st.state];
+      const label = { writing: "文章AIが作成中...", queued: "順番待ち", running: "生成中...", error: "エラー" }[st.state];
       if (!label) continue;
-      over.push(`<polygon class="shade${st.state === "error" ? " error" : ""}" points="${this.polyStr(inset)}"/><text class="state-text" x="${bb.x + bb.w / 2}" y="${bb.y + bb.h / 2}" font-size="${sfs}" stroke-width="${sfs * 0.08}">${label}</text>`);
+      over.push(this.stateOverlay(inset, bb, st, label, sfs));
     }
     const sel = this.selected();
     if (sel && this.mode !== "bubble") for (const p of this.selectedPanels()) over.push(`<polygon class="sel-panel" points="${this.polyStr(this.insets.get(p.id))}"/>`);
@@ -3282,7 +3467,14 @@ class CanvasView {
       for (const p of fr.corners) over.push(`<rect class="h-vertex h-img" x="${p[0] - r}" y="${p[1] - r}" width="${r * 2}" height="${r * 2}"/>`);
       over.push(`<circle class="h-rotate" cx="${fr.rotate[0]}" cy="${fr.rotate[1]}" r="${r * 1.2}"/>`);
     }
-    if (this.mode === "layout") {
+    if (this.cutTool) {
+      const t = this.cutTool;
+      const dot = (pt, cls) => `<circle class="${cls}" cx="${pt[0]}" cy="${pt[1]}" r="${r * 1.1}"/>`;
+      if (t.first && t.hover) over.push(`<line class="cut-line" x1="${t.first.pt[0]}" y1="${t.first.pt[1]}" x2="${t.hover.pt[0]}" y2="${t.hover.pt[1]}"/>`);
+      if (t.first) over.push(dot(t.first.pt, "cut-dot fixed"));
+      if (t.hover) over.push(dot(t.hover.pt, "cut-dot"));
+    }
+    if (this.mode === "layout" && !this.cutTool) {
       const hs = this.handles();
       this.handleCache = hs;
       const se = this.edge();
@@ -3294,7 +3486,8 @@ class CanvasView {
         const isSel = se && se.panel.id === e.pid && se.k === e.k;
         over.push(`<circle class="h-edge ${e.gap ? "gap" : "line"}${isSel ? " sel" : ""}" cx="${e.mid[0]}" cy="${e.mid[1]}" r="${r}"/>`);
       }
-      for (const v of hs.vertices) over.push(`<rect class="h-vertex${v.floating ? " floating" : ""}" x="${v.pt[0] - r * 0.8}" y="${v.pt[1] - r * 0.8}" width="${r * 1.6}" height="${r * 1.6}"/>`);
+      const ordered = [...hs.vertices].sort((a, b) => Number(this.ownsPoint(a.pt)) - Number(this.ownsPoint(b.pt)));
+      for (const v of ordered) over.push(`<rect class="h-vertex${v.floating ? " floating" : ""}" x="${v.pt[0] - r * 0.8}" y="${v.pt[1] - r * 0.8}" width="${r * 1.6}" height="${r * 1.6}"/>`);
     }
     const sb = this.bubble();
     if (this.mode === "bubble" && sb) {
@@ -3304,6 +3497,48 @@ class CanvasView {
       if (hb.tail) over.push(`<circle class="h-tail" cx="${hb.tail[0]}" cy="${hb.tail[1]}" r="${r}"/>`);
     }
     this.svg.innerHTML = `<defs>${c.defs}</defs>${c.body}${c.bubbles}${over.join("")}`;
+  }
+
+  badgeAt(poly, fs) {
+    const n = poly.length;
+    let i = 0;
+    poly.forEach((v, k) => { if (v[0] - v[1] > poly[i][0] - poly[i][1]) i = k; });
+    const v = poly[i];
+    const unit = (a) => { const l = Math.hypot(a[0], a[1]) || 1; return [a[0] / l, a[1] / l]; };
+    const u1 = unit([poly[(i - 1 + n) % n][0] - v[0], poly[(i - 1 + n) % n][1] - v[1]]);
+    const u2 = unit([poly[(i + 1) % n][0] - v[0], poly[(i + 1) % n][1] - v[1]]);
+    const half = Math.acos(Math.min(1, Math.max(-1, u1[0] * u2[0] + u1[1] * u2[1]))) / 2;
+    const dist = Math.min((fs * 0.9) / Math.max(Math.sin(half), 0.2), fs * 4);
+    let dir = unit([u1[0] + u2[0], u1[1] + u2[1]]);
+    let at = [v[0] + dir[0] * dist, v[1] + dir[1] * dist];
+    if (!Geo.pointInPoly(at, poly)) {
+      const c = Geo.centroid(poly);
+      dir = unit([c[0] - v[0], c[1] - v[1]]);
+      at = [v[0] + dir[0] * Math.min(dist, Math.hypot(c[0] - v[0], c[1] - v[1])), v[1] + dir[1] * Math.min(dist, Math.hypot(c[0] - v[0], c[1] - v[1]))];
+    }
+    return at;
+  }
+
+  stateOverlay(inset, bb, st, label, fs) {
+    const cfg = USER_SETTINGS.spinner;
+    const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
+    const r = Math.min(Math.max(Math.min(bb.w, bb.h) * cfg.size, cfg.min), cfg.max);
+    const shade = `<polygon class="shade${st.state === "error" ? " error" : ""}" points="${this.polyStr(inset)}"/>`;
+    const text = (y, size, body, cls = "state-text") => `<text class="${cls}" x="${cx}" y="${y}" font-size="${size}" stroke-width="${size * 0.08}">${body}</text>`;
+    if (st.state === "error") return shade + text(cy, fs, label);
+    const circ = 2 * Math.PI * r;
+    const delay = -((performance.now() % cfg.periodMs) / 1000);
+    const labelSize = fs * 0.85, pctSize = fs * 0.7;
+    const outer = r * (1 + cfg.stroke / 2);
+    const hasPct = st.state === "running";
+    const total = outer * 2 + labelSize * 1.6 + (hasPct ? pctSize * 1.3 : 0);
+    const ringY = cy - total / 2 + outer;
+    const labelY = ringY + outer + labelSize * 1.05;
+    const ring = `<g class="spinner${st.state === "queued" ? " idle" : ""}" style="animation-delay:${delay}s">`
+      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-track" stroke-width="${r * cfg.stroke}"/>`
+      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-arc" stroke-width="${r * cfg.stroke}" stroke-dasharray="${circ * cfg.arc} ${circ}"/></g>`;
+    const pct = hasPct ? text(labelY + labelSize * 0.6 + pctSize * 0.8, pctSize, `${Math.round((st.progress || 0) * 100)}%`, "state-text sub") : "";
+    return shade + ring + text(labelY, labelSize, label) + pct;
   }
 
   panelAt(pt) {
@@ -3333,6 +3568,73 @@ class CanvasView {
     this.svg.setPointerCapture(e.pointerId);
   }
 
+  startCut() {
+    const panel = this.selected();
+    if (!panel) { this.app.status(USER_SETTINGS.messages.needPanel, true); return; }
+    this.cutTool = { pid: panel.id, first: null, hover: null };
+    this.svg.classList.add("cutting");
+    this.app.status(USER_SETTINGS.messages.cutFirst);
+    this.app.updateTools();
+    this.render();
+  }
+
+  stopCut(message = null) {
+    if (!this.cutTool) return;
+    this.cutTool = null;
+    this.svg.classList.remove("cutting");
+    if (message) this.app.status(message);
+    this.app.updateTools();
+    this.render();
+  }
+
+  cutPoint(P) {
+    const panel = this.doc.panels.find((p) => p.id === this.cutTool?.pid);
+    if (!panel) return null;
+    const r = (USER_SETTINGS.geometry.handlePx / this.screenScale()) * USER_SETTINGS.geometry.hitScale;
+    const hit = Layout.boundaryPoint(panel, P, r);
+    return hit && hit.d <= r * USER_SETTINGS.geometry.cutSnap ? hit : null;
+  }
+
+  onCutDown(P) {
+    const m = USER_SETTINGS.messages;
+    const tool = this.cutTool;
+    const hit = this.cutPoint(P);
+    if (!hit) { this.app.status(m.cutOnEdge, true); return; }
+    if (!tool.first) {
+      tool.first = hit;
+      this.app.status(m.cutSecond);
+      this.render();
+      return;
+    }
+    const panel = this.doc.panels.find((p) => p.id === tool.pid);
+    const first = tool.first.pt;
+    const before = this.app.snapshot();
+    const result = Layout.cutChord(this.doc, panel, first, hit.pt);
+    if (result !== "ok") {
+      this.app.status({ same: m.cutSame, edge: m.cutSame, off: m.cutOnEdge }[result], true);
+      return;
+    }
+    this.stopCut(m.cutDone);
+    this.app.pushHistory(before);
+    this.app.afterChange();
+  }
+
+  ownsPoint(pt, onEdge = false) {
+    const eps = USER_SETTINGS.geometry.eps;
+    return this.selectedPanels().some((p) => p.pts.some((v, i) => {
+      if (!onEdge) return Geo.near(v, pt, eps);
+      const info = Geo.segInfo(pt, v, p.pts[(i + 1) % p.pts.length]);
+      return info.d <= eps && info.t > 0 && info.t < 1;
+    }));
+  }
+
+  pickHandle(list, at, P, onEdge = false) {
+    if (list.length < 2) return list[0] || null;
+    const dist = (u) => Math.hypot(at(u)[0] - P[0], at(u)[1] - P[1]);
+    const own = (u) => Number(this.ownsPoint(at(u), onEdge));
+    return [...list].sort((a, b) => own(b) - own(a) || dist(a) - dist(b))[0];
+  }
+
   isDoubleClick(e) {
     const g = USER_SETTINGS.geometry;
     const last = this.lastClick;
@@ -3344,6 +3646,7 @@ class CanvasView {
 
   onDown(e) {
     if (e.button !== 0) return;
+    if (this.cutTool) { this.onCutDown(this.toPage(e)); return; }
     this.downAt = { x: e.clientX, y: e.clientY };
     const P = this.toPage(e);
     const r = (USER_SETTINGS.geometry.handlePx / this.screenScale()) * USER_SETTINGS.geometry.hitScale;
@@ -3384,9 +3687,9 @@ class CanvasView {
       return this.startDrag(e, { type: "swap", start: P, pid: badge.id });
     }
     if (this.mode === "layout" && this.handleCache) {
-      const v = this.handleCache.vertices.find((u) => near(u.pt));
+      const v = this.pickHandle(this.handleCache.vertices.filter((u) => near(u.pt)), (u) => u.pt, P);
       if (v) return this.startDrag(e, { type: "vertex", start: P, origin: v.pt, plan: Layout.vertexPlan(doc, orig, v.pi, v.vi), orig });
-      const edge = this.handleCache.edges.find((u) => near(u.mid));
+      const edge = this.pickHandle(this.handleCache.edges.filter((u) => near(u.mid)), (u) => u.mid, P, true);
       if (edge) {
         const panel = doc.panels.find((p) => p.id === edge.pid);
         const [a, b] = Layout.edgeEnds(panel, edge.k);
@@ -3403,6 +3706,11 @@ class CanvasView {
   }
 
   onMove(e) {
+    if (this.cutTool) {
+      this.cutTool.hover = this.cutPoint(this.toPage(e));
+      this.render();
+      return;
+    }
     const d = this.drag;
     if (!d) return;
     const P = this.toPage(e);
@@ -4713,6 +5021,7 @@ class App {
   setMode(mode) {
     const ui = this.store.data.ui;
     if (ui.mode === mode) return;
+    this.canvas.stopCut();
     ui.mode = mode;
     if (mode !== "bubble") this.canvas.selectedBubble = null;
     if (mode === "bubble") ui.tab = "bubble";
@@ -4865,8 +5174,13 @@ class App {
     const panel = this.canvas.selected();
     const edge = this.canvas.edge();
     for (const id of ["split-h", "split-v", "scale-up", "scale-down", "delete-panel"]) $(id).disabled = !panel;
+    $("merge-panels").disabled = this.canvas.selectedPanels().length < 2;
+    $("cut-panel").disabled = !panel && !this.canvas.cutTool;
+    $("cut-panel").textContent = this.canvas.cutTool ? "✂ 分割をやめる" : "✂ 2点で分割";
+    $("cut-panel").setAttribute("aria-pressed", String(!!this.canvas.cutTool));
     const hasImage = !!panel && !!Project.currentImage(panel);
-    for (const id of ["reset-view", "img-flip-x", "img-flip-y", "img-rot90"]) $(id).disabled = !hasImage;
+    for (const id of ["reset-view", "img-flip-x", "img-flip-y", "img-rot90", "img-center", "cv-center-image"]) $(id).disabled = !hasImage;
+    $("cv-center-image").hidden = this.store.data.ui.mode !== "image";
     $("panel-mono").querySelectorAll("button").forEach((b) => {
       b.disabled = !panel;
       b.setAttribute("aria-pressed", String(!!panel && b.dataset.value === (Project.isMono(this.doc, panel) ? "mono" : "color")));
@@ -4878,7 +5192,7 @@ class App {
     const picked = this.canvas.selectedPanels();
     const many = picked.length > 1 ? `（${picked.length}）` : "";
     $("cv-delete").disabled = !panel && !this.canvas.bubble();
-    $("cv-delete").textContent = this.canvas.bubble() ? "吹き出しを削除" : `コマを削除${many}`;
+    $("cv-delete").textContent = this.canvas.bubble() ? "吹き出しを削除" : edge ? "区切りを削除（結合）" : `コマを削除${many}`;
     const withImages = picked.filter((p) => p.images.length).length;
     for (const id of ["cv-clear-images", "img-clear"]) {
       $(id).disabled = !withImages || !!this.canvas.bubble();
@@ -4929,6 +5243,10 @@ class App {
     this.on($("scale-up"), "click", withPanel((p) => this.commit(() => Layout.scale(this.doc, p, USER_SETTINGS.geometry.scaleStep))));
     this.on($("scale-down"), "click", withPanel((p) => this.commit(() => Layout.scale(this.doc, p, 1 / USER_SETTINGS.geometry.scaleStep))));
     this.on($("delete-panel"), "click", withPanel((p) => this.deletePanel(p)));
+    this.on($("cut-panel"), "click", () => (this.canvas.cutTool ? this.canvas.stopCut(USER_SETTINGS.messages.cutCancelled) : this.canvas.startCut()));
+    this.on($("merge-panels"), "click", () => this.mergeSelected());
+    this.on($("flip-layout-x"), "click", () => this.flipLayout("x"));
+    this.on($("flip-layout-y"), "click", () => this.flipLayout("y"));
     this.on($("add-panel"), "click", () => {
       let added;
       this.commit(() => { added = Layout.addPanel(this.doc); });
@@ -4938,18 +5256,15 @@ class App {
     this.on($("reset-view"), "click", withPanel((p) => this.commit(() => { p.view = Project.freshView(); })));
     const editView = (fn) => withPanel((p) => this.commit(() => { p.view = { ...Project.freshView(), ...p.view }; fn(p.view); }));
     this.on($("img-flip-x"), "click", editView((v) => { v.flipX = !v.flipX; }));
+    this.on($("img-center"), "click", editView((v) => { v.ox = 0; v.oy = 0; }));
+    this.on($("cv-center-image"), "click", editView((v) => { v.ox = 0; v.oy = 0; }));
     this.on($("img-flip-y"), "click", editView((v) => { v.flipY = !v.flipY; }));
     this.on($("img-rot90"), "click", editView((v) => { v.rot = ((((Number(v.rot) || 0) + 90 + 180) % 360) + 360) % 360 - 180; if (v.rot === -180) v.rot = 180; }));
     this.on($("toggle-edge"), "click", withEdge((e) => this.commit(() => Layout.toggleEdge(this.doc, e.panel, e.k))));
     this.on($("tilt-minus"), "click", withEdge((e) => this.commit(() => Layout.tilt(this.doc, e.panel, e.k, -1))));
     this.on($("tilt-plus"), "click", withEdge((e) => this.commit(() => Layout.tilt(this.doc, e.panel, e.k, 1))));
     this.on($("tilt-reset"), "click", withEdge((e) => this.commit(() => Layout.straighten(this.doc, e.panel, e.k))));
-    this.on($("merge-edge"), "click", withEdge((e) => {
-      let ok = false;
-      this.commit(() => { ok = Layout.merge(this.doc, e.panel, e.k); });
-      if (!ok) this.status(m.mergeNoNeighbor, true);
-      else { this.canvas.selectedEdge = null; this.onSelectionChanged(); }
-    }));
+    this.on($("merge-edge"), "click", withEdge((e) => this.mergeAcrossEdge(e)));
     this.on(document, "focusin", (e) => { if (this.isDocField(e.target)) this.beginEdit(); });
     this.on(document, "focusout", (e) => {
       if (!this.isDocField(e.target)) return;
@@ -4986,15 +5301,53 @@ class App {
     }
     if (mod && !typing && e.key.toLowerCase() === "y") { e.preventDefault(); this.redo(); return; }
     if (typing || document.querySelector("dialog[open]")) return;
-    if ((e.key === "Delete" || e.key === "Backspace") && (this.canvas.bubble() || (this.canvas.selected() && this.store.data.ui.mode === "layout"))) {
+    if ((e.key === "Delete" || e.key === "Backspace") && !this.canvas.cutTool && (this.canvas.bubble() || (this.canvas.selected() && this.store.data.ui.mode === "layout"))) {
       e.preventDefault();
       this.deleteSelection();
     }
-    if (e.key === "Escape") this.canvas.select(null);
+    if (e.key === "Escape") {
+      if (this.canvas.cutTool) this.canvas.stopCut(USER_SETTINGS.messages.cutCancelled);
+      else this.canvas.select(null);
+    }
   }
 
   deletePanel(panel) {
     this.deletePanels([panel]);
+  }
+
+  mergeAcrossEdge(edge) {
+    const m = USER_SETTINGS.messages;
+    const others = Layout.neighborsAcross(this.doc, edge.panel, edge.k);
+    if (!others.length) { this.status(m.mergeNoNeighbor, true); return; }
+    const before = this.snapshot();
+    const result = Layout.mergeMany(this.doc, [edge.panel, ...others], edge.panel);
+    if (result !== "ok") { this.status(m.mergeNoNeighbor, true); return; }
+    this.pushHistory(before);
+    this.canvas.select(edge.panel.id);
+    this.afterChange();
+    this.status(fmt(m.mergedPanels, { n: others.length + 1 }));
+  }
+
+  mergeSelected() {
+    const m = USER_SETTINGS.messages;
+    const panels = this.canvas.selectedPanels();
+    if (panels.length < 2) { this.status(m.mergeNeedTwo, true); return; }
+    const keep = this.canvas.selected() || panels[0];
+    const before = this.snapshot();
+    const result = Layout.mergeMany(this.doc, panels, keep);
+    if (result !== "ok") {
+      this.status(m[{ mixed: "mergeMixed", apart: "mergeApart", few: "mergeNeedTwo" }[result]], true);
+      return;
+    }
+    this.pushHistory(before);
+    this.canvas.select(keep.id);
+    this.afterChange();
+    this.status(fmt(m.mergedPanels, { n: panels.length }));
+  }
+
+  flipLayout(axis) {
+    this.commit(() => Layout.flip(this.doc, axis));
+    this.status(USER_SETTINGS.messages[axis === "x" ? "flippedX" : "flippedY"]);
   }
 
   deletePanels(panels) {
@@ -5032,6 +5385,8 @@ class App {
       this.canvas.selectBubble(null);
       return;
     }
+    const edge = this.canvas.edge();
+    if (edge) { this.mergeAcrossEdge(edge); return; }
     const panels = this.canvas.selectedPanels();
     if (panels.length) this.deletePanels(panels);
     else this.status(USER_SETTINGS.messages.needPanel, true);
