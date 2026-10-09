@@ -322,6 +322,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
   <button class="quiet" id="open-project">開く</button>
   <button class="quiet" id="save-project">保存（JSON）</button>
   <button class="quiet" id="export-png">PNGで書き出す</button>
+  <button class="quiet" id="post-share" title="漫画ページを1枚目、各コマの画像を2枚目以降の差分として Prompt Reel の投稿画面に渡します">Prompt Reel に投稿</button>
   <button class="quiet" id="open-settings">設定</button>
   <input type="file" id="project-input" accept=".json,application/json" hidden>
 </header>
@@ -338,7 +339,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
           <div class="prop"><span class="prop-label">ページの色</span><div class="seg" id="page-color" role="group" aria-label="ページの色"></div></div>
           <div class="prop"><span class="prop-label">コマの中</span><div class="seg" id="panel-fill" role="group" aria-label="コマの中の色"></div></div>
           <div class="prop"><span class="prop-label">枠線の色</span><div class="seg" id="frame-color" role="group" aria-label="枠線の色"></div></div>
-          <div class="prop"><span class="prop-label">画像の色</span><div class="seg" id="image-mono" role="group" aria-label="画像の色（全体）" title="ページ全体の画像をカラー / モノクロにします。コマごとの指定は右の「このコマ」で変えられます"></div></div>
+          <div class="prop"><span class="prop-label">画像の色</span><div class="seg" id="image-mono" role="group" aria-label="画像の色（全体）" title="全コマの画像をまとめてカラー / モノクロにします。そのあと、コマごとに切り替えることもできます"></div></div>
           <label class="prop"><span class="prop-label">隙間 <output id="gutter-out"></output></span><input type="range" id="gutter"></label>
           <label class="prop"><span class="prop-label">枠線 <output id="line-out"></output></span><input type="range" id="line-width"></label>
           <label class="prop"><span class="prop-label">余白 <output id="margin-out"></output></span><input type="range" id="margin"></label>
@@ -376,6 +377,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
             </div>
             <div class="row">
               <button id="reset-view" title="位置・拡大・回転・反転を元に戻す">画像の位置・向きを戻す</button>
+              <button class="danger" id="img-clear" title="選択中のコマに入っている画像を削除（コマは残ります）">画像を削除</button>
             </div>
           </div>
           <div class="tool-group">
@@ -429,6 +431,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
           <button class="mini" id="cv-undo" title="戻る（Ctrl+Z）">↶ 戻る</button>
           <button class="mini" id="cv-redo" title="やり直す（Ctrl+Shift+Z）">↷ やり直す</button>
           <button class="mini danger" id="cv-delete" title="選択中のコマ・吹き出しを削除（Delete）">削除</button>
+          <button class="mini danger" id="cv-clear-images" title="選択中のコマに入っている画像を削除（コマは残ります）">画像を削除</button>
           <button class="mini" id="cv-reset" title="コマの形を選んでいるテンプレートの形に戻す">形を元に戻す</button>
         </div>
         <div class="overall">
@@ -510,7 +513,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <div class="seg" id="backend-seg" role="group" aria-label="画像生成のソフト"></div>
         <label class="field">URL<input type="url" id="backend-url"></label>
         <div class="row"><button id="conn-test">接続テスト</button><button id="conn-reload">モデル・LoRA の一覧を読み直す</button></div>
-        <label class="check"><input type="checkbox" id="save-images"> 生成した画像を WebUI / ComfyUI 側の output フォルダにも保存する</label>
+        <p class="note">生成した画像は、各ツールの標準の場所・名前で保存されます（SD WebUI: outputs/txt2img-images/日付フォルダ、ComfyUI: output/ComfyUI_00001_.png など）。</p>
         <p class="msg" id="conn-msg"></p>
       </div>
     </section>
@@ -524,6 +527,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <div class="row"><button id="llm-fetch">モデルの一覧を更新</button></div>
         <label class="check"><input type="checkbox" id="llm-vision"> ベースの画像もAIに見せる（画像対応モデルのみ）</label>
         <label class="field">発想の自由度（温度）<input type="number" id="llm-temp" min="0" max="1.5" step="0.05"></label>
+        <label class="field">最大トークン数（返事の長さの上限。考える過程を出すモデルは 8192 以上）<input type="number" id="llm-max-tokens" min="256" max="65536" step="256"></label>
         <label class="field">APIキー（ローカルなら空欄）<input type="text" id="llm-key" autocomplete="off"></label>
         <p class="msg" id="llm-msg"></p>
       </div>
@@ -558,6 +562,9 @@ const USER_SETTINGS = {
   legacyProjectFormats: ["komagen-project"],
   projectVersion: 1,
   fileNamePrefix: "stillmange_",
+  shareAppUrl: "https://bighipadventure.github.io/prompt-reel-images/",
+  shareHandoff: { db: "stillmotion-handoff", store: "videos", importName: "stillmange", keyPrefix: "sg" },
+  shareUiPresets: { illustrious: "illustrious", pony: "pony", animagine: "xl", sdxl: "xl", sd15: "sd", flux: "flux", qwen: "qwen", anima: "anima" },
   pagesOrigin: "https://bighipadventure.github.io",
   backends: {
     a1111: { label: "SD WebUI（A1111 / Forge）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}", corsAny: "--api --cors-allow-origins-regex=.*" },
@@ -670,7 +677,7 @@ script_callbacks.on_app_started(on_app_started)
   previewSide: 2048,
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
-  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
+  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
     presets: [
@@ -687,7 +694,6 @@ script_callbacks.on_app_started(on_app_started)
   gutterModes: [["gap", "隙間"], ["line", "線"], ["mixed", "複合"]],
   colorChoices: [["white", "白"], ["black", "黒"]],
   monoChoices: [["color", "カラー"], ["mono", "モノクロ"]],
-  panelMonoChoices: [["auto", "全体に合わせる"], ["color", "カラー"], ["mono", "モノクロ"]],
   editModes: [["layout", "コマ編集"], ["image", "画像調整"], ["bubble", "吹き出し"]],
   bubble: {
     shapes: [
@@ -739,13 +745,17 @@ script_callbacks.on_app_started(on_app_started)
   },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
   llm: {
-    defaults: { url: "http://localhost:1234/v1", model: "", apiKey: "", vision: true, temperature: 0.6, maxTokens: 2048 },
+    defaults: { url: "http://localhost:1234/v1", model: "", apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192 },
+    legacyMaxTokens: 2048,
     servers: [
       { name: "LM Studio / Bionic", url: "http://localhost:1234/v1" }, { name: "Ollama", url: "http://localhost:11434/v1" },
       { name: "llama.cpp", url: "http://localhost:8080/v1" }, { name: "KoboldCpp", url: "http://localhost:5001/v1" }, { name: "Jan", url: "http://localhost:1337/v1" },
     ],
     timeoutMs: 600000,
     imageSide: 768,
+    jsonRetries: 1,
+    excerptChars: 160,
+    retryPrompt: "Your previous reply could not be read as JSON. Reply again with ONLY the JSON object in the required format: no explanation, no markdown, no thinking text.",
   },
   llmPrompt: {
     base: `You write the image-generation prompt for ONE panel of a manga page. Each panel is generated as a separate image, so the prompt must fully describe that panel on its own.
@@ -853,7 +863,7 @@ Include every EMPTY panel number and no other panel.`,
     prompt: { quality: "masterpiece, best quality" },
     negative: "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, jpeg artifacts, signature, watermark, username, blurry",
   },
-  comfy: { filePrefix: "stillmange/panel", defaultUpscale: "nearest-exact" },
+  comfy: { filePrefix: "ComfyUI", defaultUpscale: "nearest-exact" },
   lockGroups: { negative: "ネガティブ", model: "モデル・VAE", loras: "LoRA", settings: "生成設定" },
   messages: {
     probeOk: "接続OK",
@@ -862,7 +872,7 @@ Include every EMPTY panel number and no other panel.`,
     llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません", error: "文章AI: エラー" },
     probeError: "接続はできましたが、エラー（{status}）が返りました。起動オプションに --api が入っているか、WebUI のログにエラーが出ていないか確認してください。",
     probeDown: "接続できません。起動しているか、URLが正しいか確認してください。ブラウザの「ローカル ネットワーク アクセス」の許可も確認してください。",
-    hintLayout: "コマを押して選びます。白い四角（角）をドラッグで形を変え、区切りの丸をドラッグで配分を変え、押すと区切りを選べます（青＝隙間、白＝線）。コマを別のコマの上へドラッグすると、内容（画像・プロンプト・設定）を入れ替えます（右上の番号はどのモードでもドラッグできます）。",
+    hintLayout: "コマを押して選びます。白い四角（角）をドラッグで形を変え、区切りの丸をドラッグで配分を変え、押すと区切りを選べます（青＝隙間、白＝線）。コマを別のコマの上へドラッグすると、内容（画像・プロンプト・設定）を入れ替えます（右上の番号はどのモードでもドラッグできます）。画像の入ったコマをダブルクリックすると「画像調整」に切り替わります。Shift / Ctrl を押しながらコマを押すと、複数選べます（まとめて再生成・画像の削除）。",
     swapped: "コマ {a} とコマ {b} の内容を入れ替えました。画像はコマの形に合わせて収め直しています（形が大きく違うときは再生成するときれいに収まります）。",
     hintImage: "コマの画像をドラッグで動かします。選んだコマの画像の四隅の□で拡大縮小、上の○で回転（Shift で15°刻み）。マウスホイールでも拡大縮小できます。反転は下のボタンで。ダブルクリックで元に戻ります。",
     needPanel: "先にコマを選んでください。",
@@ -888,6 +898,15 @@ Include every EMPTY panel number and no other panel.`,
     projectLoaded: "プロジェクトを読み込みました（「戻る」で読み込む前に戻せます）。",
     projectBad: "このファイルは Stillmange のプロジェクトとして読めません。",
     exported: "PNG を書き出しました。",
+    noImagesToClear: "選択中のコマに画像が入っていません。",
+    imagesCleared: "{n} コマの画像を削除しました（「戻る」で元に戻せます）。",
+    shareOpening: "Prompt Reel を開いています…",
+    sharePreparing: "Prompt Reel に渡す画像を用意しています…",
+    shareOpened: "漫画ページ＋コマ {n} 枚を Prompt Reel の投稿画面に渡しました。開いたタブでタイトル・タグ・ジャンルを確認して投稿してください。",
+    shareNoImages: "画像が入っているコマがありません。生成してから投稿してください。",
+    shareOtherOrigin: "Prompt Reel への投稿は、Stillmange を Prompt Reel と同じサイト（{origin}）で開いているときだけ使えます。",
+    sharePopupBlocked: "新しいタブを開けませんでした。ブラウザのポップアップのブロックを、このサイトだけ許可してください。",
+    shareFailed: "Prompt Reel に渡せませんでした: {err}",
     undone: "戻しました。",
     redone: "やり直しました。",
     nothingUndo: "これ以上戻せません。",
@@ -906,7 +925,10 @@ Include every EMPTY panel number and no other panel.`,
     bubbleAdded: "吹き出しを追加しました。右の「吹き出し」でセリフと形を変えられます。",
     layoutReset: "コマの形をテンプレート「{name}」に戻しました（内容は読む順に引き継いでいます）。",
     needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
-    llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした。もう一度試すか、別のモデルにしてください。",
+    llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
+    llmTruncated: "返事が途中で切れています（最大トークン数に達しました）。「設定」→「文章AI」の最大トークン数を増やしてください（考える過程を出すモデルは 8192 以上が目安）。",
+    llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
+    llmEmptyReply: "\n文章AIの返事が空でした。モデルが読み込まれているか確認してください。",
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
     llmDone: "文章AIでプロンプトを作りました（{n} コマ）。",
     llmFailed: "コマ {n}: 文章AIがプロンプトを作れませんでした: {err}",
@@ -915,8 +937,9 @@ Include every EMPTY panel number and no other panel.`,
     autoNoLlm: "文章AIが設定されていないため、プロンプトと指示が空のコマは「全コマ共通」のプロンプトで生成します。",
     autoPlanning: "文章AIが画像から状況を読み取り、ページの流れを考えています…",
     autoPlanned: "空いている {n} コマの場面を文章AIが決めました。{synopsis}",
-    autoBadJson: "文章AIの返事からページの流れ（JSON）を読み取れませんでした。もう一度押すか、別のモデルにしてください。",
+    autoBadJson: "文章AIの返事からページの流れ（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
     autoFailed: "空いているコマの場面を文章AIで決められなかったため、生成を止めました: {err}",
+    llmNoInstructionPanel: "このコマの「指示」が空です。大まかな内容（例: 走っている女子高生）を書いてから押してください。",
     llmNoInstruction: "「指示」が入ったコマがありません。コマを選んで、右の「指示」に大まかな内容を書いてください。",
     llmNotFound: "文章AIのサーバーが見つかりません。サーバーを起動し、CORS を有効にしてから、もう一度押してください。",
     llmFound: "{name}（{url}）が見つかりました。モデル {n} 件。",
@@ -1567,13 +1590,13 @@ class MetaReader {
     const buffer = await file.arrayBuffer();
     let meta = null;
     const chunks = await this.pngChunks(buffer);
-    if (typeof chunks.parameters === "string") meta = PromptParser.parseA1111(chunks.parameters);
+    if (typeof chunks.parameters === "string") meta = { ...PromptParser.parseA1111(chunks.parameters), raw: chunks.parameters };
     else if (typeof chunks.prompt === "string") {
       try { meta = PromptParser.parseComfy(JSON.parse(chunks.prompt)); } catch {}
     }
     if (!meta) {
       const text = this.userComment(new Uint8Array(buffer));
-      if (text) meta = PromptParser.parseA1111(text);
+      if (text) meta = { ...PromptParser.parseA1111(text), raw: text };
     }
     return meta || PromptParser.empty();
   }
@@ -1828,7 +1851,7 @@ class SettingsStore {
   defaults() {
     const urls = Object.fromEntries(Object.entries(USER_SETTINGS.backends).map(([k, v]) => [k, v.url]));
     return {
-      backend: USER_SETTINGS.defaultBackend, urls, saveImages: false, tagDict: {}, llm: clone(USER_SETTINGS.llm.defaults),
+      backend: USER_SETTINGS.defaultBackend, urls, tagDict: {}, llm: clone(USER_SETTINGS.llm.defaults),
       ui: { tab: "panel", mode: "layout", runTarget: "all", settingsPane: "guide", useLlm: true, skipFilled: true },
     };
   }
@@ -1841,6 +1864,7 @@ class SettingsStore {
         const base = this.defaults();
         const ui = { ...base.ui, ...(d.ui || {}) };
         if (ui.runTarget === "empty") Object.assign(ui, { runTarget: "all", skipFilled: true });
+        if (d.llm && Number(d.llm.maxTokens) === USER_SETTINGS.llm.legacyMaxTokens) d.llm.maxTokens = USER_SETTINGS.llm.defaults.maxTokens;
         return { ...base, ...d, urls: { ...base.urls, ...(d.urls || {}) }, ui, tagDict: d.tagDict || {}, llm: { ...base.llm, ...(d.llm || {}) } };
       }
     } catch {}
@@ -1893,9 +1917,8 @@ class Net {
 
 // ===== A1111 / FORGE CLIENT =====
 class A1111Client {
-  constructor(url, options = {}) {
+  constructor(url) {
     this.base = url.replace(/\/+$/, "");
-    this.options = options;
   }
 
   get probeUrl() { return `${this.base}/sdapi/v1/samplers`; }
@@ -1946,7 +1969,7 @@ class A1111Client {
     const payload = {
       prompt: [spec.prompt, loraTags].filter(Boolean).join(", "), negative_prompt: spec.negative,
       seed: s.seed, steps: s.steps, cfg_scale: s.cfg, sampler_name: s.sampler, width: spec.size.width, height: spec.size.height,
-      batch_size: 1, n_iter: 1, send_images: true, save_images: !!this.options.saveImages,
+      batch_size: 1, n_iter: 1, send_images: true, save_images: true,
       override_settings: override, override_settings_restore_afterwards: false,
     };
     if (s.scheduler) payload.scheduler = s.scheduler;
@@ -1979,9 +2002,8 @@ class A1111Client {
 
 // ===== COMFYUI CLIENT =====
 class ComfyClient {
-  constructor(url, options = {}) {
+  constructor(url) {
     this.base = url.replace(/\/+$/, "");
-    this.options = options;
     this.clientId = uid() + uid();
   }
 
@@ -2048,9 +2070,7 @@ class ComfyClient {
       vae = ["9", 0];
     }
     g["10"] = { class_type: "VAEDecode", inputs: { samples: latent, vae } };
-    g["11"] = this.options.saveImages
-      ? { class_type: "SaveImage", inputs: { images: ["10", 0], filename_prefix: USER_SETTINGS.comfy.filePrefix } }
-      : { class_type: "PreviewImage", inputs: { images: ["10", 0] } };
+    g["11"] = { class_type: "SaveImage", inputs: { images: ["10", 0], filename_prefix: USER_SETTINGS.comfy.filePrefix } };
     return g;
   }
 
@@ -2140,23 +2160,44 @@ class LlmClient {
     return null;
   }
 
-  async chat(system, userText, images, signal) {
+  async chat(system, userText, images, signal, followUps = []) {
     const content = images?.length ? [{ type: "text", text: userText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : userText;
     const timeout = AbortSignal.timeout(USER_SETTINGS.llm.timeoutMs);
     const res = await fetch(`${this.base}/chat/completions`, {
       method: "POST", headers: this.headers(),
       body: JSON.stringify({
         model: this.cfg.model, temperature: Number(this.cfg.temperature), max_tokens: Number(this.cfg.maxTokens),
-        messages: [{ role: "system", content: system }, { role: "user", content }],
+        messages: [{ role: "system", content: system }, { role: "user", content }, ...followUps],
       }),
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
     if (!res.ok) throw new Error(`文章AIがエラーを返しました（${res.status}）: ${(await res.text()).slice(0, 400)}`);
     const json = await res.json();
-    let text = json.choices?.[0]?.message?.content || "";
-    text = text.replace(/<think>[\s\S]*?<\/think>/g, "");
+    const choice = json.choices?.[0] || {};
+    const raw = choice.message?.content || "";
+    let text = raw.replace(/<think>[\s\S]*?<\/think>/g, "");
     if (text.includes("</think>")) text = text.split("</think>").pop();
-    return text.trim();
+    if (!text.trim()) text = choice.message?.reasoning_content || choice.message?.reasoning || raw;
+    return { text: text.trim(), raw, finish: choice.finish_reason || "" };
+  }
+
+  async askJson(system, userText, images, signal, accept, badMessage) {
+    const m = USER_SETTINGS.messages;
+    let reply = await this.chat(system, userText, images, signal);
+    for (let attempt = 0; ; attempt++) {
+      for (const obj of LooseJson.candidates(reply.text, { allowClose: reply.finish !== "length" })) {
+        try { return accept(obj); } catch {}
+      }
+      if (attempt >= USER_SETTINGS.llm.jsonRetries) {
+        const head = reply.text.replace(/\s+/g, " ").slice(0, USER_SETTINGS.llm.excerptChars);
+        const why = reply.finish === "length" ? m.llmTruncated : "";
+        throw new UserError(`${badMessage}${why}${head ? fmt(m.llmReplyHead, { head }) : m.llmEmptyReply}`);
+      }
+      reply = await this.chat(system, userText, images, signal, [
+        { role: "assistant", content: reply.raw || reply.text || "(empty)" },
+        { role: "user", content: USER_SETTINGS.llm.retryPrompt },
+      ]);
+    }
   }
 }
 
@@ -2212,6 +2253,82 @@ class ZipWriter {
   }
 }
 
+// ===== GENERATION INFO (A1111 "parameters" TEXT) =====
+class Infotext {
+  static displayName(name) {
+    return String(name || "").replace(/\s*\[[0-9a-f]+\]$/i, "").split(/[\\/]/).pop().replace(/\.(safetensors|ckpt|pt|pth|bin|gguf|sft)$/i, "").trim();
+  }
+
+  static value(v) {
+    const s = String(v);
+    return /[,:"\n]/.test(s) ? JSON.stringify(s) : s;
+  }
+
+  static build({ prompt, negative, loras, settings, seed, width, height, model, vae, uiPreset }) {
+    const s = settings || {};
+    const loraTags = (loras || []).filter((l) => l.name && l.on !== false).map((l) => `<lora:${this.displayName(l.name)}:${Number(l.weight ?? 1)}>`);
+    const lines = [[String(prompt || "").trim(), ...loraTags].filter(Boolean).join(", ")];
+    if ((negative || "").trim()) lines.push(`Negative prompt: ${negative.trim()}`);
+    const auto = USER_SETTINGS.autoValues;
+    const params = [
+      ["Steps", s.steps], ["Sampler", s.sampler], ["Schedule type", s.scheduler], ["CFG scale", s.cfg],
+      ["Seed", seed ?? (Number(s.seed) >= 0 ? s.seed : null)], ["Size", width && height ? `${width}x${height}` : null],
+      ["Model", this.displayName(model)], ["VAE", auto.includes(vae || "") ? null : this.displayName(vae)],
+      ["Clip skip", Number(s.clipSkip) > 1 ? s.clipSkip : null],
+      ...(s.hires ? [["Hires upscale", s.hrScale], ["Hires upscaler", s.hrUpscaler], ["Hires steps", s.hrSteps || null], ["Denoising strength", s.hrDenoise]] : []),
+      ["UI Preset", uiPreset],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== "" && !Number.isNaN(v));
+    lines.push(params.map(([k, v]) => `${k}: ${this.value(v)}`).join(", "));
+    return lines.join("\n");
+  }
+}
+
+// ===== PNG TEXT CHUNK WRITER =====
+class PngText {
+  static isPng(bytes) {
+    return [137, 80, 78, 71, 13, 10, 26, 10].every((b, i) => bytes[i] === b);
+  }
+
+  static chunk(type, data) {
+    const out = new Uint8Array(12 + data.length);
+    const view = new DataView(out.buffer);
+    view.setUint32(0, data.length);
+    out.set([...type].map((c) => c.charCodeAt(0)), 4);
+    out.set(data, 8);
+    view.setUint32(8 + data.length, ZipWriter.crc32(out.subarray(4, 8 + data.length)));
+    return out;
+  }
+
+  static withText(bytes, key, text) {
+    const enc = new TextEncoder();
+    const keyBytes = enc.encode(key);
+    const body = enc.encode(text);
+    const data = new Uint8Array(keyBytes.length + 5 + body.length);
+    data.set(keyBytes, 0);
+    data.set(body, keyBytes.length + 5);
+    const itxt = this.chunk("iTXt", data);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const parts = [bytes.subarray(0, 8)];
+    let pos = 8, inserted = false;
+    while (pos + 8 <= bytes.length) {
+      const length = view.getUint32(pos);
+      const type = String.fromCharCode(...bytes.subarray(pos + 4, pos + 8));
+      const whole = bytes.subarray(pos, pos + 12 + length);
+      const isText = type === "tEXt" || type === "iTXt" || type === "zTXt";
+      const sameKey = isText && MetaReader.latin1(bytes.subarray(pos + 8, pos + 8 + Math.min(length, 80))).split("\u0000")[0] === key;
+      if (!sameKey) parts.push(whole);
+      if (type === "IHDR" && !inserted) { parts.push(itxt); inserted = true; }
+      if (type === "IEND") break;
+      pos += 12 + length;
+    }
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const p of parts) { out.set(p, off); off += p.length; }
+    return out;
+  }
+}
+
 // ===== CORS EXTENSION FOR FORGE (DOWNLOAD) =====
 class CorsExtension {
   static origins() {
@@ -2237,6 +2354,69 @@ class CorsExtension {
 
   static download() {
     downloadBlob(this.zip(), USER_SETTINGS.corsExtension.zipName);
+  }
+}
+
+// ===== TOLERANT JSON (LLM REPLIES) =====
+class LooseJson {
+  static objectsIn(text) {
+    const out = [];
+    for (let start = text.indexOf("{"); start >= 0; start = text.indexOf("{", start + 1)) {
+      let depth = 0, inStr = false, quote = "", esc = false, end = -1;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (inStr) {
+          if (esc) esc = false;
+          else if (ch === "\\") esc = true;
+          else if (ch === quote) inStr = false;
+          continue;
+        }
+        if (ch === '"') { inStr = true; quote = ch; continue; }
+        if (ch === "{") depth++;
+        else if (ch === "}" && --depth === 0) { end = i; break; }
+      }
+      out.push(end >= 0 ? text.slice(start, end + 1) : text.slice(start));
+      if (end < 0) break;
+    }
+    return out;
+  }
+
+  static repair(s) {
+    let t = s.replace(/[\u201c\u201d\u201e\u2033]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/\uff1a/g, ":").replace(/\uff0c(?=\s*")/g, ",");
+    t = t.replace(/,\s*([}\]])/g, "$1");
+    if (!t.includes('"') && t.includes("'")) t = t.replace(/'/g, '"');
+    t = t.replace(/([{,]\s*)([A-Za-z_][\w-]*)\s*:/g, '$1"$2":');
+    return t;
+  }
+
+  static close(s) {
+    let inStr = false, esc = false, depth = 0;
+    for (const ch of s) {
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === "{" || ch === "[") depth++;
+      else if (ch === "}" || ch === "]") depth--;
+    }
+    let t = s.replace(/,\s*$/, "");
+    if (inStr) t += '"';
+    t = t.replace(/,\s*"[^"]*"?\s*:?\s*$/, "");
+    return t + "}".repeat(Math.max(0, depth));
+  }
+
+  static candidates(text, { allowClose = true } = {}) {
+    const cleaned = String(text || "").replace(/```(?:json)?/gi, "").replace(/[\u201c\u201d\u201e\u2033]/g, '"');
+    const found = [];
+    for (const chunk of this.objectsIn(cleaned).reverse()) {
+      const attempts = [chunk, this.repair(chunk)];
+      if (allowClose) attempts.push(this.close(this.repair(chunk)));
+      for (const attempt of attempts) {
+        try {
+          const obj = JSON.parse(attempt);
+          if (obj && typeof obj === "object" && !Array.isArray(obj)) { found.push(obj); break; }
+        } catch {}
+      }
+    }
+    return found;
   }
 }
 
@@ -2301,15 +2481,23 @@ class PromptWriter {
     return lines.join("\n");
   }
 
-  static parse(text) {
-    const start = text.indexOf("{"), end = text.lastIndexOf("}");
-    if (start < 0 || end <= start) throw new UserError(USER_SETTINGS.messages.llmBadJson);
-    let obj;
-    try { obj = JSON.parse(text.slice(start, end + 1)); } catch { throw new UserError(USER_SETTINGS.messages.llmBadJson); }
+  static fromObject(obj) {
+    const keys = this.genreKeys();
+    const byLabel = Object.fromEntries(USER_SETTINGS.genres.map((g) => [g.label, g.key]));
+    const flat = {};
+    const visit = (o, depth) => {
+      for (const [k, v] of Object.entries(o)) {
+        const key = byLabel[k] || String(k).trim().toLowerCase();
+        if (keys.includes(key) && !(key in flat)) flat[key] = v;
+        else if (v && typeof v === "object" && !Array.isArray(v) && depth < 2) visit(v, depth + 1);
+      }
+    };
+    visit(obj, 0);
+    if (!keys.some((k) => k in flat && k !== "free")) throw new Error("no genre keys");
     const out = {};
-    for (const k of this.genreKeys()) {
-      const v = obj[k];
-      out[k] = Array.isArray(v) ? v.join(", ") : typeof v === "string" ? v.trim() : "";
+    for (const k of keys) {
+      const v = flat[k];
+      out[k] = Array.isArray(v) ? v.join(", ") : typeof v === "string" ? v.trim() : (v === null || v === undefined ? "" : String(v));
     }
     return out;
   }
@@ -2330,8 +2518,8 @@ class PromptWriter {
     const base = this.resolveBase(doc, panel);
     const key = this.key(doc, panel, base);
     const images = cfg.vision && base?.image && app.assets.has(base.image) ? [await this.smallImage(app, base.image)] : null;
-    const text = await new LlmClient(cfg).chat(this.system(Project.promptStyle(doc)), this.userText(doc, panel, base), images, signal);
-    return { genres: this.parse(text), key, base };
+    const genres = await new LlmClient(cfg).askJson(this.system(Project.promptStyle(doc)), this.userText(doc, panel, base), images, signal, (obj) => this.fromObject(obj), USER_SETTINGS.messages.llmBadJson);
+    return { genres, key, base };
   }
 
   static apply(panel, result) {
@@ -2409,12 +2597,8 @@ class StoryPlanner {
     return [...new Set(ids)].slice(0, USER_SETTINGS.autoStory.maxImages);
   }
 
-  static parse(text, doc) {
-    const bad = () => new UserError(USER_SETTINGS.messages.autoBadJson);
-    const start = text.indexOf("{"), end = text.lastIndexOf("}");
-    if (start < 0 || end <= start) throw bad();
-    let obj;
-    try { obj = JSON.parse(text.slice(start, end + 1)); } catch { throw bad(); }
+  static fromObject(obj, doc) {
+    const bad = () => new Error("no panels");
     const order = Layout.readingOrder(doc);
     const byPanel = new Map();
     const list = Array.isArray(obj.panels) ? obj.panels.map((x) => [x?.panel ?? x?.n, x?.instruction ?? x?.text]) : Object.entries(obj.panels || {});
@@ -2430,8 +2614,7 @@ class StoryPlanner {
     const cfg = app.store.data.llm;
     if (!cfg.model) throw new UserError(USER_SETTINGS.messages.needLlmModel);
     const images = cfg.vision ? await Promise.all(this.images(app).map((id) => PromptWriter.smallImage(app, id))) : [];
-    const text = await new LlmClient(cfg).chat(USER_SETTINGS.storyPrompt, this.userText(app.doc, empties), images.length ? images : null, signal);
-    return this.parse(text, app.doc);
+    return new LlmClient(cfg).askJson(USER_SETTINGS.storyPrompt, this.userText(app.doc, empties), images.length ? images : null, signal, (obj) => this.fromObject(obj, app.doc), USER_SETTINGS.messages.autoBadJson);
   }
 }
 
@@ -2883,6 +3066,7 @@ class CanvasView {
     this.app = app;
     this.svg = $("page-svg");
     this.selectedId = null;
+    this.selection = new Set();
     this.selectedEdge = null;
     this.selectedBubble = null;
     this.drag = null;
@@ -2915,7 +3099,28 @@ class CanvasView {
     return this.doc.bubbles.find((b) => b.id === this.selectedBubble) || null;
   }
 
+  selectedPanels() {
+    const ids = new Set(this.selection);
+    if (this.selectedId) ids.add(this.selectedId);
+    return Layout.readingOrder(this.doc).filter((p) => ids.has(p.id));
+  }
+
+  toggleSelect(id) {
+    if (this.selectedId && !this.selection.has(this.selectedId)) this.selection.add(this.selectedId);
+    if (this.selection.has(id)) {
+      this.selection.delete(id);
+      this.selectedId = this.selection.size ? [...this.selection].pop() : null;
+    } else {
+      this.selection.add(id);
+      this.selectedId = id;
+    }
+    this.selectedEdge = null;
+    this.selectedBubble = null;
+    this.app.onSelectionChanged();
+  }
+
   select(id) {
+    this.selection = new Set(id ? [id] : []);
     this.selectedId = id;
     this.selectedEdge = null;
     this.selectedBubble = null;
@@ -3058,7 +3263,7 @@ class CanvasView {
       over.push(`<polygon class="shade${st.state === "error" ? " error" : ""}" points="${this.polyStr(inset)}"/><text class="state-text" x="${bb.x + bb.w / 2}" y="${bb.y + bb.h / 2}" font-size="${sfs}" stroke-width="${sfs * 0.08}">${label}</text>`);
     }
     const sel = this.selected();
-    if (sel && this.mode !== "bubble") over.push(`<polygon class="sel-panel" points="${this.polyStr(this.insets.get(sel.id))}"/>`);
+    if (sel && this.mode !== "bubble") for (const p of this.selectedPanels()) over.push(`<polygon class="sel-panel" points="${this.polyStr(this.insets.get(p.id))}"/>`);
     const dropPts = this.dropTarget && this.insets.get(this.dropTarget);
     over.push(`<polygon class="drop-panel" id="drop-hl" points="${dropPts ? this.polyStr(dropPts) : ""}"${dropPts ? "" : ` display="none"`}/>`);
     this.handleCache = null;
@@ -3116,7 +3321,6 @@ class CanvasView {
     this.on(this.svg, "pointerup", (e) => this.onUp(e));
     this.on(this.svg, "pointercancel", (e) => this.onUp(e));
     this.on(this.svg, "wheel", (e) => this.onWheel(e), { passive: false });
-    this.on(this.svg, "dblclick", (e) => this.onDouble(e));
     this.on(this.svg, "dragstart", (e) => e.preventDefault());
     this.on(this.svg, "dragover", (e) => this.onDragOver(e));
     this.on(this.svg, "dragleave", (e) => { if (!this.svg.contains(e.relatedTarget)) this.endDrag(); });
@@ -3129,8 +3333,18 @@ class CanvasView {
     this.svg.setPointerCapture(e.pointerId);
   }
 
+  isDoubleClick(e) {
+    const g = USER_SETTINGS.geometry;
+    const last = this.lastClick;
+    this.lastClick = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+    if (!last || e.timeStamp - last.t > g.doubleMs || Math.hypot(e.clientX - last.x, e.clientY - last.y) > g.doublePx) return false;
+    this.lastClick = null;
+    return true;
+  }
+
   onDown(e) {
     if (e.button !== 0) return;
+    this.downAt = { x: e.clientX, y: e.clientY };
     const P = this.toPage(e);
     const r = (USER_SETTINGS.geometry.handlePx / this.screenScale()) * USER_SETTINGS.geometry.hitScale;
     const doc = this.doc;
@@ -3159,8 +3373,12 @@ class CanvasView {
       if (near(ih.rotate)) return this.startDrag(e, { type: "rotate", start: P, panel: ihPanel, view, center: ih.center });
       if (ih.corners.some(near)) return this.startDrag(e, { type: "zoom", start: P, panel: ihPanel, view, center: ih.center });
     }
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && this.mode !== "bubble") {
+      const hit = this.panelAt(P);
+      if (hit) { this.toggleSelect(hit.id); return; }
+    }
     const orig = Layout.snapshotPts(doc);
-    const badge =(this.badges || []).find((b) => Math.hypot(b.c[0] - P[0], b.c[1] - P[1]) <= b.r);
+    const badge = (this.badges || []).find((b) => Math.hypot(b.c[0] - P[0], b.c[1] - P[1]) <= b.r);
     if (badge && !(this.mode === "layout" && this.handleCache?.vertices.some((u) => near(u.pt)))) {
       if (badge.id !== this.selectedId || this.selectedBubble) this.select(badge.id);
       return this.startDrag(e, { type: "swap", start: P, pid: badge.id });
@@ -3237,9 +3455,17 @@ class CanvasView {
     this.render();
   }
 
-  onUp() {
+  onUp(e) {
     const d = this.drag;
     this.drag = null;
+    const clicked = e?.type === "pointerup" && this.downAt && !d?.moved && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) <= USER_SETTINGS.geometry.doublePx;
+    this.downAt = null;
+    if (clicked && this.isDoubleClick(e)) {
+      if (d && !d.moved && d.type !== "edge") this.render();
+      this.onDouble(e);
+      return;
+    }
+    if (!clicked) this.lastClick = null;
     if (!d) return;
     if (d.type === "swap" && d.moved) {
       const target = this.dropTarget;
@@ -3299,8 +3525,17 @@ class CanvasView {
       this.app.addBubble(P);
       return;
     }
-    if (this.mode !== "image") return;
     const panel = this.panelAt(P);
+    if (this.mode === "layout") {
+      const r = (USER_SETTINGS.geometry.handlePx / this.screenScale()) * USER_SETTINGS.geometry.hitScale;
+      const near = (a) => Math.hypot(a[0] - P[0], a[1] - P[1]) <= r;
+      const hc = this.handleCache;
+      if (hc && (hc.vertices.some((v) => near(v.pt)) || hc.edges.some((e2) => near(e2.mid)))) return;
+      if (!panel || !Project.currentImage(panel)) return;
+      if (panel.id !== this.selectedId) this.select(panel.id);
+      this.app.setMode("image");
+      return;
+    }
     if (panel) this.app.commit(() => { panel.view = Project.freshView(); });
   }
 
@@ -3396,7 +3631,11 @@ class InspectorView {
 
   form(kind, target) {
     const out = [];
-    if (kind === "panel") out.push(this.panelHead(target), this.aiSection(target));
+    if (kind === "panel") {
+      const picked = this.app.canvas.selectedPanels();
+      if (picked.length > 1) out.push(this.multiHead(picked));
+      out.push(this.panelHead(target), this.aiSection(target));
+    }
     else out.push(h("div", { class: "insp-sec" }, h("p", { class: "note", text: "ここでの内容は、各コマで空欄の項目に使われます。「固定」にすると、コマごとの指定より優先して全コマに使います。" })));
     out.push(this.genreSection(kind, target));
     out.push(this.negativeSection(kind, target));
@@ -3419,6 +3658,16 @@ class InspectorView {
     return h("h3", { class: "insp-title" }, text, locked ? h("span", { class: "badge-lock", text: "共通で固定" }) : null, kind === "common" && group ? this.lockToggle(group) : null);
   }
 
+  multiHead(panels) {
+    const nums = panels.map((p) => this.numberOf(p)).join("・");
+    return h("div", { class: "insp-sec multi-sec" },
+      h("div", { class: "insp-head" },
+        h("h2", { text: `${panels.length} コマを選択中` }),
+        h("span", { class: "spacer", style: "flex:1" }),
+        h("button", { class: "primary", text: `選択した ${panels.length} コマを再生成`, onclick: () => this.app.runPanels(panels) })),
+      h("p", { class: "note", text: `コマ ${nums}。Shift / Ctrl を押しながらコマを押すと、選択に追加・解除できます。下はいま操作しているコマ ${this.numberOf(this.app.canvas.selected())} の設定です。` }));
+  }
+
   panelHead(panel) {
     const state = this.app.generator.states.get(panel.id);
     const spec = Project.spec(this.doc, panel, this.app.resources, this.app.store.data.backend);
@@ -3437,15 +3686,15 @@ class InspectorView {
       const strip = h("div", { class: "img-strip" }, panel.images.map((img, i) => h("button", {
         class: "img-thumb", "aria-current": String(i === panel.current), title: `シード ${img.seed ?? "-"}`,
         onclick: (e) => {
-          if (e.target.classList.contains("x")) this.app.commit(() => { panel.images.splice(i, 1); panel.current = Math.min(panel.current, panel.images.length - 1); });
+          if (e.target.classList.contains("x")) this.app.removeImage(panel, i);
           else this.app.commit(() => { panel.current = i; panel.view = Project.freshView(); });
         },
       }, h("img", { src: this.app.assets.url(img.asset), alt: "" }), h("span", { class: "x", text: "×", title: "この画像を外す" }))));
       sec.append(h("div", { class: "row" }, h("span", { class: "prop-label", text: "生成した画像（押すと切り替え）" })), strip);
     }
-    const mono = panel.mono || "auto";
+    const mono = Project.isMono(this.doc, panel) ? "mono" : "color";
     sec.append(h("div", { class: "prop" }, h("span", { class: "prop-label", text: "画像の色" }),
-      h("div", { class: "seg", role: "group", "aria-label": "このコマの画像の色" }, USER_SETTINGS.panelMonoChoices.map(([v, label]) =>
+      h("div", { class: "seg", role: "group", "aria-label": "このコマの画像の色" }, USER_SETTINGS.monoChoices.map(([v, label]) =>
         h("button", { type: "button", text: label, "aria-pressed": String(v === mono), onclick: () => this.app.setPanelMono(v) })))));
     return sec;
   }
@@ -3470,7 +3719,7 @@ class InspectorView {
       h("div", { class: "set-grid" }, h("span", { class: "prop-label", text: "ベース" }), select),
       note,
       h("div", { class: "row" },
-        h("button", { text: "文章AIでプロンプトを作る", disabled: this.app.llmBusy, onclick: () => this.app.writePrompts([panel.id], true) })));
+        h("button", { class: "primary", text: "文章AIでプロンプトを作って生成", disabled: this.app.llmBusy, onclick: () => this.app.writeAndGenerate(panel) })));
   }
 
   renderBaseNote(note, panel) {
@@ -3854,6 +4103,7 @@ class LibraryView {
         const thumb = await this.makeThumb(file);
         items.push({
           id: uid(), name: file.name, thumb: this.app.assets.add(thumb.dataUrl), image: this.app.assets.add(thumb.preview), w: thumb.w, h: thumb.h, meta,
+          original: this.app.assets.add(await blobToDataUrl(file)),
           genres: TagClassifier.classify(meta.prompt, this.app.store.data.tagDict),
         });
       } catch (err) {
@@ -4121,7 +4371,6 @@ class SettingsView {
       this.app.store.save();
       this.app.onBackendChanged();
     });
-    on($("save-images"), "change", (e) => { this.app.store.data.saveImages = e.target.checked; this.app.store.save(); });
     on($("conn-test"), "click", () => this.test($("conn-msg")));
     on($("guide-test"), "click", () => this.test($("guide-msg")));
     on($("conn-reload"), "click", async () => {
@@ -4143,6 +4392,7 @@ class SettingsView {
     on($("llm-model"), "change", () => { llm().model = $("llm-model").value; saveLlm(); });
     on($("llm-vision"), "change", (e) => { llm().vision = e.target.checked; saveLlm(); });
     on($("llm-temp"), "change", (e) => { llm().temperature = Number(e.target.value); saveLlm(); });
+    on($("llm-max-tokens"), "change", (e) => { llm().maxTokens = Math.max(256, Number(e.target.value) || USER_SETTINGS.llm.defaults.maxTokens); saveLlm(); });
     on($("llm-key"), "change", (e) => { llm().apiKey = e.target.value; saveLlm(); });
     on($("llm-detect"), "click", () => this.detectLlm());
     on($("llm-fetch"), "click", () => this.fetchModels(false));
@@ -4236,11 +4486,11 @@ class SettingsView {
     const d = this.app.store.data;
     document.querySelectorAll("#backend-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.backend === d.backend)));
     $("backend-url").value = d.urls[d.backend];
-    $("save-images").checked = !!d.saveImages;
     $("cors-ext-ping").textContent = CorsExtension.pingUrl(d.urls.a1111);
     $("llm-url").value = d.llm.url;
     $("llm-vision").checked = !!d.llm.vision;
     $("llm-temp").value = d.llm.temperature;
+    $("llm-max-tokens").value = d.llm.maxTokens;
     $("llm-key").value = d.llm.apiKey || "";
     this.setModelList([]);
   }
@@ -4272,6 +4522,7 @@ class App {
     this.store = new SettingsStore();
     this.assets = new AssetStore();
     this.history = new History(USER_SETTINGS.historyLimit);
+    this.discarded = new Set();
     this.resources = { models: [], loras: [], samplers: [], schedulers: [], vaes: [], upscalers: [] };
     this.doc = Project.newDoc();
     this.dirty = false;
@@ -4312,7 +4563,7 @@ class App {
   client() {
     const d = this.store.data;
     const Cls = d.backend === "comfy" ? ComfyClient : A1111Client;
-    return new Cls(d.urls[d.backend], { saveImages: d.saveImages });
+    return new Cls(d.urls[d.backend]);
   }
 
   // DOCUMENT HISTORY
@@ -4342,10 +4593,14 @@ class App {
     const current = new Map(this.doc.panels.map((p) => [p.id, p]));
     for (const p of next.panels) {
       const c = current.get(p.id);
-      if (c && c.images.slice(p.images.length).some((i) => !i.dropped)) {
-        p.images = c.images;
-        p.current = c.current;
-      }
+      if (!c) continue;
+      const have = new Set(p.images.map((i) => i.asset));
+      const extra = c.images.filter((i) => !have.has(i.asset) && !i.dropped && !this.discarded.has(i.asset));
+      if (!extra.length) continue;
+      p.images = [...p.images, ...extra];
+      const shown = c.images[c.current];
+      const at = shown ? p.images.findIndex((i) => i.asset === shown.asset) : -1;
+      p.current = at >= 0 ? at : p.images.length - 1;
     }
     this.doc = next;
     this.markDirty();
@@ -4393,6 +4648,7 @@ class App {
   // REFRESH
   afterChange({ inspector = true } = {}) {
     if (this.canvas.selectedId && !this.doc.panels.some((p) => p.id === this.canvas.selectedId)) this.canvas.selectedId = null;
+    for (const id of [...this.canvas.selection]) if (!this.doc.panels.some((p) => p.id === id)) this.canvas.selection.delete(id);
     if (!this.canvas.edge()) this.canvas.selectedEdge = null;
     if (!this.canvas.bubble()) this.canvas.selectedBubble = null;
     this.canvas.render();
@@ -4533,8 +4789,11 @@ class App {
     seg("panel-fill", USER_SETTINGS.colorChoices, (v) => this.commit(() => { this.doc.page.panelFill = v; }));
     seg("frame-color", USER_SETTINGS.colorChoices, (v) => this.commit(() => { this.doc.page.frameColor = v; }));
     seg("edit-mode", USER_SETTINGS.editModes, (v) => this.setMode(v));
-    seg("image-mono", USER_SETTINGS.monoChoices, (v) => this.commit(() => { this.doc.page.mono = v === "mono"; }));
-    seg("panel-mono", USER_SETTINGS.panelMonoChoices, (v) => this.setPanelMono(v));
+    seg("image-mono", USER_SETTINGS.monoChoices, (v) => this.commit(() => {
+      this.doc.page.mono = v === "mono";
+      this.doc.panels.forEach((p) => { p.mono = "auto"; });
+    }));
+    seg("panel-mono", USER_SETTINGS.monoChoices, (v) => this.setPanelMono(v));
     $("gutter-mode").title = "隙間: すべて隙間 / 線: すべて1本線 / 複合: 横の区切りは隙間、縦の区切りは線";
     fillSelect($("page-preset"), USER_SETTINGS.page.presets.map(([id, label, w, hgt]) => [id, `${label}（${w}×${hgt}）`]));
     this.on($("page-preset"), "change", (e) => {
@@ -4610,14 +4869,21 @@ class App {
     for (const id of ["reset-view", "img-flip-x", "img-flip-y", "img-rot90"]) $(id).disabled = !hasImage;
     $("panel-mono").querySelectorAll("button").forEach((b) => {
       b.disabled = !panel;
-      b.setAttribute("aria-pressed", String(!!panel && b.dataset.value === (panel.mono || "auto")));
+      b.setAttribute("aria-pressed", String(!!panel && b.dataset.value === (Project.isMono(this.doc, panel) ? "mono" : "color")));
     });
     $("image-tools-title").textContent = panel ? `選択中のコマの画像（コマ ${Layout.readingOrder(this.doc).indexOf(panel) + 1}）` : "選択中のコマの画像（ページのコマを押して選ぶ）";
     for (const id of ["toggle-edge", "merge-edge", "tilt-minus", "tilt-plus", "tilt-reset"]) $(id).disabled = !edge;
     $("panel-tools-title").textContent = panel ? `選択中のコマ（コマ ${Layout.readingOrder(this.doc).indexOf(panel) + 1}）` : "選択中のコマ（ページのコマを押して選ぶ）";
     $("edge-tools-title").textContent = edge ? `選択中の区切り（いま: ${edge.panel.gaps[edge.k] ? "隙間" : "線"}）` : "選択中の区切り（区切りの丸を押して選ぶ）";
+    const picked = this.canvas.selectedPanels();
+    const many = picked.length > 1 ? `（${picked.length}）` : "";
     $("cv-delete").disabled = !panel && !this.canvas.bubble();
-    $("cv-delete").textContent = this.canvas.bubble() ? "吹き出しを削除" : "コマを削除";
+    $("cv-delete").textContent = this.canvas.bubble() ? "吹き出しを削除" : `コマを削除${many}`;
+    const withImages = picked.filter((p) => p.images.length).length;
+    for (const id of ["cv-clear-images", "img-clear"]) {
+      $(id).disabled = !withImages || !!this.canvas.bubble();
+      $(id).textContent = `画像を削除${withImages > 1 ? `（${withImages}）` : ""}`;
+    }
   }
 
   svgModeClass() {
@@ -4636,12 +4902,15 @@ class App {
     this.on($("open-project"), "click", () => $("project-input").click());
     this.on($("project-input"), "change", (e) => { if (e.target.files[0]) this.loadProjectFile(e.target.files[0]); e.target.value = ""; });
     this.on($("export-png"), "click", () => this.exportPng());
+    this.on($("post-share"), "click", () => this.postToShareApp());
     this.on($("run"), "click", () => this.runTargets());
     this.on($("skip-filled"), "change", (e) => { this.store.data.ui.skipFilled = e.target.checked; this.store.save(); });
     this.on($("cancel"), "click", () => { this.generator.cancel(); this.llmAbort?.abort(); });
     this.on($("cv-undo"), "click", () => this.undo());
     this.on($("cv-redo"), "click", () => this.redo());
     this.on($("cv-delete"), "click", () => this.deleteSelection());
+    this.on($("cv-clear-images"), "click", () => this.clearImages(this.canvas.selectedPanels()));
+    this.on($("img-clear"), "click", () => this.clearImages(this.canvas.selectedPanels()));
     this.on($("cv-reset"), "click", () => this.resetLayout());
     this.on($("add-bubble"), "click", () => this.addBubble());
     this.on($("use-llm"), "change", (e) => { this.store.data.ui.useLlm = e.target.checked; this.store.save(); });
@@ -4725,8 +4994,35 @@ class App {
   }
 
   deletePanel(panel) {
-    this.commit(() => this.doc.panels.splice(this.doc.panels.indexOf(panel), 1));
+    this.deletePanels([panel]);
+  }
+
+  deletePanels(panels) {
+    this.commit(() => { this.doc.panels = this.doc.panels.filter((p) => !panels.includes(p)); });
     this.canvas.select(null);
+  }
+
+  clearImages(panels) {
+    const m = USER_SETTINGS.messages;
+    const targets = panels.filter((p) => p.images.length);
+    if (!targets.length) { this.status(m.noImagesToClear, true); return; }
+    this.commit(() => {
+      for (const p of targets) {
+        p.images.forEach((i) => this.discarded.add(i.asset));
+        p.images = [];
+        p.current = -1;
+        p.view = Project.freshView();
+      }
+    });
+    this.status(fmt(m.imagesCleared, { n: targets.length }));
+  }
+
+  removeImage(panel, index) {
+    this.commit(() => {
+      const [gone] = panel.images.splice(index, 1);
+      if (gone) this.discarded.add(gone.asset);
+      panel.current = Math.min(panel.current, panel.images.length - 1);
+    });
   }
 
   deleteSelection() {
@@ -4736,8 +5032,8 @@ class App {
       this.canvas.selectBubble(null);
       return;
     }
-    const panel = this.canvas.selected();
-    if (panel) this.deletePanel(panel);
+    const panels = this.canvas.selectedPanels();
+    if (panels.length) this.deletePanels(panels);
     else this.status(USER_SETTINGS.messages.needPanel, true);
   }
 
@@ -4857,6 +5153,14 @@ class App {
     if (live) this.commit(() => PromptWriter.apply(live, result), { inspector: this.canvas.selectedId === live.id });
   }
 
+  writeAndGenerate(panel) {
+    if (!(panel.instruction || "").trim()) { this.status(USER_SETTINGS.messages.llmNoInstructionPanel, true); return; }
+    if (!this.store.data.llm.model) { this.status(USER_SETTINGS.messages.needLlmModel, true); return; }
+    this.endEdit();
+    panel.llmKey = "";
+    this.generator.run([panel.id], { llm: [panel.id] });
+  }
+
   async writePrompts(ids) {
     const m = USER_SETTINGS.messages;
     const targets = ids.map((id) => this.doc.panels.find((p) => p.id === id)).filter((p) => p && (p.instruction || "").trim());
@@ -4905,13 +5209,17 @@ class App {
     const m = USER_SETTINGS.messages;
     const ui = this.store.data.ui;
     if (!this.doc.panels.length) { this.status(m.noPanels, true); return; }
-    if (this.llmBusy) return;
-    this.endEdit();
     const order = Layout.readingOrder(this.doc);
     const panels = ui.runTarget === "selected"
-      ? order.filter((p) => p.id === this.canvas.selectedId)
+      ? this.canvas.selectedPanels()
       : order.filter((p) => !(ui.skipFilled && p.images.length));
     if (!panels.length) { this.status(ui.runTarget === "selected" ? m.needPanel : m.allFilled, true); return; }
+    await this.runPanels(panels);
+  }
+
+  async runPanels(panels) {
+    if (this.llmBusy || !panels.length) return;
+    this.endEdit();
     const blank = panels.filter((p) => !StoryPlanner.hasPrompt(p) && !(p.instruction || "").trim());
     const planned = blank.length ? await this.planBlankPanels(blank) : [];
     if (planned === null) return;
@@ -5101,20 +5409,139 @@ class App {
     }
   }
 
-  async exportPng() {
+  async renderPageBlob() {
     const pg = this.doc.page;
     const url = URL.createObjectURL(new Blob([this.canvas.exportSvg()], { type: "image/svg+xml" }));
     try {
       const img = await loadImage(url);
       const canvas = h("canvas", { width: pg.w, height: pg.h });
       canvas.getContext("2d").drawImage(img, 0, 0, pg.w, pg.h);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      downloadBlob(blob, `${USER_SETTINGS.fileNamePrefix}${timestamp()}.png`);
+      return await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async exportPng() {
+    try {
+      downloadBlob(await this.renderPageBlob(), `${USER_SETTINGS.fileNamePrefix}${timestamp()}.png`);
       this.status(USER_SETTINGS.messages.exported);
     } catch (err) {
       this.status(`PNG を書き出せませんでした: ${err.message}`, true);
-    } finally {
-      URL.revokeObjectURL(url);
+    }
+  }
+
+  // PROMPT REEL
+  uiPreset() {
+    return USER_SETTINGS.shareUiPresets[Project.family(this.doc).id] || "";
+  }
+
+  pageInfotext(firstEntry) {
+    const c = this.doc.common;
+    const pg = this.doc.page;
+    const common = USER_SETTINGS.genres.map((g) => String(c.prompt[g.key] || "").trim()).filter(Boolean).join(", ");
+    const item = firstEntry?.dropped ? this.doc.library.find((l) => l.id === firstEntry.source) : null;
+    const prompt = common || firstEntry?.prompt || item?.meta?.prompt || "";
+    return Infotext.build({
+      prompt, negative: c.negative || firstEntry?.negative || "", loras: common ? c.loras : (firstEntry?.loras || c.loras),
+      settings: { ...USER_SETTINGS.defaultSettings, ...c.settings, seed: -1 },
+      width: pg.w, height: pg.h, model: c.model || firstEntry?.model || item?.meta?.model, vae: c.vae, uiPreset: this.uiPreset(),
+    });
+  }
+
+  entryInfotext(entry) {
+    const item = entry.dropped ? this.doc.library.find((l) => l.id === entry.source) : null;
+    if (item?.meta?.raw) return item.meta.raw;
+    const meta = item?.meta;
+    return Infotext.build({
+      prompt: entry.prompt, negative: entry.negative, loras: entry.loras, settings: entry.settings || {},
+      seed: entry.seed ?? meta?.seed, width: entry.w, height: entry.h,
+      model: entry.model || meta?.model || this.doc.common.model, vae: meta?.vae || this.doc.common.vae, uiPreset: this.uiPreset(),
+    });
+  }
+
+  async panelImageFile(panel, entry, name) {
+    const item = entry.dropped ? this.doc.library.find((l) => l.id === entry.source) : null;
+    if (item?.original && this.assets.has(item.original)) {
+      const blob = dataUrlToBlob(this.assets.dataUrl(item.original));
+      const ext = (blob.type.split("/")[1] || "png").replace("jpeg", "jpg");
+      return { blob, name: `${name}.${ext}`, mime: blob.type };
+    }
+    let bytes = new Uint8Array(await dataUrlToBlob(this.assets.dataUrl(entry.asset)).arrayBuffer());
+    if (!PngText.isPng(bytes)) {
+      const img = await this.assets.image(entry.asset);
+      const canvas = h("canvas", { width: img.naturalWidth, height: img.naturalHeight });
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      bytes = new Uint8Array(await (await new Promise((resolve) => canvas.toBlob(resolve, "image/png"))).arrayBuffer());
+    }
+    return { blob: new Blob([PngText.withText(bytes, "parameters", this.entryInfotext(entry))], { type: "image/png" }), name: `${name}.png`, mime: "image/png" };
+  }
+
+  async buildShareFiles() {
+    const stamp = timestamp();
+    const prefix = USER_SETTINGS.fileNamePrefix;
+    const panels = Layout.readingOrder(this.doc).map((p, i) => ({ p, n: i + 1, entry: Project.currentImage(p) })).filter((x) => x.entry && this.assets.has(x.entry.asset));
+    const files = [];
+    for (const { p, n, entry } of panels) files.push(await this.panelImageFile(p, entry, `${prefix}${stamp}_panel${String(n).padStart(2, "0")}`));
+    const pageBytes = new Uint8Array(await (await this.renderPageBlob()).arrayBuffer());
+    const page = PngText.withText(pageBytes, "parameters", this.pageInfotext(panels[0]?.entry));
+    files.unshift({ blob: new Blob([page], { type: "image/png" }), name: `${prefix}${stamp}_page.png`, mime: "image/png" });
+    return { files, stamp, panels: panels.length };
+  }
+
+  handoffDb() {
+    const cfg = USER_SETTINGS.shareHandoff;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(cfg.db, 1);
+      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(cfg.store)) req.result.createObjectStore(cfg.store); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  openWaitingTab() {
+    const win = window.open("", "_blank");
+    if (!win) return null;
+    try {
+      win.document.title = "Prompt Reel";
+      win.document.body.textContent = USER_SETTINGS.messages.shareOpening;
+    } catch {}
+    return win;
+  }
+
+  async postToShareApp() {
+    const m = USER_SETTINGS.messages;
+    const cfg = USER_SETTINGS.shareHandoff;
+    const target = new URL(USER_SETTINGS.shareAppUrl, location.href);
+    if (target.origin !== location.origin) { this.status(fmt(m.shareOtherOrigin, { origin: target.origin }), true); return; }
+    if (!this.doc.panels.some((p) => Project.currentImage(p))) { this.status(m.shareNoImages, true); return; }
+    const win = this.openWaitingTab();
+    if (!win) { this.status(m.sharePopupBlocked, true); return; }
+    this.status(m.sharePreparing);
+    try {
+      const { files, stamp, panels } = await this.buildShareFiles();
+      const key = `${cfg.keyPrefix}_${stamp}_${Math.random().toString(36).slice(2, 8)}`;
+      const record = {
+        source: cfg.importName, createdAt: Date.now(),
+        images: files.map((f) => ({ blob: f.blob, name: f.name, mime: f.mime })),
+        blob: files[0].blob, name: files[0].name, mime: files[0].mime,
+        meta: { format: "stillmange-share", app: USER_SETTINGS.appName, panels, story: this.doc.story.synopsis || "" },
+      };
+      const db = await this.handoffDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(cfg.store, "readwrite");
+        tx.objectStore(cfg.store).put(record, key);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+      target.searchParams.set("import", cfg.importName);
+      target.searchParams.set("key", key);
+      win.location.href = target.href;
+      this.status(fmt(m.shareOpened, { n: panels }));
+    } catch (err) {
+      win.close();
+      this.status(fmt(m.shareFailed, { err: err.message || err }), true);
     }
   }
 }
