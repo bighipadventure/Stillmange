@@ -179,6 +179,7 @@ body.resizing * { user-select: none; }
 .side-foot { flex: none; padding: 8px 10px; background: var(--head); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .run-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px; }
 .run-row select, .run-row button { height: var(--run-height); }
+.auto-run { width: 100%; margin-top: 6px; white-space: normal; line-height: 1.3; padding: 6px 8px; }
 
 /* 中央 */
 .col-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
@@ -392,6 +393,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <select id="run-target" aria-label="生成するコマ"></select>
         <button class="run big" id="run">④ 実行</button>
       </div>
+      <button class="auto-run" id="auto-story" title="アップした画像のプロンプトから文章AIが状況とストーリーを考え、プロンプトが空のコマを埋めて生成します">おまかせ生成（空きコマを文章AIで埋める）</button>
       <label class="check"><input type="checkbox" id="use-llm"> 「指示」があるコマは、文章AIでプロンプトを作ってから生成する</label>
       <p class="note" id="run-note"></p>
     </div>
@@ -537,6 +539,9 @@ const USER_SETTINGS = {
   wheelCommitMs: 600,
   thumbSide: 256,
   thumbQuality: 0.85,
+  previewSide: 2048,
+  previewQuality: 0.92,
+  autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
   geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
@@ -631,6 +636,17 @@ Meaning: quality = quality and style tags; count = number of people (1girl, 2boy
       natural: "Prompt style: natural language (for Anima, Flux and similar models). Write every key as a short natural English phrase (no tag lists, except that \"quality\" keeps its tags). In \"free\" write two to four natural English sentences that describe the whole panel: who is there, what they do, the setting and the camera.",
     },
   },
+  storyPrompt: `You are a manga storyboard writer. You plan ONE manga page.
+You receive: the panels of the page in reading order (shape and size of each panel), the prompts of the images the user uploaded (Stable Diffusion prompts, often Danbooru tags), and optionally a story the user wrote.
+Some panels already have an image or an instruction. The panels marked EMPTY need an instruction from you.
+Steps:
+1. From the uploaded prompts (and images, if attached), infer who the characters are, what they look like, where they are and what situation they are in.
+2. Think of a short, natural story for this single page that fits that situation: a clear beginning, a development and a small punchline or emotional beat at the end. Panels that already have an image keep their content, and the story must flow into and out of them in reading order.
+3. For each EMPTY panel, write one instruction in Japanese (one or two short sentences) that says what the panel shows: who, what they do, their expression and the camera (wide shot, close-up, from above...). Use the panel shape: wide panels suit establishing shots and scenery, tall panels suit full-body shots, small panels suit close-ups and reactions.
+Never ask for text, speech bubbles or sound effects in the image.
+Output ONLY one JSON object, with no explanation and no markdown:
+{"synopsis": "the story of the page in Japanese, two or three sentences", "panels": {"<panel number>": "instruction in Japanese", ...}}
+Include every EMPTY panel number and no other panel.`,
   tagDictFormat: "stillmange-tagdict",
   legacyTagDictFormats: ["komagen-tagdict"],
   runTargets: [["all", "全コマ"], ["empty", "未生成のコマ"], ["selected", "選択中のコマ"]],
@@ -764,6 +780,12 @@ Meaning: quality = quality and style tags; count = number of people (1girl, 2boy
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
     llmDone: "文章AIでプロンプトを作りました（{n} コマ）。",
     llmFailed: "コマ {n}: 文章AIがプロンプトを作れませんでした: {err}",
+    autoNoEmpty: "プロンプトが空いているコマがありません。おまかせ生成は、プロンプトが空のコマだけを埋めます。",
+    autoNoSource: "材料になる画像がありません。生成した画像を左の「素材」かコマにドロップしてから押してください。",
+    autoPlanning: "文章AIが画像から状況を読み取り、ページの流れを考えています…",
+    autoPlanned: "流れを決めました：{synopsis}\n空いている {n} コマのプロンプトを作って生成します。",
+    autoBadJson: "文章AIの返事からページの流れ（JSON）を読み取れませんでした。もう一度押すか、別のモデルにしてください。",
+    autoFailed: "おまかせ生成に失敗しました: {err}",
     llmNoInstruction: "「指示」が入ったコマがありません。コマを選んで、右の「指示」に大まかな内容を書いてください。",
     llmNotFound: "文章AIのサーバーが見つかりません。サーバーを起動し、CORS を有効にしてから、もう一度押してください。",
     llmFound: "{name}（{url}）が見つかりました。モデル {n} 件。",
@@ -2098,6 +2120,100 @@ class PromptWriter {
   }
 }
 
+// ===== STORY PLANNER (UPLOADED IMAGES -> INSTRUCTIONS FOR EMPTY PANELS) =====
+class StoryPlanner {
+  static hasPrompt(panel) {
+    return PromptWriter.genreKeys().some((k) => String(panel.prompt?.[k] || "").trim());
+  }
+
+  static empties(doc) {
+    return Layout.readingOrder(doc).filter((p) => !this.hasPrompt(p));
+  }
+
+  static libraryRefs(doc) {
+    const used = new Set(doc.panels.map((p) => p.source));
+    return doc.library.filter((l) => !used.has(l.id) && (l.meta.prompt || "").trim()).slice(-USER_SETTINGS.autoStory.maxLibraryRefs).reverse();
+  }
+
+  static baseRef(doc) {
+    const order = Layout.readingOrder(doc);
+    if (order.some((p) => p.source && this.hasPrompt(p))) return "auto";
+    const typed = order.find((p) => this.hasPrompt(p));
+    if (typed) return `panel:${typed.id}`;
+    const lib = doc.library.filter((l) => (l.meta.prompt || "").trim()).pop();
+    return lib ? `lib:${lib.id}` : null;
+  }
+
+  static shape(doc, panel) {
+    const cfg = USER_SETTINGS.autoStory;
+    const b = Geo.bbox(Layout.insetPts(doc, panel));
+    const ratio = b.w / (b.h || 1);
+    const kind = ratio >= cfg.wide ? "wide" : ratio <= cfg.tall ? "tall" : "square-ish";
+    const share = Math.round((b.w * b.h) / (doc.page.w * doc.page.h) * 100);
+    return `${kind}, ${share}% of the page`;
+  }
+
+  static promptOf(doc, panel) {
+    return PromptWriter.genreKeys().map((k) => [k, String(panel.prompt[k] || "").trim()]).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(" | ");
+  }
+
+  static userText(doc, empties) {
+    const lines = [];
+    const story = (doc.story.synopsis || "").trim();
+    if (story) lines.push(`Story written by the user (may be Japanese, follow it): ${story}`, "");
+    lines.push("Panels in reading order:");
+    Layout.readingOrder(doc).forEach((p, i) => {
+      const head = `- Panel ${i + 1} (${this.shape(doc, p)})`;
+      const instr = (p.instruction || "").trim();
+      if (this.hasPrompt(p)) lines.push(`${head}: HAS IMAGE. Prompt: ${this.promptOf(doc, p)}`);
+      else if (instr) lines.push(`${head}: HAS INSTRUCTION (keep it): "${instr}"`);
+      else lines.push(`${head}: EMPTY`);
+    });
+    const refs = this.libraryRefs(doc);
+    if (refs.length) {
+      lines.push("", "Other images the user uploaded (material for the characters and the situation):");
+      refs.forEach((l, i) => lines.push(`- Image ${i + 1}: ${l.meta.prompt.trim()}`));
+    }
+    const nums = empties.filter((p) => !(p.instruction || "").trim()).map((p) => Layout.readingOrder(doc).indexOf(p) + 1);
+    lines.push("", `Write instructions for the EMPTY panels: ${nums.join(", ")}.`);
+    return lines.join("\n");
+  }
+
+  static images(app) {
+    const doc = app.doc;
+    const ids = [
+      ...Layout.readingOrder(doc).filter((p) => p.source).map((p) => (doc.library.find((l) => l.id === p.source) || {}).thumb),
+      ...this.libraryRefs(doc).map((l) => l.thumb),
+    ].filter((id) => id && app.assets.has(id));
+    return [...new Set(ids)].slice(0, USER_SETTINGS.autoStory.maxImages);
+  }
+
+  static parse(text, doc) {
+    const bad = () => new UserError(USER_SETTINGS.messages.autoBadJson);
+    const start = text.indexOf("{"), end = text.lastIndexOf("}");
+    if (start < 0 || end <= start) throw bad();
+    let obj;
+    try { obj = JSON.parse(text.slice(start, end + 1)); } catch { throw bad(); }
+    const order = Layout.readingOrder(doc);
+    const byPanel = new Map();
+    const list = Array.isArray(obj.panels) ? obj.panels.map((x) => [x?.panel ?? x?.n, x?.instruction ?? x?.text]) : Object.entries(obj.panels || {});
+    for (const [n, instr] of list) {
+      const panel = order[Number(String(n).replace(/\D/g, "")) - 1];
+      if (panel && typeof instr === "string" && instr.trim()) byPanel.set(panel.id, instr.trim());
+    }
+    if (!byPanel.size) throw bad();
+    return { synopsis: typeof obj.synopsis === "string" ? obj.synopsis.trim() : "", byPanel };
+  }
+
+  static async plan(app, empties, signal) {
+    const cfg = app.store.data.llm;
+    if (!cfg.model) throw new UserError(USER_SETTINGS.messages.needLlmModel);
+    const images = cfg.vision ? await Promise.all(this.images(app).map((id) => PromptWriter.smallImage(app, id))) : [];
+    const text = await new LlmClient(cfg).chat(USER_SETTINGS.storyPrompt, this.userText(app.doc, empties), images.length ? images : null, signal);
+    return this.parse(text, app.doc);
+  }
+}
+
 // ===== ASSETS =====
 class AssetStore {
   constructor() {
@@ -3388,11 +3504,20 @@ class LibraryView {
     const url = URL.createObjectURL(file);
     try {
       const img = await loadImage(url);
-      const side = USER_SETTINGS.thumbSide;
-      const s = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
-      const canvas = h("canvas", { width: Math.round(img.naturalWidth * s), height: Math.round(img.naturalHeight * s) });
-      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      return { dataUrl: canvas.toDataURL("image/jpeg", USER_SETTINGS.thumbQuality), w: img.naturalWidth, h: img.naturalHeight };
+      const scaled = (side, quality) => {
+        const s = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = h("canvas", { width: Math.round(img.naturalWidth * s), height: Math.round(img.naturalHeight * s) });
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", quality);
+      };
+      return {
+        dataUrl: scaled(USER_SETTINGS.thumbSide, USER_SETTINGS.thumbQuality),
+        preview: scaled(USER_SETTINGS.previewSide, USER_SETTINGS.previewQuality),
+        w: img.naturalWidth, h: img.naturalHeight,
+      };
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -3412,7 +3537,7 @@ class LibraryView {
         const meta = await MetaReader.read(file);
         const thumb = await this.makeThumb(file);
         items.push({
-          id: uid(), name: file.name, thumb: this.app.assets.add(thumb.dataUrl), w: thumb.w, h: thumb.h, meta,
+          id: uid(), name: file.name, thumb: this.app.assets.add(thumb.dataUrl), image: this.app.assets.add(thumb.preview), w: thumb.w, h: thumb.h, meta,
           genres: TagClassifier.classify(meta.prompt, this.app.store.data.tagDict),
         });
       } catch (err) {
@@ -3535,14 +3660,16 @@ class Generator {
     this.total = 0;
     this.finished = 0;
     this.progress = 0;
+    this.forceLlm = new Set();
   }
 
-  run(ids) {
+  run(ids, opts = {}) {
     const fresh = ids.filter((id) => !this.queue.includes(id) && this.states.get(id)?.state !== "running");
     if (!fresh.length) {
       if (!ids.length) this.app.status(USER_SETTINGS.messages.noTargets, true);
       return;
     }
+    if (opts.llm) fresh.forEach((id) => this.forceLlm.add(id));
     if (!this.busy) { this.total = 0; this.finished = 0; this.ok = 0; }
     for (const id of fresh) {
       this.queue.push(id);
@@ -3568,7 +3695,9 @@ class Generator {
       this.app.status(fmt(m.generating, { n, i: this.finished + 1, total: this.total }));
       this.app.afterRuntime();
       try {
-        if (this.app.store.data.ui.useLlm && (panel.instruction || "").trim()) {
+        const useLlm = this.app.store.data.ui.useLlm || this.forceLlm.has(id);
+        this.forceLlm.delete(id);
+        if (useLlm && (panel.instruction || "").trim()) {
           const base = PromptWriter.resolveBase(this.app.doc, panel);
           if (panel.llmKey !== PromptWriter.key(this.app.doc, panel, base)) {
             this.states.set(id, { state: "writing", progress: 0 });
@@ -3618,6 +3747,7 @@ class Generator {
     const aborted = this.abort.signal.aborted;
     for (const id of this.queue) this.states.delete(id);
     this.queue = [];
+    this.forceLlm.clear();
     this.busy = false;
     this.client = null;
     if (aborted) this.app.status(m.cancelled);
@@ -3888,7 +4018,7 @@ class App {
     const current = new Map(this.doc.panels.map((p) => [p.id, p]));
     for (const p of next.panels) {
       const c = current.get(p.id);
-      if (c && c.images.length > p.images.length) {
+      if (c && c.images.slice(p.images.length).some((i) => !i.dropped)) {
         p.images = c.images;
         p.current = c.current;
       }
@@ -3994,6 +4124,7 @@ class App {
 
   updateRunUi() {
     $("cancel").hidden = !this.generator.busy && !this.llmBusy;
+    $("auto-story").disabled = !!this.llmBusy;
     $("run").textContent = this.generator.busy ? "④ 実行（追加）" : "④ 実行";
     $("use-llm").checked = !!this.store.data.ui.useLlm;
     this.updateProgress();
@@ -4173,6 +4304,7 @@ class App {
     this.on($("project-input"), "change", (e) => { if (e.target.files[0]) this.loadProjectFile(e.target.files[0]); e.target.value = ""; });
     this.on($("export-png"), "click", () => this.exportPng());
     this.on($("run"), "click", () => this.runTargets());
+    this.on($("auto-story"), "click", () => this.autoStory());
     this.on($("cancel"), "click", () => { this.generator.cancel(); this.llmAbort?.abort(); });
     this.on($("cv-undo"), "click", () => this.undo());
     this.on($("cv-redo"), "click", () => this.redo());
@@ -4416,6 +4548,53 @@ class App {
     }
   }
 
+  async autoStory() {
+    const m = USER_SETTINGS.messages;
+    if (this.llmBusy) return;
+    this.endEdit();
+    const empties = StoryPlanner.empties(this.doc);
+    if (!empties.length) { this.status(m.autoNoEmpty, true); return; }
+    const baseRef = StoryPlanner.baseRef(this.doc);
+    if (!baseRef) { this.status(m.autoNoSource, true); return; }
+    if (!this.store.data.llm.model) { this.status(m.needLlmModel, true); return; }
+    const ids = empties.map((p) => p.id);
+    const needPlan = empties.some((p) => !(p.instruction || "").trim());
+    let plan = { synopsis: "", byPanel: new Map() };
+    if (needPlan) {
+      this.llmBusy = true;
+      this.llmAbort = new AbortController();
+      ids.forEach((id) => this.generator.states.set(id, { state: "writing", progress: 0 }));
+      this.updateRunUi();
+      this.afterRuntime();
+      this.status(m.autoPlanning);
+      try {
+        plan = await StoryPlanner.plan(this, empties, this.llmAbort.signal);
+      } catch (err) {
+        this.status(err.name === "AbortError" ? m.cancelled : fmt(m.autoFailed, { err: describeError(err, "文章AI") }), err.name !== "AbortError");
+        return;
+      } finally {
+        ids.forEach((id) => this.generator.states.delete(id));
+        this.llmBusy = false;
+        this.updateRunUi();
+        this.afterRuntime();
+      }
+    }
+    const targets = ids.filter((id) => {
+      const p = this.doc.panels.find((x) => x.id === id);
+      return p && !StoryPlanner.hasPrompt(p) && ((p.instruction || "").trim() || plan.byPanel.has(id));
+    });
+    this.commit(() => {
+      if (plan.synopsis && !(this.doc.story.synopsis || "").trim()) this.doc.story.synopsis = plan.synopsis;
+      for (const id of targets) {
+        const p = this.doc.panels.find((x) => x.id === id);
+        if (!(p.instruction || "").trim()) p.instruction = plan.byPanel.get(id);
+        if (baseRef !== "auto" && (p.baseRef || "auto") === "auto" && baseRef !== `panel:${p.id}`) p.baseRef = baseRef;
+      }
+    }, { inspector: true });
+    this.status(fmt(m.autoPlanned, { synopsis: plan.synopsis || this.doc.story.synopsis || "（指示どおり）", n: targets.length }));
+    this.generator.run(targets, { llm: true });
+  }
+
   async onGlobalDrop(e) {
     const files = [...e.dataTransfer.files];
     if (!files.length) return;
@@ -4471,10 +4650,29 @@ class App {
         if (s.hrUpscaler) s.hrUpscaler = Names.match(s.hrUpscaler, res.upscalers);
         Object.assign(target.settings, s);
       }
-      if (all && kind === "panel") target.source = item.id;
+      if (all && kind === "panel") {
+        target.source = item.id;
+        this.showDropped(target, item);
+      }
     });
     const targetText = kind === "common" ? m.targetCommon : fmt(m.targetPanel, { n: Layout.readingOrder(this.doc).indexOf(panel) + 1 });
     this.status(fmt(m.applied, { name: item.name, target: targetText }));
+  }
+
+  showDropped(panel, item) {
+    const asset = item.image && this.assets.has(item.image) ? item.image : item.thumb;
+    if (!this.assets.has(asset)) return;
+    let index = panel.images.findIndex((i) => i.asset === asset);
+    if (index < 0) {
+      const meta = item.meta;
+      panel.images.push({
+        asset, w: item.w, h: item.h, seed: meta.settings?.seed, prompt: meta.prompt || "", negative: meta.negative || "",
+        model: meta.model || "", loras: meta.loras || [], settings: meta.settings || {}, dropped: true, source: item.id, at: new Date().toISOString(),
+      });
+      index = panel.images.length - 1;
+    }
+    panel.current = index;
+    panel.view = { zoom: 1, ox: 0, oy: 0 };
   }
 
   appendTag(genre, tag) {
@@ -4529,7 +4727,7 @@ class App {
   saveProject() {
     const used = new Set();
     this.doc.panels.forEach((p) => p.images.forEach((i) => used.add(i.asset)));
-    this.doc.library.forEach((l) => used.add(l.thumb));
+    this.doc.library.forEach((l) => { used.add(l.thumb); if (l.image) used.add(l.image); });
     const data = {
       format: USER_SETTINGS.projectFormat, version: USER_SETTINGS.projectVersion, app: USER_SETTINGS.appName,
       savedAt: new Date().toISOString(), doc: this.doc,
