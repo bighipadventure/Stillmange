@@ -309,6 +309,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
   <button id="undo" title="戻る（Ctrl+Z）">↶ 戻る</button>
   <button id="redo" title="やり直す（Ctrl+Shift+Z / Ctrl+Y）">↷ やり直す</button>
   <span class="spacer"></span>
+  <button class="pill" id="pill-llm" data-state="idle">文章AI: 確認中</button>
   <button class="pill" id="pill-sd" data-state="idle">画像生成: 確認中</button>
   <button class="quiet" id="open-project">開く</button>
   <button class="quiet" id="save-project">保存（JSON）</button>
@@ -525,8 +526,8 @@ const USER_SETTINGS = {
   fileNamePrefix: "stillmange_",
   pagesOrigin: "https://bighipadventure.github.io",
   backends: {
-    a1111: { label: "SD WebUI（A1111 / Forge）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}" },
-    comfy: { label: "ComfyUI", short: "ComfyUI", url: "http://127.0.0.1:8188", cors: "--enable-cors-header {origin}" },
+    a1111: { label: "SD WebUI（A1111 / Forge）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}", corsAny: "--api --cors-allow-origins-regex=.*" },
+    comfy: { label: "ComfyUI", short: "ComfyUI", url: "http://127.0.0.1:8188", cors: "--enable-cors-header {origin}", corsAny: "--enable-cors-header *" },
   },
   defaultBackend: "a1111",
   probeTimeoutMs: 2500,
@@ -710,7 +711,9 @@ Meaning: quality = quality and style tags; count = number of people (1girl, 2boy
   lockGroups: { negative: "ネガティブ", model: "モデル・VAE", loras: "LoRA", settings: "生成設定" },
   messages: {
     probeOk: "接続OK",
-    probeCors: "起動していますが、このページからの接続が許可されていません（CORS）。「はじめに」の起動オプションを入れて、起動し直してください。",
+    probeCors: "起動していますが、このページ（{origin}）からの接続が許可されていません（CORS）。起動オプションに入れた URL が「{origin}」と一字一句同じか（末尾の / や http と https の違いも）確認して、停止→起動し直してください。",
+    probeCorsFile: "このページをファイルから直接開いている（file://）ため、接続が許可されません。GitHub Pages など https:// の URL で開くか、起動オプションを「{line}」にして停止→起動し直してください。",
+    llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません" },
     probeDown: "接続できません。起動しているか、URLが正しいか確認してください。ブラウザの「ローカル ネットワーク アクセス」の許可も確認してください。",
     hintLayout: "コマを押して選びます。白い四角（角）をドラッグで形を変え、区切りの丸をドラッグで配分を変え、押すと区切りを選べます（青＝隙間、白＝線）。コマを別のコマの上へドラッグすると、内容（画像・プロンプト・設定）を入れ替えます（右上の番号はどのモードでもドラッグできます）。",
     swapped: "コマ {a} とコマ {b} の内容を入れ替えました。画像はコマの形に合わせて収め直しています（形が大きく違うときは再生成するときれいに収まります）。",
@@ -1713,9 +1716,21 @@ class Net {
     }
   }
 
-  static message(state) {
+  static pageOrigin() {
+    return location.protocol.startsWith("http") ? location.origin : null;
+  }
+
+  static corsLine(backend) {
+    const b = USER_SETTINGS.backends[backend];
+    const origin = this.pageOrigin();
+    return origin ? fmt(b.cors, { origin }) : b.corsAny;
+  }
+
+  static message(state, line = Net.corsLine(USER_SETTINGS.defaultBackend)) {
     const m = USER_SETTINGS.messages;
-    return { ok: m.probeOk, cors: m.probeCors, down: m.probeDown }[state];
+    const origin = this.pageOrigin();
+    const cors = origin ? fmt(m.probeCors, { origin }) : fmt(m.probeCorsFile, { line });
+    return { ok: m.probeOk, cors, down: m.probeDown }[state];
   }
 }
 
@@ -3628,10 +3643,9 @@ class SettingsView {
     this.dialog = $("settings");
     this.listeners = new AbortController();
     const on = (el, type, fn) => el.addEventListener(type, fn, { signal: this.listeners.signal });
-    const origin = location.origin.startsWith("http") ? location.origin : USER_SETTINGS.pagesOrigin;
-    $("cors-a1111").textContent = fmt(USER_SETTINGS.backends.a1111.cors, { origin });
-    $("cors-comfy").textContent = fmt(USER_SETTINGS.backends.comfy.cors, { origin });
-    $("llm-origin").textContent = origin;
+    $("cors-a1111").textContent = Net.corsLine("a1111");
+    $("cors-comfy").textContent = Net.corsLine("comfy");
+    $("llm-origin").textContent = Net.pageOrigin() || "*";
     document.querySelectorAll("#settings [data-copy]").forEach((b) => on(b, "click", () => {
       navigator.clipboard?.writeText($(b.dataset.copy).textContent);
       b.textContent = USER_SETTINGS.messages.copied;
@@ -3669,7 +3683,7 @@ class SettingsView {
     on($("dict-export"), "click", () => this.exportDict());
     on($("dict-import"), "change", (e) => { if (e.target.files[0]) this.importDict(e.target.files[0]); e.target.value = ""; });
     const llm = () => this.app.store.data.llm;
-    const saveLlm = () => { this.app.store.save(); this.app.inspector.render(); };
+    const saveLlm = () => { this.app.store.save(); this.app.inspector.render(); this.app.refreshLlm(); };
     on($("llm-url"), "change", () => { llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); });
     on($("llm-model"), "change", () => { llm().model = $("llm-model").value; saveLlm(); });
     on($("llm-vision"), "change", (e) => { llm().vision = e.target.checked; saveLlm(); });
@@ -3696,10 +3710,11 @@ class SettingsView {
     try {
       const models = await new LlmClient(cfg).listModels();
       this.setModelList(models);
+      this.app.refreshLlm();
       if (!quiet) setMsg($("llm-msg"), fmt(USER_SETTINGS.messages.modelsFetched, { n: models.length }), "ok");
     } catch {
       this.setModelList([]);
-      if (!quiet) setMsg($("llm-msg"), Net.message(await Net.probe(`${new LlmClient(cfg).base}/models`)), "err");
+      if (!quiet) setMsg($("llm-msg"), Net.message(await Net.probe(`${new LlmClient(cfg).base}/models`), "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）"), "err");
     }
   }
 
@@ -3708,12 +3723,13 @@ class SettingsView {
     setMsg($("llm-msg"), "探しています…");
     const found = await LlmClient.detect();
     if (!found) { setMsg($("llm-msg"), m.llmNotFound, "err"); return; }
-    if (found.state === "cors") { setMsg($("llm-msg"), `${found.name}（${found.url}）: ${m.probeCors}`, "err"); return; }
+    if (found.state === "cors") { setMsg($("llm-msg"), `${found.name}（${found.url}）: ${Net.message("cors", "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`, "err"); return; }
     this.app.store.data.llm.url = found.url;
     $("llm-url").value = found.url;
     this.setModelList(found.models);
     this.app.store.save();
     this.app.inspector.render();
+    this.app.refreshLlm();
     setMsg($("llm-msg"), fmt(m.llmFound, { name: found.name, url: found.url, n: found.models.length }), "ok");
   }
 
@@ -3777,7 +3793,7 @@ class SettingsView {
     const client = this.app.client();
     setMsg(msgEl, "確認しています…");
     const state = await Net.probe(client.probeUrl);
-    setMsg(msgEl, `${USER_SETTINGS.backends[this.app.store.data.backend].label}（${this.app.store.url}）: ${Net.message(state)}`, state === "ok" ? "ok" : "err");
+    setMsg(msgEl, `${USER_SETTINGS.backends[this.app.store.data.backend].label}（${this.app.store.url}）: ${Net.message(state, Net.corsLine(this.app.store.data.backend))}`, state === "ok" ? "ok" : "err");
     if (state === "ok") this.app.loadResources();
   }
 
@@ -3816,6 +3832,7 @@ class App {
     this.bind();
     this.refreshAll();
     this.refreshConnection();
+    this.refreshLlm();
     if (this.store.fresh) {
       this.store.save();
       this.settings.open("guide");
@@ -4148,6 +4165,7 @@ class App {
     this.on($("redo"), "click", () => this.redo());
     this.on($("open-settings"), "click", () => this.settings.open());
     this.on($("pill-sd"), "click", () => this.settings.open("conn"));
+    this.on($("pill-llm"), "click", () => this.settings.open("llm"));
     this.on($("save-project"), "click", () => this.saveProject());
     this.on($("open-project"), "click", () => $("project-input").click());
     this.on($("project-input"), "change", (e) => { if (e.target.files[0]) this.loadProjectFile(e.target.files[0]); e.target.value = ""; });
@@ -4470,11 +4488,22 @@ class App {
     const state = await Net.probe(this.client().probeUrl);
     pill.dataset.state = state === "ok" ? "ok" : state === "cors" ? "warn" : "down";
     pill.textContent = `${name}: ${state === "ok" ? "接続OK" : state === "cors" ? "接続が許可されていません" : "接続できません"}`;
-    pill.title = Net.message(state);
+    pill.title = Net.message(state, Net.corsLine(this.store.data.backend));
     if (state === "ok") {
       await this.loadResources();
       await this.syncFromWebui("empty");
     }
+  }
+
+  async refreshLlm() {
+    const pill = $("pill-llm");
+    const m = USER_SETTINGS.messages.llmPill;
+    const cfg = this.store.data.llm;
+    const state = await Net.probe(`${new LlmClient(cfg).base}/models`);
+    const key = state === "ok" ? (cfg.model ? "ok" : "noModel") : state;
+    pill.dataset.state = key === "ok" ? "ok" : key === "down" ? "down" : "warn";
+    pill.textContent = fmt(m[key], { model: cfg.model });
+    pill.title = `${cfg.url}\n${key === "noModel" ? USER_SETTINGS.messages.needLlmModel : Net.message(state, "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`;
   }
 
   async loadResources() {
