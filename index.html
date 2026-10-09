@@ -5930,6 +5930,12 @@ class App {
     return [...lib].reverse().find((l) => l.meta?.raw || l.meta?.prompt) || null;
   }
 
+  shareBase() {
+    const meta = this.baseItem()?.meta;
+    if (!meta) return null;
+    return { raw: meta.raw || "", prompt: meta.prompt || "", seed: meta.seed ?? null };
+  }
+
   baseInfotext() {
     const item = this.baseItem();
     const meta = item?.meta;
@@ -6018,7 +6024,7 @@ class App {
         source: cfg.importName, createdAt: Date.now(),
         images: files.map((f) => ({ blob: f.blob, name: f.name, mime: f.mime })),
         blob: files[0].blob, name: files[0].name, mime: files[0].mime,
-        meta: { format: "stillmange-share", app: USER_SETTINGS.appName, panels, story: this.doc.story.synopsis || "" },
+        meta: { format: "stillmange-share", app: USER_SETTINGS.appName, panels, story: this.doc.story.synopsis || "", base: this.shareBase() },
       };
       const db = await this.handoffDb();
       await new Promise((resolve, reject) => {
