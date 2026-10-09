@@ -191,7 +191,16 @@ body.resizing * { user-select: none; }
 .shape-btn svg { width: 100%; height: 34px; display: block; }
 .shape-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .bubble-list { display: flex; flex-direction: column; gap: 3px; }
+.panel-list { display: flex; flex-direction: column; gap: 6px; }
+.panel-row { display: grid; grid-template-columns: 22px 56px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px; text-align: left; height: auto; justify-content: stretch; }
+.panel-row-no { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.panel-row-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line, #d0d0d0); }
+.panel-row-thumb.empty { display: grid; place-items: center; font-size: 10px; color: var(--muted); background: rgba(127, 127, 127, .08); }
+.panel-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.panel-row-sum { font-size: 12px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+.panel-row-meta { font-size: 11px; color: var(--muted); }
 .bubble-item { justify-content: flex-start; }
+.bubble-item[aria-current="true"] { border-color: var(--accent, #0d66d0); background: rgba(13, 102, 208, .1); font-weight: 600; }
 .ai-sec { background: var(--accent-soft); }
 .model-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; align-items: center; }
 .ai-sec .note { color: var(--on-accent-soft); }
@@ -734,7 +743,7 @@ script_callbacks.on_app_started(on_app_started)
     fontRatio: 0.018, strokeRatio: 0.0016, lineGap: 1.3, halfWidth: 0.55, padRatio: 1.2, ellipseFactor: 1.45, rectFactor: 1.12, minSize: 60,
     tailOffset: [0.15, 0.9], tailInset: 0.85, tailInsetSpiky: 0.6, spikyShapes: ["spike", "zigzag", "wave", "flash"], tailBase: 0.3, tailBend: 0.25,
     cloudTail: [[0.2, 0.55], [0.55, 0.38], [0.85, 0.22]], cloudTailStart: 1.08, cloudBumps: 11, cloudBulge: 1.15,
-    handPoints: 44, handAmp: [0.035, 0.025], handJitter: 0.02, polySides: 13, polyJitter: 0.07,
+    handPoints: 36, handAmp: [0.032, 0.016], handJitter: 0.004, handTilt: 0.1, polySides: 13, polyJitter: 0.07,
     spikes: 18, spikeOuter: 1.08, spikeInner: 0.8, spikeJitter: 0.16, zigzag: 42, zigAmp: 0.045,
     waveResolution: 240, waveCount: 30, waveAmp: 0.025, flashSpikes: 70, flashOuter: 1.12, flashInner: 0.92, flashJitter: 0.12,
     rectRadius: 0.22, dash: [3, 2], haloRatio: 0.22, preview: { w: 80, h: 52 },
@@ -1490,6 +1499,7 @@ class Layout {
   }
 
   static split(doc, panel, dir) {
+    const oldBox = Geo.bbox(this.insetPts(doc, panel));
     const [cx, cy] = Geo.centroid(panel.pts);
     const horizontalCut = dir === "h";
     const cutFlag = panel.floating ? false : this.gapFor(doc.page.gutterMode, [0, 0], horizontalCut ? [1, 0] : [0, 1]);
@@ -1502,6 +1512,7 @@ class Layout {
     const added = Project.newPanel(b.pts, b.flags);
     added.floating = !!panel.floating;
     doc.panels.splice(doc.panels.indexOf(panel) + 1, 0, added);
+    Project.holdImage(doc, panel, oldBox);
     return added;
   }
 
@@ -1556,6 +1567,7 @@ class Layout {
     B.flags[B.flags.length - 1] = cutFlag;
     const min = USER_SETTINGS.geometry.minCutArea * Math.abs(Geo.area(panel.pts));
     if (A.out.length < 3 || B.out.length < 3 || Math.abs(Geo.area(A.out)) < min || Math.abs(Geo.area(B.out)) < min) return "edge";
+    const oldBox = Geo.bbox(this.insetPts(doc, panel));
     const [big, small] = Math.abs(Geo.area(A.out)) >= Math.abs(Geo.area(B.out)) ? [A, B] : [B, A];
     const a = Geo.removeCollinear(big.out, big.flags), b = Geo.removeCollinear(small.out, small.flags);
     panel.pts = a.pts;
@@ -1563,6 +1575,7 @@ class Layout {
     const added = Project.newPanel(b.pts, b.flags);
     added.floating = !!panel.floating;
     doc.panels.splice(doc.panels.indexOf(panel) + 1, 0, added);
+    Project.holdImage(doc, panel, oldBox);
     return "ok";
   }
 
@@ -2985,6 +2998,18 @@ class Project {
     return panel.images[panel.current] || null;
   }
 
+  static holdImage(doc, panel, oldBox) {
+    const entry = this.currentImage(panel);
+    if (!entry || !oldBox) return;
+    const v = { ...this.freshView(), ...panel.view };
+    const newBox = Geo.bbox(Layout.insetPts(doc, panel));
+    const base = (b) => Math.max(b.w / entry.w, b.h / entry.h);
+    const g = USER_SETTINGS.geometry;
+    const zoom = Math.min(Math.max((base(oldBox) * v.zoom) / (base(newBox) || 1), g.minZoom), g.maxZoom);
+    const center = [oldBox.x + oldBox.w / 2 + v.ox, oldBox.y + oldBox.h / 2 + v.oy];
+    panel.view = { ...v, zoom, ox: center[0] - (newBox.x + newBox.w / 2), oy: center[1] - (newBox.y + newBox.h / 2) };
+  }
+
   static freshView() {
     return { zoom: 1, ox: 0, oy: 0, rot: 0, flipX: false, flipY: false };
   }
@@ -3119,8 +3144,12 @@ class Bubbles {
       }
       case "hand": {
         const ph = [rnd() * 6.28, rnd() * 6.28];
+        const k = 0.5 + rnd() * 0.5;
         const [a1, a2] = c.handAmp;
-        return this.smoothPath(this.ring(b, c.handPoints, (th) => 1 + a1 * Math.sin(3 * th + ph[0]) + a2 * Math.sin(5 * th + ph[1]) + (rnd() - 0.5) * c.handJitter));
+        const tilt = (rnd() - 0.5) * c.handTilt;
+        const cos = Math.cos(tilt), sin = Math.sin(tilt);
+        const pts = this.ring(b, c.handPoints, (th) => 1 + k * (a1 * Math.sin(2 * th + ph[0]) + a2 * Math.sin(3 * th + ph[1])) + (rnd() - 0.5) * c.handJitter);
+        return this.smoothPath(pts.map(([x, y]) => [b.x + (x - b.x) * cos - (y - b.y) * sin, b.y + (x - b.x) * sin + (y - b.y) * cos]));
       }
       case "poly":
         return this.linePath(this.ring(b, c.polySides, () => 1 + (rnd() - 0.5) * c.polyJitter, rnd()));
@@ -3459,6 +3488,7 @@ class CanvasView {
       const fr = Project.imageFrame(pl, sel.view, USER_SETTINGS.geometry.rotateHandlePx / scale);
       const vis = this.visibleRect(r * 2);
       const keep = (p) => [Math.min(Math.max(p[0], vis.x0), vis.x1), Math.min(Math.max(p[1], vis.y0), vis.y1)];
+      fr.raw = fr.corners.map((v) => [...v]);
       fr.corners = fr.corners.map(keep);
       fr.rotate = keep(fr.rotate);
       this.imageHandles = { pid: sel.id, ...fr };
@@ -3674,7 +3704,8 @@ class CanvasView {
     if (ihPanel) {
       const view = { ...Project.freshView(), ...ihPanel.view };
       if (near(ih.rotate)) return this.startDrag(e, { type: "rotate", start: P, panel: ihPanel, view, center: ih.center });
-      if (ih.corners.some(near)) return this.startDrag(e, { type: "zoom", start: P, panel: ihPanel, view, center: ih.center });
+      const ci = ih.corners.map((c, i) => ({ i, d: Math.hypot(c[0] - P[0], c[1] - P[1]) })).filter((c) => near(ih.corners[c.i])).sort((a, b) => a.d - b.d)[0];
+      if (ci) return this.startDrag(e, { type: "zoom", start: P, panel: ihPanel, view, center: ih.center, anchor: ih.raw[(ci.i + 2) % 4], grab: ih.raw[ci.i] });
     }
     if ((e.shiftKey || e.ctrlKey || e.metaKey) && this.mode !== "bubble") {
       const hit = this.panelAt(P);
@@ -3738,9 +3769,13 @@ class CanvasView {
       d.panel.view = { ...d.view, ox: d.view.ox + dx, oy: d.view.oy + dy };
     } else if (d.type === "zoom") {
       const g = USER_SETTINGS.geometry;
-      const dist = (q) => Math.hypot(q[0] - d.center[0], q[1] - d.center[1]) || 1;
-      const zoom = Math.min(Math.max(d.view.zoom * (dist(P) / dist(d.start)), g.minZoom), g.maxZoom);
-      d.panel.view = { ...d.view, zoom };
+      const diag = [d.grab[0] - d.anchor[0], d.grab[1] - d.anchor[1]];
+      const len2 = diag[0] * diag[0] + diag[1] * diag[1] || 1;
+      const f = 1 + (dx * diag[0] + dy * diag[1]) / len2;
+      const zoom = Math.min(Math.max(d.view.zoom * f, g.minZoom), g.maxZoom);
+      const k = zoom / d.view.zoom;
+      const moved = [(d.center[0] - d.anchor[0]) * (k - 1), (d.center[1] - d.anchor[1]) * (k - 1)];
+      d.panel.view = { ...d.view, zoom, ox: (d.view.ox || 0) + moved[0], oy: (d.view.oy || 0) + moved[1] };
     } else if (d.type === "rotate") {
       const g = USER_SETTINGS.geometry;
       const ang = (q) => (Math.atan2(q[1] - d.center[1], q[0] - d.center[0]) * 180) / Math.PI;
@@ -3928,9 +3963,34 @@ class InspectorView {
     if (tab === "common") this.box.replaceChildren(this.modelSection("common", this.doc.common), this.storySection(), ...this.form("common", this.doc.common));
     else if (tab === "bubble") this.box.replaceChildren(...this.bubbleForm());
     else if (panel) this.box.replaceChildren(...this.form("panel", panel));
-    else this.box.replaceChildren(h("p", { class: "empty-insp", text: "ページのコマを押すと、そのコマのプロンプトと設定がここに出ます。全コマに共通の内容は「全コマ共通」で設定します。" }));
+    else this.box.replaceChildren(this.panelList());
     this.box.scrollTop = scrollTop;
     this.box.querySelectorAll("textarea.autogrow").forEach(autoGrow);
+  }
+
+  panelList() {
+    const order = Layout.readingOrder(this.doc);
+    const keys = PromptWriter.genreKeys();
+    const rows = order.map((p, i) => {
+      const entry = Project.currentImage(p);
+      const thumb = entry && this.app.assets.has(entry.asset)
+        ? h("img", { class: "panel-row-thumb", src: this.app.assets.url(entry.asset), alt: "" })
+        : h("span", { class: "panel-row-thumb empty", text: "画像なし" });
+      const own = keys.map((k) => String(p.prompt?.[k] || "").trim()).filter(Boolean).join(", ");
+      const summary = (p.instruction || "").trim() || own || "（プロンプト未設定・全コマ共通を使用）";
+      const st = this.app.generator.states.get(p.id);
+      const state = st ? { writing: "文章AIが作成中", queued: "順番待ち", running: "生成中", error: "エラー" }[st.state] : "";
+      return h("button", { class: "panel-row", onclick: () => this.app.canvas.select(p.id) },
+        h("span", { class: "panel-row-no", text: String(i + 1) }),
+        thumb,
+        h("span", { class: "panel-row-text" },
+          h("span", { class: "panel-row-sum", text: summary }),
+          h("span", { class: "panel-row-meta", text: [p.images.length ? `画像 ${p.images.length} 枚` : "未生成", p.floating ? "置いたコマ" : "", state].filter(Boolean).join("・") })));
+    });
+    return h("div", { class: "insp-sec" },
+      h("h3", { class: "insp-title", text: `このページのコマ（${order.length}）` }),
+      h("p", { class: "note", text: "押すとそのコマを選んで、プロンプトと設定を編集できます。全コマに共通の内容は「全コマ共通」で設定します。" }),
+      h("div", { class: "panel-list" }, rows));
   }
 
   numberOf(panel) {
@@ -4053,24 +4113,48 @@ class InspectorView {
       })));
   }
 
+  bubbleLabel(x, i) {
+    return `${i + 1}. ${(x.text || "（空）").replace(/\n/g, " ").slice(0, 24)}`;
+  }
+
+  bubbleListSection(current) {
+    const items = this.doc.bubbles.map((x, i) => h("button", {
+      class: "bubble-item", text: this.bubbleLabel(x, i), "aria-current": String(x === current), "data-bubble": x.id,
+      onclick: () => { this.app.setMode("bubble"); this.app.canvas.selectBubble(x.id); },
+    }));
+    return h("div", { class: "insp-sec" },
+      h("div", { class: "row" }, h("button", { class: "primary", text: "＋ 吹き出しを追加", onclick: () => this.app.addBubble() })),
+      items.length ? h("div", { class: "bubble-list" }, items) : h("p", { class: "note", text: "まだ吹き出しはありません。" }));
+  }
+
+  newBubbleSection() {
+    const text = h("textarea", { class: "autogrow", rows: 2, id: "bubble-text", "aria-label": "新しい吹き出しのセリフ", placeholder: "ここにセリフを入力すると、吹き出しを自動で追加します" });
+    const create = () => { if (text.value.trim()) this.app.addBubble(null, text.value); };
+    text.addEventListener("input", (e) => { if (!e.isComposing) create(); });
+    text.addEventListener("compositionend", create);
+    return h("div", { class: "insp-sec" },
+      h("h3", { class: "insp-title", text: "新しい吹き出し" }),
+      text,
+      h("p", { class: "note", text: "一覧の吹き出しを押すと、その吹き出しを編集できます。「吹き出し」モードでページの何もない所をダブルクリックしても追加できます。" }));
+  }
+
   bubbleForm() {
     const b = this.app.canvas.bubble();
     const cfg = USER_SETTINGS.bubble;
-    if (!b) {
-      const list = this.doc.bubbles.map((x, i) => h("button", {
-        class: "bubble-item", text: `${i + 1}. ${(x.text || "（空）").replace(/\n/g, " ").slice(0, 24)}`,
-        onclick: () => { this.app.setMode("bubble"); this.app.canvas.selectBubble(x.id); },
-      }));
-      return [h("div", { class: "insp-sec" },
-        h("p", { class: "note", text: "吹き出しを選ぶと、ここでセリフ・形・文字を変えられます。「吹き出し」モードでページの何もない所をダブルクリックしても追加できます。" }),
-        h("div", { class: "row" }, h("button", { class: "primary", text: "＋ 吹き出しを追加", onclick: () => this.app.addBubble() })),
-        list.length ? h("div", { class: "bubble-list" }, list) : null)];
-    }
+    const listSec = this.bubbleListSection(b);
+    if (!b) return [listSec, this.newBubbleSection()];
     const canvas = this.app.canvas;
     const refit = () => { if (b.autoSize) Bubbles.fit(b); canvas.render(); };
     const text = h("textarea", { class: "autogrow", rows: 2, id: "bubble-text", "aria-label": "セリフ" });
     text.value = b.text || "";
-    text.addEventListener("input", () => { b.text = text.value; refit(); autoGrow(text); });
+    const index = this.doc.bubbles.indexOf(b);
+    text.addEventListener("input", () => {
+      b.text = text.value;
+      refit();
+      autoGrow(text);
+      const item = listSec.querySelector(`[data-bubble="${b.id}"]`);
+      if (item) item.textContent = this.bubbleLabel(b, index);
+    });
     const shapes = h("div", { class: "shape-grid" }, cfg.shapes.map(([id, label]) => {
       const btn = h("button", {
         class: "shape-btn", title: label, "aria-pressed": String(b.shape === id),
@@ -4102,6 +4186,7 @@ class InspectorView {
     };
     const noTail = cfg.noTail.includes(b.shape);
     return [
+      listSec,
       h("div", { class: "insp-sec" },
         h("div", { class: "insp-head" }, h("h2", { text: `吹き出し ${this.doc.bubbles.indexOf(b) + 1}` }), h("span", { style: "flex:1" }),
           h("button", { class: "mini", text: "複製", onclick: () => this.app.duplicateBubble(b) }),
@@ -5472,7 +5557,7 @@ class App {
   }
 
   // SPEECH BUBBLES
-  addBubble(at = null) {
+  addBubble(at = null, text = null) {
     const panel = this.canvas.selected();
     let center = at;
     if (!center && panel) {
@@ -5483,12 +5568,24 @@ class App {
     let bubble;
     this.commit(() => {
       bubble = Bubbles.create(this.doc, center, this.canvas.panelAt(center)?.id || null);
+      if (text !== null) {
+        bubble.text = text;
+        if (bubble.autoSize) Bubbles.fit(bubble);
+      }
       this.doc.bubbles.push(bubble);
     });
     this.setMode("bubble");
     this.canvas.selectBubble(bubble.id);
     this.status(USER_SETTINGS.messages.bubbleAdded);
-    requestAnimationFrame(() => { const ta = $("bubble-text"); if (ta) { ta.focus(); ta.select(); } });
+    const focus = () => {
+      const ta = $("bubble-text");
+      if (!ta) return;
+      ta.focus();
+      if (text === null) ta.select();
+      else ta.setSelectionRange(ta.value.length, ta.value.length);
+    };
+    if (text === null) requestAnimationFrame(focus);
+    else focus();
   }
 
   duplicateBubble(b) {
