@@ -237,16 +237,16 @@ body.resizing * { user-select: none; }
 #page-svg .sel-panel { fill: none; stroke: #0d66d0; stroke-width: 3; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .sel-edge { stroke: #e68619; stroke-width: 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .drop-panel { fill: rgba(13, 102, 208, .25); stroke: #0d66d0; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
-#page-svg .shade { fill: rgba(0, 0, 0, .5); pointer-events: none; }
-#page-svg .shade.error { fill: rgba(150, 20, 20, .45); }
-#page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .9s linear infinite; pointer-events: none; }
-#page-svg .spinner.idle { opacity: .45; animation-duration: 2.4s; }
-#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .22); }
-#page-svg .spin-arc { fill: none; stroke: #ffffff; stroke-linecap: round; }
-#page-svg .state-text.sub { font-weight: 500; opacity: .85; }
+#page-svg .shade { fill: rgba(10, 11, 24, .65); pointer-events: none; }
+#page-svg .shade.error { fill: rgba(70, 12, 20, .7); }
+#page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .8s linear infinite; pointer-events: none; }
+#page-svg .spinner.idle { opacity: .4; animation-duration: 2.4s; }
+#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .16); }
+#page-svg .spin-arc { fill: none; stroke: #5b9bff; }
+#page-svg .state-label { fill: #e9ecf5; font-weight: 400; letter-spacing: .04em; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+#page-svg .state-sub { fill: rgba(233, 236, 245, .6); font-weight: 400; text-anchor: middle; dominant-baseline: central; pointer-events: none; font-variant-numeric: tabular-nums; }
 @keyframes sm-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation: none; } }
-#page-svg .state-text { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,.6); }
 #page-svg .num-bg { fill: #0d66d0; opacity: .85; pointer-events: none; }
 #page-svg .num { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 
@@ -334,8 +334,6 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
 <body>
 <header class="topbar">
   <h1>Stillmange</h1>
-  <button id="undo" title="戻る（Ctrl+Z）">↶ 戻る</button>
-  <button id="redo" title="やり直す（Ctrl+Shift+Z / Ctrl+Y）">↷ やり直す</button>
   <span class="spacer"></span>
   <button class="pill" id="pill-llm" data-state="idle">文章AI: 確認中</button>
   <button class="pill" id="pill-sd" data-state="idle">画像生成: 確認中</button>
@@ -704,7 +702,7 @@ script_callbacks.on_app_started(on_app_started)
   previewSide: 2048,
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
-  spinner: { size: 0.09, min: 28, max: 80, stroke: 0.2, arc: 0.28, periodMs: 900 },
+  spinner: { ringPx: 36, strokePx: 3, labelPx: 13, subPx: 11, gapPx: 14, arc: 0.25, periodMs: 800 },
   geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, minCutArea: 0.02, cutSnap: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
@@ -717,7 +715,6 @@ script_callbacks.on_app_started(on_app_started)
     ranges: { gutter: [0, 120, 2], lineWidth: [0, 20, 1], margin: [0, 300, 5] },
     colors: { white: "#ffffff", black: "#000000" },
     numberSize: 0.022,
-    stateSize: 0.03,
   },
   gutterModes: [["gap", "隙間"], ["line", "線"], ["mixed", "複合"]],
   colorChoices: [["white", "白"], ["black", "黒"]],
@@ -982,6 +979,9 @@ Include every EMPTY panel number and no other panel.`,
     llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
     llmEmptyReply: "\n文章AIの返事が空でした。モデルが読み込まれているか確認してください。",
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
+    llmWritingAll: "先に全コマのプロンプトを文章AIが作っています（コマ {n}・{i}/{total}）。終わったら画像を1コマずつ生成します…",
+    timeLlm: "文章AI {t}",
+    timeImage: "画像 {t}（1コマ平均 {avg}）",
     llmDone: "文章AIでプロンプトを作りました（{n} コマ）。",
     llmFailed: "コマ {n}: 文章AIがプロンプトを作れませんでした: {err}",
     corsExtSaved: "stillmange-cors.zip を保存しました。WebUI の extensions フォルダに展開して、停止→起動し直してください。",
@@ -1039,6 +1039,11 @@ function h(tag, props = {}, ...kids) {
   }
   el.append(...kids.flat().filter((x) => x !== null && x !== undefined && x !== false));
   return el;
+}
+
+function formatDuration(ms) {
+  const sec = Math.round(ms / 1000);
+  return sec < 60 ? `${sec}秒` : `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, "0")}秒`;
 }
 
 function downloadBlob(blob, filename) {
@@ -3482,16 +3487,17 @@ class CanvasView {
       over.push(`<circle class="num-bg" cx="${cx}" cy="${cy}" r="${fs * 0.7}"/><text class="num" x="${cx}" y="${cy}" font-size="${fs}">${i + 1}</text>`);
       return { id: p.id, c: [cx, cy], r: fs * USER_SETTINGS.geometry.badgeHit };
     });
-    const sfs = Math.max(pg.w, pg.h) * USER_SETTINGS.page.stateSize;
+    const stateLayer = [];
     for (const p of doc.panels) {
       const st = this.app.generator.states.get(p.id);
       if (!st) continue;
       const inset = this.insets.get(p.id);
       const bb = Geo.bbox(inset);
-      const label = { writing: "文章AIが作成中...", queued: "順番待ち", running: "生成中...", error: "エラー" }[st.state];
+      const label = { writing: "文章AIが作成中…", queued: "順番待ち", running: "生成中…", error: "エラー" }[st.state];
       if (!label) continue;
-      over.push(this.stateOverlay(inset, bb, st, label, sfs));
+      stateLayer.push(this.stateOverlay(inset, bb, st, label));
     }
+    over.unshift(...stateLayer);
     const sel = this.selected();
     if (sel && this.mode !== "bubble") for (const p of this.selectedPanels()) over.push(`<polygon class="sel-panel" points="${this.polyStr(this.insets.get(p.id))}"/>`);
     const dropPts = this.dropTarget && this.insets.get(this.dropTarget);
@@ -3565,26 +3571,27 @@ class CanvasView {
     return at;
   }
 
-  stateOverlay(inset, bb, st, label, fs) {
+  stateOverlay(inset, bb, st, label) {
     const cfg = USER_SETTINGS.spinner;
+    const px = 1 / this.screenScale();
     const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
-    const r = Math.min(Math.max(Math.min(bb.w, bb.h) * cfg.size, cfg.min), cfg.max);
     const shade = `<polygon class="shade${st.state === "error" ? " error" : ""}" points="${this.polyStr(inset)}"/>`;
-    const text = (y, size, body, cls = "state-text") => `<text class="${cls}" x="${cx}" y="${y}" font-size="${size}" stroke-width="${size * 0.08}">${body}</text>`;
-    if (st.state === "error") return shade + text(cy, fs, label);
+    const text = (y, size, body, cls) => `<text class="${cls}" x="${cx}" y="${y}" font-size="${size}">${body}</text>`;
+    const labelSize = cfg.labelPx * px;
+    if (st.state === "error") return shade + text(cy, labelSize, label, "state-label");
+    const r = (cfg.ringPx / 2) * px, stroke = cfg.strokePx * px;
+    const subSize = cfg.subPx * px;
+    const hasPct = st.state === "running";
+    const total = r * 2 + cfg.gapPx * px + labelSize + (hasPct ? subSize * 1.6 : 0);
+    const ringY = cy - total / 2 + r;
+    const labelY = ringY + r + cfg.gapPx * px + labelSize / 2;
     const circ = 2 * Math.PI * r;
     const delay = -((performance.now() % cfg.periodMs) / 1000);
-    const labelSize = fs * 0.85, pctSize = fs * 0.7;
-    const outer = r * (1 + cfg.stroke / 2);
-    const hasPct = st.state === "running";
-    const total = outer * 2 + labelSize * 1.6 + (hasPct ? pctSize * 1.3 : 0);
-    const ringY = cy - total / 2 + outer;
-    const labelY = ringY + outer + labelSize * 1.05;
     const ring = `<g class="spinner${st.state === "queued" ? " idle" : ""}" style="animation-delay:${delay}s">`
-      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-track" stroke-width="${r * cfg.stroke}"/>`
-      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-arc" stroke-width="${r * cfg.stroke}" stroke-dasharray="${circ * cfg.arc} ${circ}"/></g>`;
-    const pct = hasPct ? text(labelY + labelSize * 0.6 + pctSize * 0.8, pctSize, `${Math.round((st.progress || 0) * 100)}%`, "state-text sub") : "";
-    return shade + ring + text(labelY, labelSize, label) + pct;
+      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-track" stroke-width="${stroke}"/>`
+      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-arc" stroke-width="${stroke}" stroke-dasharray="${circ * cfg.arc} ${circ}"/></g>`;
+    const pct = hasPct ? text(labelY + labelSize / 2 + subSize * 0.9, subSize, `${Math.round((st.progress || 0) * 100)}%`, "state-sub") : "";
+    return shade + ring + text(labelY, labelSize, label, "state-label") + pct;
   }
 
   panelAt(pt) {
@@ -4636,6 +4643,7 @@ class Generator {
     this.finished = 0;
     this.progress = 0;
     this.forceLlm = new Set();
+    this.timing = { llm: 0, image: 0, images: 0 };
   }
 
   run(ids, opts = {}) {
@@ -4646,7 +4654,8 @@ class Generator {
     }
     const force = opts.llm === true ? fresh : (opts.llm || []);
     force.filter((id) => fresh.includes(id)).forEach((id) => this.forceLlm.add(id));
-    if (!this.busy) { this.total = 0; this.finished = 0; this.ok = 0; }
+    if (!this.busy) { this.total = 0; this.finished = 0; this.ok = 0; this.timing = { llm: 0, image: 0, images: 0 }; }
+    this.timing.llm += opts.llmMs || 0;
     for (const id of fresh) {
       this.queue.push(id);
       this.states.set(id, { state: "queued", progress: 0 });
@@ -4656,69 +4665,112 @@ class Generator {
     if (!this.busy) this.loop();
   }
 
+  needsPrompt(panel) {
+    const useLlm = this.app.store.data.ui.useLlm || this.forceLlm.has(panel.id);
+    if (!useLlm || !(panel.instruction || "").trim()) return false;
+    return panel.llmKey !== PromptWriter.key(this.app.doc, panel, PromptWriter.resolveBase(this.app.doc, panel));
+  }
+
+  numberOf(panel) {
+    return Layout.readingOrder(this.app.doc).indexOf(panel) + 1;
+  }
+
+  fail(id, n, err, who) {
+    const text = describeError(err, who);
+    this.states.set(id, { state: "error", progress: 0, error: text });
+    this.app.status(fmt(USER_SETTINGS.messages.genFailed, { n, err: text }), true);
+  }
+
+  async writeAll(batch) {
+    const m = USER_SETTINGS.messages;
+    const todo = batch.map((id) => this.app.doc.panels.find((p) => p.id === id)).filter((p) => p && this.needsPrompt(p));
+    const failed = new Set();
+    for (const [i, panel] of todo.entries()) {
+      if (this.abort.signal.aborted) break;
+      const n = this.numberOf(panel);
+      this.states.set(panel.id, { state: "writing", progress: 0 });
+      this.app.status(fmt(m.llmWritingAll, { n, i: i + 1, total: todo.length }));
+      this.app.afterRuntime();
+      const t0 = performance.now();
+      try {
+        await this.app.writePrompt(panel, this.abort.signal);
+        this.states.set(panel.id, { state: "queued", progress: 0 });
+      } catch (err) {
+        if (err.name === "AbortError") break;
+        this.fail(panel.id, n, err, "文章AI");
+        failed.add(panel.id);
+      } finally {
+        this.timing.llm += performance.now() - t0;
+      }
+      this.app.afterRuntime({ inspector: true });
+    }
+    for (const id of batch) this.forceLlm.delete(id);
+    return failed;
+  }
+
+  async generateOne(id) {
+    const m = USER_SETTINGS.messages;
+    const panel = this.app.doc.panels.find((p) => p.id === id);
+    if (!panel) { this.states.delete(id); return; }
+    const n = this.numberOf(panel);
+    this.states.set(id, { state: "running", progress: 0 });
+    this.progress = 0;
+    this.app.status(fmt(m.generating, { n, i: this.finished + 1, total: this.total }));
+    this.app.afterRuntime();
+    const t0 = performance.now();
+    try {
+      const backend = this.app.store.data.backend;
+      const spec = Project.spec(this.app.doc, panel, this.app.resources, backend);
+      this.client = this.app.client();
+      const result = await this.client.generate(spec, {
+        signal: this.abort.signal,
+        onProgress: (v) => {
+          const st = this.states.get(id);
+          if (st?.state !== "running") return;
+          st.progress = Math.min(Math.max(v, 0), 1);
+          this.progress = st.progress;
+          this.app.afterRuntime();
+        },
+      });
+      const asset = this.app.assets.add(result.dataUrl);
+      const img = await this.app.assets.image(asset);
+      const live = this.app.doc.panels.find((p) => p.id === id);
+      if (live) {
+        live.images.push({ asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, prompt: spec.prompt, negative: spec.negative, model: spec.model, loras: spec.loras, settings: spec.settings, at: new Date().toISOString() });
+        live.current = live.images.length - 1;
+        live.view = Project.freshView();
+        this.app.markDirty();
+      }
+      this.states.delete(id);
+      this.ok++;
+      this.timing.image += performance.now() - t0;
+      this.timing.images++;
+    } catch (err) {
+      if (err.name === "AbortError") { this.states.delete(id); throw err; }
+      this.fail(id, n, err, USER_SETTINGS.backends[this.app.store.data.backend].short);
+    }
+  }
+
   async loop() {
     const m = USER_SETTINGS.messages;
     this.busy = true;
     this.abort = new AbortController();
     this.app.updateRunUi();
-    while (this.queue.length && !this.abort.signal.aborted) {
-      const id = this.queue.shift();
-      const panel = this.app.doc.panels.find((p) => p.id === id);
-      if (!panel) { this.states.delete(id); this.finished++; continue; }
-      this.states.set(id, { state: "running", progress: 0 });
-      this.progress = 0;
-      const n = Layout.readingOrder(this.app.doc).indexOf(panel) + 1;
-      this.app.status(fmt(m.generating, { n, i: this.finished + 1, total: this.total }));
-      this.app.afterRuntime();
-      try {
-        const useLlm = this.app.store.data.ui.useLlm || this.forceLlm.has(id);
-        this.forceLlm.delete(id);
-        if (useLlm && (panel.instruction || "").trim()) {
-          const base = PromptWriter.resolveBase(this.app.doc, panel);
-          if (panel.llmKey !== PromptWriter.key(this.app.doc, panel, base)) {
-            this.states.set(id, { state: "writing", progress: 0 });
-            this.app.status(fmt(m.llmWriting, { n }));
-            this.app.afterRuntime();
-            await this.app.writePrompt(panel, this.abort.signal);
-            this.states.set(id, { state: "running", progress: 0 });
-            this.app.status(fmt(m.generating, { n, i: this.finished + 1, total: this.total }));
-            this.app.afterRuntime();
-          }
+    try {
+      while (this.queue.length && !this.abort.signal.aborted) {
+        const batch = this.queue.splice(0);
+        const failed = await this.writeAll(batch);
+        for (const id of batch) {
+          if (this.abort.signal.aborted) break;
+          if (!failed.has(id)) await this.generateOne(id);
+          this.finished++;
+          this.progress = 0;
+          this.app.afterRuntime({ inspector: true });
         }
-        const backend = this.app.store.data.backend;
-        const spec = Project.spec(this.app.doc, panel, this.app.resources, backend);
-        this.client = this.app.client();
-        const result = await this.client.generate(spec, {
-          signal: this.abort.signal,
-          onProgress: (v) => {
-            const st = this.states.get(id);
-            if (st?.state !== "running") return;
-            st.progress = Math.min(Math.max(v, 0), 1);
-            this.progress = st.progress;
-            this.app.afterRuntime();
-          },
-        });
-        const asset = this.app.assets.add(result.dataUrl);
-        const img = await this.app.assets.image(asset);
-        const live = this.app.doc.panels.find((p) => p.id === id);
-        if (live) {
-          live.images.push({ asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, prompt: spec.prompt, negative: spec.negative, model: spec.model, loras: spec.loras, settings: spec.settings, at: new Date().toISOString() });
-          live.current = live.images.length - 1;
-          live.view = Project.freshView();
-          this.app.markDirty();
-        }
-        this.states.delete(id);
-        this.ok++;
-      } catch (err) {
-        if (err.name === "AbortError") { this.states.delete(id); break; }
-        const who = this.states.get(id)?.state === "writing" ? "文章AI" : USER_SETTINGS.backends[this.app.store.data.backend].short;
-        const text = describeError(err, who);
-        this.states.set(id, { state: "error", progress: 0, error: text });
-        this.app.status(fmt(m.genFailed, { n, err: text }), true);
+        for (const id of batch) if (this.abort.signal.aborted && this.states.get(id)?.state !== "error") this.states.delete(id);
       }
-      this.finished++;
-      this.progress = 0;
-      this.app.afterRuntime({ inspector: true });
+    } catch (err) {
+      if (err.name !== "AbortError") throw err;
     }
     const aborted = this.abort.signal.aborted;
     for (const id of this.queue) this.states.delete(id);
@@ -4727,9 +4779,18 @@ class Generator {
     this.busy = false;
     this.client = null;
     if (aborted) this.app.status(m.cancelled);
-    else if (![...this.states.values()].some((s) => s.state === "error")) this.app.status(fmt(m.genDone, { ok: this.ok }));
+    else if (![...this.states.values()].some((s) => s.state === "error")) this.app.status(this.summary());
     this.app.updateRunUi();
     this.app.afterRuntime({ inspector: true });
+  }
+
+  summary() {
+    const m = USER_SETTINGS.messages;
+    const t = this.timing;
+    const parts = [];
+    if (t.llm >= 1000) parts.push(fmt(m.timeLlm, { t: formatDuration(t.llm) }));
+    if (t.images && t.image >= 1000) parts.push(fmt(m.timeImage, { t: formatDuration(t.image), avg: formatDuration(t.image / t.images) }));
+    return fmt(m.genDone, { ok: this.ok }) + (parts.length ? ` かかった時間: ${parts.join("・")}` : "");
   }
 
   cancel() {
@@ -5098,10 +5159,8 @@ class App {
   }
 
   updateUndoUi() {
-    $("undo").disabled = !this.history.undoStack.length;
-    $("redo").disabled = !this.history.redoStack.length;
-    $("cv-undo").disabled = $("undo").disabled;
-    $("cv-redo").disabled = $("redo").disabled;
+    $("cv-undo").disabled = !this.history.undoStack.length;
+    $("cv-redo").disabled = !this.history.redoStack.length;
   }
 
   updateProgress() {
@@ -5308,8 +5367,6 @@ class App {
   // BINDINGS
   bind() {
     const m = USER_SETTINGS.messages;
-    this.on($("undo"), "click", () => this.undo());
-    this.on($("redo"), "click", () => this.redo());
     this.on($("open-settings"), "click", () => this.settings.open());
     this.on($("pill-sd"), "click", () => this.settings.open("conn"));
     this.on($("pill-llm"), "click", () => this.settings.open("llm"));
@@ -5686,10 +5743,11 @@ class App {
     if (this.llmBusy || !panels.length) return;
     this.endEdit();
     const blank = panels.filter((p) => !StoryPlanner.hasPrompt(p) && !(p.instruction || "").trim());
+    const t0 = performance.now();
     const planned = blank.length ? await this.planBlankPanels(blank) : [];
     if (planned === null) return;
     const ids = panels.map((p) => p.id).filter((id) => this.doc.panels.some((p) => p.id === id));
-    this.generator.run(ids, { llm: planned });
+    this.generator.run(ids, { llm: planned, llmMs: blank.length ? performance.now() - t0 : 0 });
   }
 
   async planBlankPanels(blank) {
