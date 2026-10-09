@@ -179,7 +179,6 @@ body.resizing * { user-select: none; }
 .side-foot { flex: none; padding: 8px 10px; background: var(--head); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .run-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px; }
 .run-row select, .run-row button { height: var(--run-height); }
-.auto-run { width: 100%; margin-top: 6px; white-space: normal; line-height: 1.3; padding: 6px 8px; }
 
 /* 中央 */
 .col-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
@@ -202,10 +201,15 @@ body.resizing * { user-select: none; }
 .overall-pct { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
 #run-status { margin: 0; font-size: 12px; min-height: 1.5em; white-space: pre-wrap; color: var(--muted); }
 #run-status.err { color: var(--danger); }
-.stage { flex: 1 1 auto; min-height: 0; background: var(--stage); padding: 14px; position: relative; }
+.stage { flex: 1 1 auto; min-height: 0; background: var(--stage); padding: 14px; position: relative; overflow: hidden; }
 #page-svg { width: 100%; height: 100%; display: block; touch-action: none; filter: drop-shadow(0 2px 10px rgba(0,0,0,.45)); }
 #page-svg.mode-image { cursor: move; }
 #page-svg.dragging * { pointer-events: none; }
+#page-svg { overflow: visible; user-select: none; -webkit-user-select: none; }
+#page-svg image { pointer-events: none; -webkit-user-drag: none; }
+#page-svg .img-box { fill: none; stroke: #e68619; stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+#page-svg .h-vertex.h-img { fill: #ffffff; stroke: #e68619; cursor: nwse-resize; opacity: .85; }
+#page-svg .h-rotate { fill: #e68619; stroke: #ffffff; stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; opacity: .85; }
 #page-svg .h-vertex, #page-svg .h-edge, #page-svg .h-tail { opacity: .4; transition: opacity .12s; }
 #page-svg .h-vertex:hover, #page-svg .h-edge:hover, #page-svg .h-tail:hover, #page-svg .h-edge.sel { opacity: .95; }
 #page-svg .h-vertex { fill: #ffffff; stroke: #0d66d0; vector-effect: non-scaling-stroke; stroke-width: 2; cursor: move; }
@@ -334,6 +338,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
           <div class="prop"><span class="prop-label">ページの色</span><div class="seg" id="page-color" role="group" aria-label="ページの色"></div></div>
           <div class="prop"><span class="prop-label">コマの中</span><div class="seg" id="panel-fill" role="group" aria-label="コマの中の色"></div></div>
           <div class="prop"><span class="prop-label">枠線の色</span><div class="seg" id="frame-color" role="group" aria-label="枠線の色"></div></div>
+          <div class="prop"><span class="prop-label">画像の色</span><div class="seg" id="image-mono" role="group" aria-label="画像の色（全体）" title="ページ全体の画像をカラー / モノクロにします。コマごとの指定は右の「このコマ」で変えられます"></div></div>
           <label class="prop"><span class="prop-label">隙間 <output id="gutter-out"></output></span><input type="range" id="gutter"></label>
           <label class="prop"><span class="prop-label">枠線 <output id="line-out"></output></span><input type="range" id="line-width"></label>
           <label class="prop"><span class="prop-label">余白 <output id="margin-out"></output></span><input type="range" id="margin"></label>
@@ -357,7 +362,20 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
             </div>
             <div class="row">
               <button id="add-panel">＋ 新しいコマを置く</button>
-              <button id="reset-view">画像の位置を戻す</button>
+            </div>
+          </div>
+          <div class="tool-group">
+            <span class="tool-group-title" id="image-tools-title">選択中のコマの画像</span>
+            <div class="row">
+              <button id="img-flip-x" title="画像を左右反転">⇆ 左右反転</button>
+              <button id="img-flip-y" title="画像を上下反転">⇅ 上下反転</button>
+              <button id="img-rot90" title="画像を右に90°回す">↻ 90°回転</button>
+            </div>
+            <div class="row">
+              <div class="seg" id="panel-mono" role="group" aria-label="このコマの画像の色"></div>
+            </div>
+            <div class="row">
+              <button id="reset-view" title="位置・拡大・回転・反転を元に戻す">画像の位置・向きを戻す</button>
             </div>
           </div>
           <div class="tool-group">
@@ -396,7 +414,7 @@ dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
         <select id="run-target" aria-label="生成するコマ"></select>
         <button class="run big" id="run">④ 実行</button>
       </div>
-      <button class="auto-run" id="auto-story" title="アップした画像のプロンプトから文章AIが状況とストーリーを考え、プロンプトが空のコマを埋めて生成します">おまかせ生成（空きコマを文章AIで埋める）</button>
+      <label class="check"><input type="checkbox" id="skip-filled"> 画像が入っているコマは生成しない（スキップ）</label>
       <label class="check"><input type="checkbox" id="use-llm"> 「指示」があるコマは、文章AIでプロンプトを作ってから生成する</label>
       <p class="note" id="run-note"></p>
     </div>
@@ -652,7 +670,7 @@ script_callbacks.on_app_started(on_app_started)
   previewSide: 2048,
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
-  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
+  geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
     presets: [
@@ -660,7 +678,7 @@ script_callbacks.on_app_started(on_app_started)
       ["square", "正方形", 2000, 2000], ["tall", "縦長（9:16）", 1440, 2560], ["wide", "横長（16:9）", 2560, 1440],
     ],
     defaultPreset: "b5",
-    defaults: { margin: 90, gutter: 30, lineWidth: 5, pageColor: "white", panelFill: "white", frameColor: "black", gutterMode: "mixed", template: "basic5" },
+    defaults: { margin: 90, gutter: 30, lineWidth: 5, pageColor: "white", panelFill: "white", frameColor: "black", gutterMode: "mixed", template: "basic5", mono: false },
     ranges: { gutter: [0, 120, 2], lineWidth: [0, 20, 1], margin: [0, 300, 5] },
     colors: { white: "#ffffff", black: "#000000" },
     numberSize: 0.022,
@@ -668,6 +686,8 @@ script_callbacks.on_app_started(on_app_started)
   },
   gutterModes: [["gap", "隙間"], ["line", "線"], ["mixed", "複合"]],
   colorChoices: [["white", "白"], ["black", "黒"]],
+  monoChoices: [["color", "カラー"], ["mono", "モノクロ"]],
+  panelMonoChoices: [["auto", "全体に合わせる"], ["color", "カラー"], ["mono", "モノクロ"]],
   editModes: [["layout", "コマ編集"], ["image", "画像調整"], ["bubble", "吹き出し"]],
   bubble: {
     shapes: [
@@ -759,7 +779,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
 Include every EMPTY panel number and no other panel.`,
   tagDictFormat: "stillmange-tagdict",
   legacyTagDictFormats: ["komagen-tagdict"],
-  runTargets: [["all", "全コマ"], ["empty", "未生成のコマ"], ["selected", "選択中のコマ"]],
+  runTargets: [["all", "全コマ"], ["selected", "選択中のコマ"]],
   thumbPage: 64,
   templates: [
     { id: "one", name: "1コマ", tree: null },
@@ -844,7 +864,7 @@ Include every EMPTY panel number and no other panel.`,
     probeDown: "接続できません。起動しているか、URLが正しいか確認してください。ブラウザの「ローカル ネットワーク アクセス」の許可も確認してください。",
     hintLayout: "コマを押して選びます。白い四角（角）をドラッグで形を変え、区切りの丸をドラッグで配分を変え、押すと区切りを選べます（青＝隙間、白＝線）。コマを別のコマの上へドラッグすると、内容（画像・プロンプト・設定）を入れ替えます（右上の番号はどのモードでもドラッグできます）。",
     swapped: "コマ {a} とコマ {b} の内容を入れ替えました。画像はコマの形に合わせて収め直しています（形が大きく違うときは再生成するときれいに収まります）。",
-    hintImage: "コマの画像をドラッグで動かし、マウスホイールで拡大縮小します。ダブルクリックで元の位置に戻ります。",
+    hintImage: "コマの画像をドラッグで動かします。選んだコマの画像の四隅の□で拡大縮小、上の○で回転（Shift で15°刻み）。マウスホイールでも拡大縮小できます。反転は下のボタンで。ダブルクリックで元に戻ります。",
     needPanel: "先にコマを選んでください。",
     needEdge: "先に区切り（区切りの丸）を選んでください。",
     mergeNoNeighbor: "この区切りの両側に、ぴったり同じ辺を持つコマがありません（T字の区切りは結合できません）。",
@@ -891,12 +911,12 @@ Include every EMPTY panel number and no other panel.`,
     llmDone: "文章AIでプロンプトを作りました（{n} コマ）。",
     llmFailed: "コマ {n}: 文章AIがプロンプトを作れませんでした: {err}",
     corsExtSaved: "stillmange-cors.zip を保存しました。WebUI の extensions フォルダに展開して、停止→起動し直してください。",
-    autoNoEmpty: "プロンプトが空いているコマがありません。おまかせ生成は、プロンプトが空のコマだけを埋めます。",
-    autoNoSource: "材料になる画像がありません。生成した画像を左の「素材」かコマにドロップしてから押してください。",
+    allFilled: "生成するコマがありません（画像が入っているコマはスキップする設定です）。作り直すときは「画像が入っているコマは生成しない」を外してください。",
+    autoNoLlm: "文章AIが設定されていないため、プロンプトと指示が空のコマは「全コマ共通」のプロンプトで生成します。",
     autoPlanning: "文章AIが画像から状況を読み取り、ページの流れを考えています…",
-    autoPlanned: "流れを決めました：{synopsis}\n空いている {n} コマのプロンプトを作って生成します。",
+    autoPlanned: "空いている {n} コマの場面を文章AIが決めました。{synopsis}",
     autoBadJson: "文章AIの返事からページの流れ（JSON）を読み取れませんでした。もう一度押すか、別のモデルにしてください。",
-    autoFailed: "おまかせ生成に失敗しました: {err}",
+    autoFailed: "空いているコマの場面を文章AIで決められなかったため、生成を止めました: {err}",
     llmNoInstruction: "「指示」が入ったコマがありません。コマを選んで、右の「指示」に大まかな内容を書いてください。",
     llmNotFound: "文章AIのサーバーが見つかりません。サーバーを起動し、CORS を有効にしてから、もう一度押してください。",
     llmFound: "{name}（{url}）が見つかりました。モデル {n} 件。",
@@ -1809,7 +1829,7 @@ class SettingsStore {
     const urls = Object.fromEntries(Object.entries(USER_SETTINGS.backends).map(([k, v]) => [k, v.url]));
     return {
       backend: USER_SETTINGS.defaultBackend, urls, saveImages: false, tagDict: {}, llm: clone(USER_SETTINGS.llm.defaults),
-      ui: { tab: "panel", mode: "layout", runTarget: "all", settingsPane: "guide", useLlm: true },
+      ui: { tab: "panel", mode: "layout", runTarget: "all", settingsPane: "guide", useLlm: true, skipFilled: true },
     };
   }
 
@@ -1819,7 +1839,9 @@ class SettingsStore {
       if (raw) {
         const d = JSON.parse(raw);
         const base = this.defaults();
-        return { ...base, ...d, urls: { ...base.urls, ...(d.urls || {}) }, ui: { ...base.ui, ...(d.ui || {}) }, tagDict: d.tagDict || {}, llm: { ...base.llm, ...(d.llm || {}) } };
+        const ui = { ...base.ui, ...(d.ui || {}) };
+        if (ui.runTarget === "empty") Object.assign(ui, { runTarget: "all", skipFilled: true });
+        return { ...base, ...d, urls: { ...base.urls, ...(d.urls || {}) }, ui, tagDict: d.tagDict || {}, llm: { ...base.llm, ...(d.llm || {}) } };
       }
     } catch {}
     this.fresh = true;
@@ -1886,21 +1908,33 @@ class A1111Client {
 
   async resources() {
     const safe = (path, map) => this.get(path).then(map).catch(() => []);
-    const [models, loras, samplers, schedulers, vaes, upscalers, latent] = await Promise.all([
+    const [models, loras, samplers, schedulers, vaeList, upscalers, latent, options] = await Promise.all([
       safe("/sdapi/v1/sd-models", (d) => d.map((m) => m.title)),
       safe("/sdapi/v1/loras", (d) => d.map((l) => l.name)),
       safe("/sdapi/v1/samplers", (d) => d.map((s) => s.name)),
       safe("/sdapi/v1/schedulers", (d) => d.map((s) => s.label || s.name)),
-      safe("/sdapi/v1/sd-vae", (d) => d.map((v) => v.model_name)),
+      safe("/sdapi/v1/sd-vae", (d) => d.map((v) => ({ name: v.model_name, file: v.filename }))),
       safe("/sdapi/v1/upscalers", (d) => d.map((u) => u.name)),
       safe("/sdapi/v1/latent-upscale-modes", (d) => d.map((u) => u.name)),
+      this.get("/sdapi/v1/options").catch(() => ({})),
     ]);
-    return { models, loras, samplers, schedulers, vaes: vaes.length ? ["Automatic", "None", ...vaes] : [], upscalers: [...latent, ...upscalers.filter((u) => u !== "None")] };
+    const vaes = vaeList.map((v) => v.name);
+    return {
+      models, loras, samplers, schedulers, vaes: vaes.length ? ["Automatic", "None", ...vaes] : [],
+      upscalers: [...latent, ...upscalers.filter((u) => u !== "None")],
+      vaeFiles: Object.fromEntries(vaeList.map((v) => [v.name, v.file])),
+      forgeNeo: Array.isArray(options.forge_additional_modules),
+    };
   }
 
   async currentSettings() {
     const o = await this.get("/sdapi/v1/options");
-    return { model: o.sd_model_checkpoint, vae: o.sd_vae, clipSkip: Number(o.CLIP_stop_at_last_layers) || undefined };
+    let vae = o.sd_vae;
+    if (Array.isArray(o.forge_additional_modules)) {
+      const names = (await this.get("/sdapi/v1/sd-vae").catch(() => [])).map((v) => v.model_name);
+      vae = o.forge_additional_modules.map((f) => String(f).split(/[\\/]/).pop()).find((n) => names.includes(n)) || "Automatic";
+    }
+    return { model: o.sd_model_checkpoint, vae, clipSkip: Number(o.CLIP_stop_at_last_layers) || undefined };
   }
 
   async generate(spec, { signal, onProgress }) {
@@ -2317,10 +2351,6 @@ class StoryPlanner {
     return PromptWriter.genreKeys().some((k) => String(panel.prompt?.[k] || "").trim());
   }
 
-  static empties(doc) {
-    return Layout.readingOrder(doc).filter((p) => !this.hasPrompt(p));
-  }
-
   static libraryRefs(doc) {
     const used = new Set(doc.panels.map((p) => p.source));
     return doc.library.filter((l) => !used.has(l.id) && (l.meta.prompt || "").trim()).slice(-USER_SETTINGS.autoStory.maxLibraryRefs).reverse();
@@ -2348,7 +2378,7 @@ class StoryPlanner {
     return PromptWriter.genreKeys().map((k) => [k, String(panel.prompt[k] || "").trim()]).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(" | ");
   }
 
-  static userText(doc, empties) {
+  static userText(doc, targets) {
     const lines = [];
     const story = (doc.story.synopsis || "").trim();
     if (story) lines.push(`Story written by the user (may be Japanese, follow it): ${story}`, "");
@@ -2358,14 +2388,14 @@ class StoryPlanner {
       const instr = (p.instruction || "").trim();
       if (this.hasPrompt(p)) lines.push(`${head}: HAS IMAGE. Prompt: ${this.promptOf(doc, p)}`);
       else if (instr) lines.push(`${head}: HAS INSTRUCTION (keep it): "${instr}"`);
-      else lines.push(`${head}: EMPTY`);
+      else lines.push(`${head}: ${targets.includes(p) ? "EMPTY" : "not drawn in this run (keep the story consistent with it)"}`);
     });
     const refs = this.libraryRefs(doc);
     if (refs.length) {
       lines.push("", "Other images the user uploaded (material for the characters and the situation):");
       refs.forEach((l, i) => lines.push(`- Image ${i + 1}: ${l.meta.prompt.trim()}`));
     }
-    const nums = empties.filter((p) => !(p.instruction || "").trim()).map((p) => Layout.readingOrder(doc).indexOf(p) + 1);
+    const nums = targets.map((p) => Layout.readingOrder(doc).indexOf(p) + 1);
     lines.push("", `Write instructions for the EMPTY panels: ${nums.join(", ")}.`);
     return lines.join("\n");
   }
@@ -2464,8 +2494,8 @@ class History {
 class Project {
   static newPanel(pts, gaps) {
     return {
-      id: uid(), pts, gaps, floating: false, prompt: {}, negative: "", model: "", vae: "", loras: [], settings: {}, images: [], current: -1,
-      view: { zoom: 1, ox: 0, oy: 0 }, instruction: "", baseRef: "auto", source: null, llmKey: "",
+      id: uid(), pts, gaps, floating: false, mono: "auto", prompt: {}, negative: "", model: "", vae: "", loras: [], settings: {}, images: [], current: -1,
+      view: Project.freshView(), instruction: "", baseRef: "auto", source: null, llmKey: "",
     };
   }
 
@@ -2500,7 +2530,7 @@ class Project {
     fresh.forEach((p, i) => {
       const src = old[i];
       if (!src) return;
-      Object.assign(p, { ...src, id: src.id, pts: p.pts, gaps: p.gaps, floating: false, view: { zoom: 1, ox: 0, oy: 0 } });
+      Object.assign(p, { ...src, id: src.id, pts: p.pts, gaps: p.gaps, floating: false, view: Project.freshView() });
     });
   }
 
@@ -2564,13 +2594,21 @@ class Project {
     const seed = Number(settings.seed);
     settings.seed = Number.isFinite(seed) && seed >= 0 ? seed : Math.floor(Math.random() * USER_SETTINGS.gen.seedMax);
     const bbox = Geo.bbox(Layout.insetPts(doc, panel));
-    const auto = USER_SETTINGS.autoValues;
     return {
       prompt: inline.text.replace(/\s*(,\s*)+/g, ", ").replace(/^,\s*|,\s*$/g, "").trim(), negative,
-      model: Names.match(model, resources.models), vae: auto.includes(vae) && backend === "comfy" ? "" : Names.match(vae, resources.vaes),
+      model: Names.match(model, resources.models), vae: this.vaeFor(vae, resources, backend),
       loras: loras.map((l) => ({ name: Names.match(l.name, resources.loras), weight: Number(l.weight ?? 1) })),
       settings, size: this.genSize(bbox, settings.megapixels), panelBox: bbox,
     };
+  }
+
+  static vaeFor(vae, resources, backend) {
+    const auto = USER_SETTINGS.autoValues;
+    const forgeNeo = backend === "a1111" && resources.forgeNeo;
+    if (auto.includes(vae || "")) return backend === "comfy" || forgeNeo ? "" : Names.match(vae, resources.vaes);
+    const name = Names.match(vae, resources.vaes);
+    if (resources.vaes?.length && !resources.vaes.includes(name)) return "";
+    return forgeNeo ? resources.vaeFiles?.[name] || "" : name;
   }
 
   static placement(bbox, entry, view) {
@@ -2581,6 +2619,36 @@ class Project {
 
   static currentImage(panel) {
     return panel.images[panel.current] || null;
+  }
+
+  static freshView() {
+    return { zoom: 1, ox: 0, oy: 0, rot: 0, flipX: false, flipY: false };
+  }
+
+  static isMono(doc, panel) {
+    return panel.mono === "mono" || (panel.mono !== "color" && !!doc.page.mono);
+  }
+
+  static imageTransform(pl, view) {
+    const rot = Number(view.rot) || 0;
+    const sx = view.flipX ? -1 : 1, sy = view.flipY ? -1 : 1;
+    if (!rot && sx === 1 && sy === 1) return "";
+    const cx = pl.x + pl.w / 2, cy = pl.y + pl.h / 2;
+    return `translate(${cx} ${cy}) rotate(${rot}) scale(${sx} ${sy}) translate(${-cx} ${-cy})`;
+  }
+
+  static imageFrame(pl, view, rotateOffset) {
+    const cx = pl.x + pl.w / 2, cy = pl.y + pl.h / 2;
+    const a = ((Number(view.rot) || 0) * Math.PI) / 180;
+    const cos = Math.cos(a), sin = Math.sin(a);
+    const at = (dx, dy) => [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
+    const hw = pl.w / 2, hh = pl.h / 2;
+    return {
+      center: [cx, cy],
+      corners: [at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh)],
+      top: at(0, -hh),
+      rotate: at(0, -hh - rotateOffset),
+    };
   }
 }
 
@@ -2882,6 +2950,21 @@ class CanvasView {
     return [p.x, p.y];
   }
 
+  visibleRect(pad) {
+    const box = this.svg.getBoundingClientRect();
+    const m = this.svg.getScreenCTM();
+    if (!m || !box.width) return { x0: -Infinity, y0: -Infinity, x1: Infinity, y1: Infinity };
+    const inv = m.inverse();
+    const at = (x, y) => {
+      const pt = this.svg.createSVGPoint();
+      pt.x = x;
+      pt.y = y;
+      return pt.matrixTransform(inv);
+    };
+    const a = at(box.left, box.top), b = at(box.right, box.bottom);
+    return { x0: a.x + pad, y0: a.y + pad, x1: b.x - pad, y1: b.y - pad };
+  }
+
   polyStr(pts) {
     return pts.map((v) => `${v[0].toFixed(1)},${v[1].toFixed(1)}`).join(" ");
   }
@@ -2891,7 +2974,7 @@ class CanvasView {
     const pg = doc.page;
     const colors = USER_SETTINGS.page.colors;
     const insets = new Map(doc.panels.map((p) => [p.id, Layout.insetPts(doc, p)]));
-    const defs = [], body = [];
+    const defs = [`<filter id="f-mono" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/></filter>`], body = [];
     body.push(`<rect width="${pg.w}" height="${pg.h}" fill="${colors[pg.pageColor]}"/>`);
     for (const p of Layout.drawOrder(doc)) {
       const inset = insets.get(p.id);
@@ -2902,7 +2985,8 @@ class CanvasView {
       if (entry && this.app.assets.has(entry.asset)) {
         const pl = Project.placement(Geo.bbox(inset), entry, p.view);
         const href = exportMode ? this.app.assets.dataUrl(entry.asset) : this.app.assets.url(entry.asset);
-        image = `<image href="${href}" x="${pl.x}" y="${pl.y}" width="${pl.w}" height="${pl.h}" preserveAspectRatio="none"/>`;
+        const tf = Project.imageTransform(pl, p.view);
+        image = `<image href="${href}" x="${pl.x}" y="${pl.y}" width="${pl.w}" height="${pl.h}" preserveAspectRatio="none"${tf ? ` transform="${tf}"` : ""}${Project.isMono(doc, p) ? ` filter="url(#f-mono)"` : ""}/>`;
       }
       body.push(`<g clip-path="url(#clip-${p.id})"><polygon points="${pts}" fill="${colors[pg.panelFill]}"/>${image}</g>`);
       if (pg.lineWidth > 0) body.push(`<polygon points="${pts}" fill="none" stroke="${colors[pg.frameColor]}" stroke-width="${pg.lineWidth}" stroke-linejoin="miter"/>`);
@@ -2978,6 +3062,21 @@ class CanvasView {
     const dropPts = this.dropTarget && this.insets.get(this.dropTarget);
     over.push(`<polygon class="drop-panel" id="drop-hl" points="${dropPts ? this.polyStr(dropPts) : ""}"${dropPts ? "" : ` display="none"`}/>`);
     this.handleCache = null;
+    this.imageHandles = null;
+    const selImage = sel && this.mode === "image" ? Project.currentImage(sel) : null;
+    if (selImage && this.app.assets.has(selImage.asset)) {
+      const pl = Project.placement(Geo.bbox(this.insets.get(sel.id)), selImage, sel.view);
+      const fr = Project.imageFrame(pl, sel.view, USER_SETTINGS.geometry.rotateHandlePx / scale);
+      const vis = this.visibleRect(r * 2);
+      const keep = (p) => [Math.min(Math.max(p[0], vis.x0), vis.x1), Math.min(Math.max(p[1], vis.y0), vis.y1)];
+      fr.corners = fr.corners.map(keep);
+      fr.rotate = keep(fr.rotate);
+      this.imageHandles = { pid: sel.id, ...fr };
+      over.push(`<polygon class="img-box" points="${this.polyStr(fr.corners)}"/>`);
+      over.push(`<line class="img-box" x1="${fr.top[0]}" y1="${fr.top[1]}" x2="${fr.rotate[0]}" y2="${fr.rotate[1]}"/>`);
+      for (const p of fr.corners) over.push(`<rect class="h-vertex h-img" x="${p[0] - r}" y="${p[1] - r}" width="${r * 2}" height="${r * 2}"/>`);
+      over.push(`<circle class="h-rotate" cx="${fr.rotate[0]}" cy="${fr.rotate[1]}" r="${r * 1.2}"/>`);
+    }
     if (this.mode === "layout") {
       const hs = this.handles();
       this.handleCache = hs;
@@ -3018,6 +3117,7 @@ class CanvasView {
     this.on(this.svg, "pointercancel", (e) => this.onUp(e));
     this.on(this.svg, "wheel", (e) => this.onWheel(e), { passive: false });
     this.on(this.svg, "dblclick", (e) => this.onDouble(e));
+    this.on(this.svg, "dragstart", (e) => e.preventDefault());
     this.on(this.svg, "dragover", (e) => this.onDragOver(e));
     this.on(this.svg, "dragleave", (e) => { if (!this.svg.contains(e.relatedTarget)) this.endDrag(); });
     this.on(document, "dragend", () => this.endDrag());
@@ -3052,8 +3152,15 @@ class CanvasView {
       this.select(panel?.id || null);
       return;
     }
+    const ih = this.mode === "image" ? this.imageHandles : null;
+    const ihPanel = ih && doc.panels.find((p) => p.id === ih.pid);
+    if (ihPanel) {
+      const view = { ...Project.freshView(), ...ihPanel.view };
+      if (near(ih.rotate)) return this.startDrag(e, { type: "rotate", start: P, panel: ihPanel, view, center: ih.center });
+      if (ih.corners.some(near)) return this.startDrag(e, { type: "zoom", start: P, panel: ihPanel, view, center: ih.center });
+    }
     const orig = Layout.snapshotPts(doc);
-    const badge = (this.badges || []).find((b) => Math.hypot(b.c[0] - P[0], b.c[1] - P[1]) <= b.r);
+    const badge =(this.badges || []).find((b) => Math.hypot(b.c[0] - P[0], b.c[1] - P[1]) <= b.r);
     if (badge && !(this.mode === "layout" && this.handleCache?.vertices.some((u) => near(u.pt)))) {
       if (badge.id !== this.selectedId || this.selectedBubble) this.select(badge.id);
       return this.startDrag(e, { type: "swap", start: P, pid: badge.id });
@@ -3103,6 +3210,20 @@ class CanvasView {
       Layout.movePanel(doc, d.panel, d.pts, [dx, dy]);
     } else if (d.type === "pan") {
       d.panel.view = { ...d.view, ox: d.view.ox + dx, oy: d.view.oy + dy };
+    } else if (d.type === "zoom") {
+      const g = USER_SETTINGS.geometry;
+      const dist = (q) => Math.hypot(q[0] - d.center[0], q[1] - d.center[1]) || 1;
+      const zoom = Math.min(Math.max(d.view.zoom * (dist(P) / dist(d.start)), g.minZoom), g.maxZoom);
+      d.panel.view = { ...d.view, zoom };
+    } else if (d.type === "rotate") {
+      const g = USER_SETTINGS.geometry;
+      const ang = (q) => (Math.atan2(q[1] - d.center[1], q[0] - d.center[0]) * 180) / Math.PI;
+      let rot = (Number(d.view.rot) || 0) + ang(P) - ang(d.start);
+      rot = ((((rot + 180) % 360) + 360) % 360) - 180;
+      const snap = e.shiftKey ? g.rotateSnap : 90;
+      const nearest = Math.round(rot / snap) * snap;
+      if (e.shiftKey || Math.abs(rot - nearest) <= g.rotateMagnet) rot = nearest;
+      d.panel.view = { ...d.view, rot: rot === -180 ? 180 : rot };
     } else if (d.type === "bubble") {
       Object.assign(d.bubble, { x: d.orig.x + dx, y: d.orig.y + dy, tail: d.orig.tail ? [d.orig.tail[0] + dx, d.orig.tail[1] + dy] : null });
     } else if (d.type === "resize") {
@@ -3166,7 +3287,7 @@ class CanvasView {
     const f = zoom / v.zoom;
     const bb = Geo.bbox(this.insets.get(panel.id));
     const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
-    panel.view = { zoom, ox: P[0] - cx - (P[0] - cx - v.ox) * f, oy: P[1] - cy - (P[1] - cy - v.oy) * f };
+    panel.view = { ...v, zoom, ox: P[0] - cx - (P[0] - cx - v.ox) * f, oy: P[1] - cy - (P[1] - cy - v.oy) * f };
     if (panel.id !== this.selectedId) this.select(panel.id);
     this.render();
   }
@@ -3180,7 +3301,7 @@ class CanvasView {
     }
     if (this.mode !== "image") return;
     const panel = this.panelAt(P);
-    if (panel) this.app.commit(() => { panel.view = { zoom: 1, ox: 0, oy: 0 }; });
+    if (panel) this.app.commit(() => { panel.view = Project.freshView(); });
   }
 
   onDragOver(e) {
@@ -3317,11 +3438,15 @@ class InspectorView {
         class: "img-thumb", "aria-current": String(i === panel.current), title: `シード ${img.seed ?? "-"}`,
         onclick: (e) => {
           if (e.target.classList.contains("x")) this.app.commit(() => { panel.images.splice(i, 1); panel.current = Math.min(panel.current, panel.images.length - 1); });
-          else this.app.commit(() => { panel.current = i; panel.view = { zoom: 1, ox: 0, oy: 0 }; });
+          else this.app.commit(() => { panel.current = i; panel.view = Project.freshView(); });
         },
       }, h("img", { src: this.app.assets.url(img.asset), alt: "" }), h("span", { class: "x", text: "×", title: "この画像を外す" }))));
       sec.append(h("div", { class: "row" }, h("span", { class: "prop-label", text: "生成した画像（押すと切り替え）" })), strip);
     }
+    const mono = panel.mono || "auto";
+    sec.append(h("div", { class: "prop" }, h("span", { class: "prop-label", text: "画像の色" }),
+      h("div", { class: "seg", role: "group", "aria-label": "このコマの画像の色" }, USER_SETTINGS.panelMonoChoices.map(([v, label]) =>
+        h("button", { type: "button", text: label, "aria-pressed": String(v === mono), onclick: () => this.app.setPanelMono(v) })))));
     return sec;
   }
 
@@ -3860,7 +3985,8 @@ class Generator {
       if (!ids.length) this.app.status(USER_SETTINGS.messages.noTargets, true);
       return;
     }
-    if (opts.llm) fresh.forEach((id) => this.forceLlm.add(id));
+    const force = opts.llm === true ? fresh : (opts.llm || []);
+    force.filter((id) => fresh.includes(id)).forEach((id) => this.forceLlm.add(id));
     if (!this.busy) { this.total = 0; this.finished = 0; this.ok = 0; }
     for (const id of fresh) {
       this.queue.push(id);
@@ -3919,7 +4045,7 @@ class Generator {
         if (live) {
           live.images.push({ asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, prompt: spec.prompt, negative: spec.negative, model: spec.model, loras: spec.loras, settings: spec.settings, at: new Date().toISOString() });
           live.current = live.images.length - 1;
-          live.view = { zoom: 1, ox: 0, oy: 0 };
+          live.view = Project.freshView();
           this.app.markDirty();
         }
         this.states.delete(id);
@@ -4322,7 +4448,7 @@ class App {
 
   updateRunUi() {
     $("cancel").hidden = !this.generator.busy && !this.llmBusy;
-    $("auto-story").disabled = !!this.llmBusy;
+    $("skip-filled").checked = !!this.store.data.ui.skipFilled;
     $("run").textContent = this.generator.busy ? "④ 実行（追加）" : "④ 実行";
     $("use-llm").checked = !!this.store.data.ui.useLlm;
     this.updateProgress();
@@ -4407,6 +4533,8 @@ class App {
     seg("panel-fill", USER_SETTINGS.colorChoices, (v) => this.commit(() => { this.doc.page.panelFill = v; }));
     seg("frame-color", USER_SETTINGS.colorChoices, (v) => this.commit(() => { this.doc.page.frameColor = v; }));
     seg("edit-mode", USER_SETTINGS.editModes, (v) => this.setMode(v));
+    seg("image-mono", USER_SETTINGS.monoChoices, (v) => this.commit(() => { this.doc.page.mono = v === "mono"; }));
+    seg("panel-mono", USER_SETTINGS.panelMonoChoices, (v) => this.setPanelMono(v));
     $("gutter-mode").title = "隙間: すべて隙間 / 線: すべて1本線 / 複合: 横の区切りは隙間、縦の区切りは線";
     fillSelect($("page-preset"), USER_SETTINGS.page.presets.map(([id, label, w, hgt]) => [id, `${label}（${w}×${hgt}）`]));
     this.on($("page-preset"), "change", (e) => {
@@ -4446,6 +4574,7 @@ class App {
     pressed("page-color", pg.pageColor);
     pressed("panel-fill", pg.panelFill);
     pressed("frame-color", pg.frameColor);
+    pressed("image-mono", pg.mono ? "mono" : "color");
     pressed("edit-mode", this.store.data.ui.mode);
     $("page-preset").value = pg.preset;
     $("gutter").value = pg.gutter; $("gutter-out").textContent = pg.gutter;
@@ -4477,7 +4606,13 @@ class App {
     const panel = this.canvas.selected();
     const edge = this.canvas.edge();
     for (const id of ["split-h", "split-v", "scale-up", "scale-down", "delete-panel"]) $(id).disabled = !panel;
-    $("reset-view").disabled = !panel || !Project.currentImage(panel);
+    const hasImage = !!panel && !!Project.currentImage(panel);
+    for (const id of ["reset-view", "img-flip-x", "img-flip-y", "img-rot90"]) $(id).disabled = !hasImage;
+    $("panel-mono").querySelectorAll("button").forEach((b) => {
+      b.disabled = !panel;
+      b.setAttribute("aria-pressed", String(!!panel && b.dataset.value === (panel.mono || "auto")));
+    });
+    $("image-tools-title").textContent = panel ? `選択中のコマの画像（コマ ${Layout.readingOrder(this.doc).indexOf(panel) + 1}）` : "選択中のコマの画像（ページのコマを押して選ぶ）";
     for (const id of ["toggle-edge", "merge-edge", "tilt-minus", "tilt-plus", "tilt-reset"]) $(id).disabled = !edge;
     $("panel-tools-title").textContent = panel ? `選択中のコマ（コマ ${Layout.readingOrder(this.doc).indexOf(panel) + 1}）` : "選択中のコマ（ページのコマを押して選ぶ）";
     $("edge-tools-title").textContent = edge ? `選択中の区切り（いま: ${edge.panel.gaps[edge.k] ? "隙間" : "線"}）` : "選択中の区切り（区切りの丸を押して選ぶ）";
@@ -4502,7 +4637,7 @@ class App {
     this.on($("project-input"), "change", (e) => { if (e.target.files[0]) this.loadProjectFile(e.target.files[0]); e.target.value = ""; });
     this.on($("export-png"), "click", () => this.exportPng());
     this.on($("run"), "click", () => this.runTargets());
-    this.on($("auto-story"), "click", () => this.autoStory());
+    this.on($("skip-filled"), "change", (e) => { this.store.data.ui.skipFilled = e.target.checked; this.store.save(); });
     this.on($("cancel"), "click", () => { this.generator.cancel(); this.llmAbort?.abort(); });
     this.on($("cv-undo"), "click", () => this.undo());
     this.on($("cv-redo"), "click", () => this.redo());
@@ -4531,7 +4666,11 @@ class App {
       this.setMode("layout");
       this.canvas.select(added.id);
     });
-    this.on($("reset-view"), "click", withPanel((p) => this.commit(() => { p.view = { zoom: 1, ox: 0, oy: 0 }; })));
+    this.on($("reset-view"), "click", withPanel((p) => this.commit(() => { p.view = Project.freshView(); })));
+    const editView = (fn) => withPanel((p) => this.commit(() => { p.view = { ...Project.freshView(), ...p.view }; fn(p.view); }));
+    this.on($("img-flip-x"), "click", editView((v) => { v.flipX = !v.flipX; }));
+    this.on($("img-flip-y"), "click", editView((v) => { v.flipY = !v.flipY; }));
+    this.on($("img-rot90"), "click", editView((v) => { v.rot = ((((Number(v.rot) || 0) + 90 + 180) % 360) + 360) % 360 - 180; if (v.rot === -180) v.rot = 180; }));
     this.on($("toggle-edge"), "click", withEdge((e) => this.commit(() => Layout.toggleEdge(this.doc, e.panel, e.k))));
     this.on($("tilt-minus"), "click", withEdge((e) => this.commit(() => Layout.tilt(this.doc, e.panel, e.k, -1))));
     this.on($("tilt-plus"), "click", withEdge((e) => this.commit(() => Layout.tilt(this.doc, e.panel, e.k, 1))));
@@ -4639,6 +4778,12 @@ class App {
     else this.status(fmt(m.webuiSynced, { name, list: cfg[this.store.data.backend].map((k) => cfg.labels[k]).join("・") }));
   }
 
+  setPanelMono(value) {
+    const panel = this.canvas.selected();
+    if (!panel) { this.status(USER_SETTINGS.messages.needPanel, true); return; }
+    this.commit(() => { panel.mono = value; });
+  }
+
   setFamily(id) {
     const c = this.doc.common;
     const fam = USER_SETTINGS.modelFamilies.find((f) => f.id === id);
@@ -4657,8 +4802,8 @@ class App {
       for (const key of ["pts", "gaps", "floating"]) [a[key], b[key]] = [b[key], a[key]];
       const ia = doc.panels.indexOf(a), ib = doc.panels.indexOf(b);
       [doc.panels[ia], doc.panels[ib]] = [doc.panels[ib], doc.panels[ia]];
-      a.view = { zoom: 1, ox: 0, oy: 0 };
-      b.view = { zoom: 1, ox: 0, oy: 0 };
+      a.view = Project.freshView();
+      b.view = Project.freshView();
       for (const bubble of doc.bubbles) {
         if (bubble.panelId === aId) bubble.panelId = bId;
         else if (bubble.panelId === bId) bubble.panelId = aId;
@@ -4746,53 +4891,6 @@ class App {
     }
   }
 
-  async autoStory() {
-    const m = USER_SETTINGS.messages;
-    if (this.llmBusy) return;
-    this.endEdit();
-    const empties = StoryPlanner.empties(this.doc);
-    if (!empties.length) { this.status(m.autoNoEmpty, true); return; }
-    const baseRef = StoryPlanner.baseRef(this.doc);
-    if (!baseRef) { this.status(m.autoNoSource, true); return; }
-    if (!this.store.data.llm.model) { this.status(m.needLlmModel, true); return; }
-    const ids = empties.map((p) => p.id);
-    const needPlan = empties.some((p) => !(p.instruction || "").trim());
-    let plan = { synopsis: "", byPanel: new Map() };
-    if (needPlan) {
-      this.llmBusy = true;
-      this.llmAbort = new AbortController();
-      ids.forEach((id) => this.generator.states.set(id, { state: "writing", progress: 0 }));
-      this.updateRunUi();
-      this.afterRuntime();
-      this.status(m.autoPlanning);
-      try {
-        plan = await StoryPlanner.plan(this, empties, this.llmAbort.signal);
-      } catch (err) {
-        this.status(err.name === "AbortError" ? m.cancelled : fmt(m.autoFailed, { err: describeError(err, "文章AI") }), err.name !== "AbortError");
-        return;
-      } finally {
-        ids.forEach((id) => this.generator.states.delete(id));
-        this.llmBusy = false;
-        this.updateRunUi();
-        this.afterRuntime();
-      }
-    }
-    const targets = ids.filter((id) => {
-      const p = this.doc.panels.find((x) => x.id === id);
-      return p && !StoryPlanner.hasPrompt(p) && ((p.instruction || "").trim() || plan.byPanel.has(id));
-    });
-    this.commit(() => {
-      if (plan.synopsis && !(this.doc.story.synopsis || "").trim()) this.doc.story.synopsis = plan.synopsis;
-      for (const id of targets) {
-        const p = this.doc.panels.find((x) => x.id === id);
-        if (!(p.instruction || "").trim()) p.instruction = plan.byPanel.get(id);
-        if (baseRef !== "auto" && (p.baseRef || "auto") === "auto" && baseRef !== `panel:${p.id}`) p.baseRef = baseRef;
-      }
-    }, { inspector: true });
-    this.status(fmt(m.autoPlanned, { synopsis: plan.synopsis || this.doc.story.synopsis || "（指示どおり）", n: targets.length }));
-    this.generator.run(targets, { llm: true });
-  }
-
   async onGlobalDrop(e) {
     const files = [...e.dataTransfer.files];
     if (!files.length) return;
@@ -4803,16 +4901,62 @@ class App {
   }
 
   // GENERATION
-  runTargets() {
-    const target = this.store.data.ui.runTarget;
-    let ids;
-    if (target === "selected") ids = this.canvas.selectedId ? [this.canvas.selectedId] : [];
-    else {
-      const order = Layout.readingOrder(this.doc);
-      ids = order.filter((p) => target === "all" || !p.images.length).map((p) => p.id);
+  async runTargets() {
+    const m = USER_SETTINGS.messages;
+    const ui = this.store.data.ui;
+    if (!this.doc.panels.length) { this.status(m.noPanels, true); return; }
+    if (this.llmBusy) return;
+    this.endEdit();
+    const order = Layout.readingOrder(this.doc);
+    const panels = ui.runTarget === "selected"
+      ? order.filter((p) => p.id === this.canvas.selectedId)
+      : order.filter((p) => !(ui.skipFilled && p.images.length));
+    if (!panels.length) { this.status(ui.runTarget === "selected" ? m.needPanel : m.allFilled, true); return; }
+    const blank = panels.filter((p) => !StoryPlanner.hasPrompt(p) && !(p.instruction || "").trim());
+    const planned = blank.length ? await this.planBlankPanels(blank) : [];
+    if (planned === null) return;
+    const ids = panels.map((p) => p.id).filter((id) => this.doc.panels.some((p) => p.id === id));
+    this.generator.run(ids, { llm: planned });
+  }
+
+  async planBlankPanels(blank) {
+    const m = USER_SETTINGS.messages;
+    const baseRef = StoryPlanner.baseRef(this.doc);
+    if (!baseRef) return [];
+    if (!this.store.data.llm.model) { this.status(m.autoNoLlm); return []; }
+    const ids = blank.map((p) => p.id);
+    let plan;
+    this.llmBusy = true;
+    this.llmAbort = new AbortController();
+    ids.forEach((id) => this.generator.states.set(id, { state: "writing", progress: 0 }));
+    this.updateRunUi();
+    this.afterRuntime();
+    this.status(m.autoPlanning);
+    try {
+      plan = await StoryPlanner.plan(this, blank, this.llmAbort.signal);
+    } catch (err) {
+      this.status(err.name === "AbortError" ? m.cancelled : fmt(m.autoFailed, { err: describeError(err, "文章AI") }), err.name !== "AbortError");
+      return null;
+    } finally {
+      ids.forEach((id) => this.generator.states.delete(id));
+      this.llmBusy = false;
+      this.updateRunUi();
+      this.afterRuntime();
     }
-    if (!this.doc.panels.length) { this.status(USER_SETTINGS.messages.noPanels, true); return; }
-    this.generator.run(ids);
+    const done = ids.filter((id) => {
+      const p = this.doc.panels.find((x) => x.id === id);
+      return p && !StoryPlanner.hasPrompt(p) && !(p.instruction || "").trim() && plan.byPanel.has(id);
+    });
+    this.commit(() => {
+      if (plan.synopsis && !(this.doc.story.synopsis || "").trim()) this.doc.story.synopsis = plan.synopsis;
+      for (const id of done) {
+        const p = this.doc.panels.find((x) => x.id === id);
+        p.instruction = plan.byPanel.get(id);
+        if (baseRef !== "auto" && (p.baseRef || "auto") === "auto" && baseRef !== `panel:${p.id}`) p.baseRef = baseRef;
+      }
+    }, { inspector: true });
+    this.status(fmt(m.autoPlanned, { synopsis: plan.synopsis || this.doc.story.synopsis || "", n: done.length }));
+    return done;
   }
 
   // LIBRARY APPLY
@@ -4870,7 +5014,7 @@ class App {
       index = panel.images.length - 1;
     }
     panel.current = index;
-    panel.view = { zoom: 1, ox: 0, oy: 0 };
+    panel.view = Project.freshView();
   }
 
   appendTag(genre, tag) {
