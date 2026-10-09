@@ -713,7 +713,8 @@ Meaning: quality = quality and style tags; count = number of people (1girl, 2boy
     probeOk: "接続OK",
     probeCors: "起動していますが、このページ（{origin}）からの接続が許可されていません（CORS）。起動オプションに入れた URL が「{origin}」と一字一句同じか（末尾の / や http と https の違いも）確認して、停止→起動し直してください。",
     probeCorsFile: "このページをファイルから直接開いている（file://）ため、接続が許可されません。GitHub Pages など https:// の URL で開くか、起動オプションを「{line}」にして停止→起動し直してください。",
-    llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません" },
+    llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません", error: "文章AI: エラー" },
+    probeError: "接続はできましたが、エラー（{status}）が返りました。起動オプションに --api が入っているか、WebUI のログにエラーが出ていないか確認してください。",
     probeDown: "接続できません。起動しているか、URLが正しいか確認してください。ブラウザの「ローカル ネットワーク アクセス」の許可も確認してください。",
     hintLayout: "コマを押して選びます。白い四角（角）をドラッグで形を変え、区切りの丸をドラッグで配分を変え、押すと区切りを選べます（青＝隙間、白＝線）。コマを別のコマの上へドラッグすると、内容（画像・プロンプト・設定）を入れ替えます（右上の番号はどのモードでもドラッグできます）。",
     swapped: "コマ {a} とコマ {b} の内容を入れ替えました。画像はコマの形に合わせて収め直しています（形が大きく違うときは再生成するときれいに収まります）。",
@@ -1705,7 +1706,8 @@ class Net {
     const timeout = USER_SETTINGS.probeTimeoutMs;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
-      return res.ok ? "ok" : "down";
+      Net.lastStatus = res.status;
+      return res.ok ? "ok" : "error";
     } catch {
       try {
         await fetch(url, { mode: "no-cors", signal: AbortSignal.timeout(timeout) });
@@ -1730,7 +1732,7 @@ class Net {
     const m = USER_SETTINGS.messages;
     const origin = this.pageOrigin();
     const cors = origin ? fmt(m.probeCors, { origin }) : fmt(m.probeCorsFile, { line });
-    return { ok: m.probeOk, cors, down: m.probeDown }[state];
+    return { ok: m.probeOk, cors, down: m.probeDown, error: fmt(m.probeError, { status: Net.lastStatus || "?" }) }[state];
   }
 }
 
@@ -4487,7 +4489,7 @@ class App {
     const name = USER_SETTINGS.backends[this.store.data.backend].short;
     const state = await Net.probe(this.client().probeUrl);
     pill.dataset.state = state === "ok" ? "ok" : state === "cors" ? "warn" : "down";
-    pill.textContent = `${name}: ${state === "ok" ? "接続OK" : state === "cors" ? "接続が許可されていません" : "接続できません"}`;
+    pill.textContent = `${name}: ${{ ok: "接続OK", cors: "接続が許可されていません", error: `エラー（${Net.lastStatus}）` }[state] || "接続できません"}`;
     pill.title = Net.message(state, Net.corsLine(this.store.data.backend));
     if (state === "ok") {
       await this.loadResources();
