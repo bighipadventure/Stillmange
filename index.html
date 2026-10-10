@@ -205,8 +205,10 @@ body.resizing * { user-select: none; }
 .shape-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .bubble-list { display: flex; flex-direction: column; gap: 3px; }
 .panel-list { display: flex; flex-direction: column; gap: 6px; }
-.panel-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; padding: 6px; border: 1px solid var(--line, #d0d0d0); border-radius: 8px; }
-.panel-row-open { display: flex; align-items: center; gap: 6px; padding: 0; height: auto; border: 0; background: none; }
+.panel-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: stretch; gap: 10px; padding: 6px; border: 1px solid var(--line, #d0d0d0); border-radius: 8px; }
+.panel-row-open { position: relative; display: block; width: 96px; min-height: 76px; height: auto; padding: 0; border: 0; border-radius: 6px; overflow: hidden; background: rgba(127, 127, 127, .1); }
+.panel-row-open .panel-row-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; border: 0; border-radius: 0; }
+.panel-row-open .panel-row-no { position: absolute; top: 4px; left: 4px; z-index: 1; box-shadow: 0 0 0 2px rgba(255, 255, 255, .7); }
 .panel-row-head { display: flex; align-items: center; gap: 6px; }
 .panel-row-head .panel-row-meta { flex: 1; min-width: 0; }
 .panel-row-input { width: 100%; min-height: 32px; font-size: 13px; }
@@ -264,7 +266,7 @@ body.resizing * { user-select: none; }
 @keyframes sm-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation-duration: 3s !important; } }
 #page-svg .num-bg { fill: #0d66d0; opacity: .85; pointer-events: none; }
-#page-svg .num { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+#page-svg .num { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: alphabetic; font-family: Arial, Helvetica, sans-serif; pointer-events: none; }
 
 /* 右パネル */
 .col-right { background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
@@ -309,6 +311,17 @@ dialog.big {
 }
 dialog.big[open] { display: flex; flex-direction: column; }
 dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.pick { width: min(520px, 100vw - 24px); max-height: min(720px, 100dvh - 24px); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-l); background: var(--surface); color: var(--ink); box-shadow: 0 12px 40px rgba(0, 0, 0, .45); }
+dialog.pick[open] { display: flex; flex-direction: column; }
+dialog.pick::backdrop { background: rgba(0, 0, 0, .45); }
+.pick-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.pick-list { display: flex; flex-direction: column; gap: 6px; }
+.pick-row { display: grid; grid-template-columns: auto auto 56px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-s); cursor: pointer; }
+.pick-row:has(input:checked) { border-color: var(--accent-text); background: var(--accent-soft); }
+.pick-row img, .pick-empty { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; }
+.pick-empty { display: grid; place-items: center; font-size: 10px; color: var(--muted); background: rgba(127, 127, 127, .1); }
+.pick-text { font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pick-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
 dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px); }
 .help-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; font-size: 14px; line-height: 1.75; }
 .help-sec h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 16px; }
@@ -510,6 +523,8 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     <div class="insp-scroll" id="inspector"></div>
   </aside>
 </main>
+
+<dialog class="pick" id="panel-pick" aria-label="上書きするコマを選ぶ"></dialog>
 
 <dialog class="big" id="lib-dialog" aria-labelledby="lib-dlg-title">
   <div class="dlg-head"><h2 id="lib-dlg-title">素材</h2><button class="close" id="lib-dlg-close">閉じる</button></div>
@@ -1030,8 +1045,8 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
   ],
   defaultSettings: { sampler: "Euler a", scheduler: "Automatic", steps: 28, cfg: 6, seed: -1, clipSkip: 2, megapixels: 1, hires: false, hrScale: 1.5, hrUpscaler: "Latent", hrDenoise: 0.5, hrSteps: 0 },
   defaultCommon: {
-    prompt: { quality: "masterpiece, best quality" },
-    negative: "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, jpeg artifacts, signature, watermark, username, blurry",
+    prompt: {},
+    negative: "",
   },
   comfy: { filePrefix: "ComfyUI", defaultUpscale: "nearest-exact" },
   lockGroups: { negative: "ネガティブ", model: "モデル・VAE", loras: "LoRA", settings: "生成設定" },
@@ -1096,7 +1111,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     resourcesLoaded: "モデル {m} 件・LoRA {l} 件を読み込みました。",
     resourcesFailed: "一覧を読み込めませんでした。",
     lockedNote: "「全コマ共通」で固定されているため、ここでは変えられません。",
-    inheritNote: "空欄の項目は「全コマ共通」の値を使います。",
+    inheritNote: "「全コマ共通」に入れた内容は、各コマにも自動で入ります（ここで書き換え可）。共通で「固定」した項目は、ここでは変えられません。",
     loraInherit: "このコマに LoRA がないときは、「全コマ共通」の LoRA を使います。",
     dictCleared: "辞書を消しました。",
     needBubble: "先に吹き出しを選んでください。",
@@ -2951,12 +2966,16 @@ class PromptWriter {
 
 // ===== STORY PLANNER (UPLOADED IMAGES -> INSTRUCTIONS FOR EMPTY PANELS) =====
 class StoryPlanner {
-  static hasPrompt(panel) {
-    return PromptWriter.genreKeys().some((k) => String(panel.prompt?.[k] || "").trim());
+  static hasPrompt(panel, doc = null) {
+    const common = doc?.common?.prompt || {};
+    return PromptWriter.genreKeys().some((k) => {
+      const v = String(panel.prompt?.[k] || "").trim();
+      return v && v !== String(common[k] || "").trim();
+    });
   }
 
-  static isBlank(panel) {
-    return !this.hasPrompt(panel) && !(panel.instruction || "").trim();
+  static isBlank(panel, doc = null) {
+    return !this.hasPrompt(panel, doc) && !(panel.instruction || "").trim();
   }
 
   static showsMaterial(panel) {
@@ -3018,8 +3037,8 @@ class StoryPlanner {
 
   static baseRef(doc) {
     const order = Layout.readingOrder(doc);
-    if (order.some((p) => p.source && this.hasPrompt(p))) return "auto";
-    const typed = order.find((p) => this.hasPrompt(p));
+    if (order.some((p) => p.source && this.hasPrompt(p, doc))) return "auto";
+    const typed = order.find((p) => this.hasPrompt(p, doc));
     if (typed) return `panel:${typed.id}`;
     const main = Project.mainItem(doc);
     const lib = main && (main.meta.prompt || "").trim() ? main : doc.library.find((l) => (l.meta.prompt || "").trim());
@@ -3048,7 +3067,7 @@ class StoryPlanner {
       const head = `- Panel ${i + 1} (${this.shape(doc, p)})`;
       const instr = (p.instruction || "").trim();
       const isMain = p.source && p.source === Project.mainItem(doc)?.id;
-      if (this.hasPrompt(p)) lines.push(`${head}: HAS IMAGE${isMain ? " (THE MAIN BASE IMAGE)" : ""}. Prompt: ${this.promptOf(doc, p)}`);
+      if (this.hasPrompt(p, doc)) lines.push(`${head}: HAS IMAGE${isMain ? " (THE MAIN BASE IMAGE)" : ""}. Prompt: ${this.promptOf(doc, p)}`);
       else if (instr) lines.push(`${head}: HAS INSTRUCTION (keep it): "${instr}"`);
       else lines.push(`${head}: ${targets.includes(p) ? "EMPTY" : "not drawn in this run (keep the story consistent with it)"}`);
     });
@@ -3864,7 +3883,7 @@ class CanvasView {
     const fs = Math.max(pg.w, pg.h) * USER_SETTINGS.page.numberSize;
     this.badges = order.map((p, i) => {
       const [cx, cy] = this.badgeAt(this.insets.get(p.id), fs);
-      over.push(`<circle class="num-bg" cx="${cx}" cy="${cy}" r="${fs * 0.7}"/><text class="num" x="${cx}" y="${cy}" font-size="${fs}">${i + 1}</text>`);
+      over.push(`<circle class="num-bg" cx="${cx}" cy="${cy}" r="${fs * 0.7}"/><text class="num" x="${cx}" y="${cy + fs * 0.36}" font-size="${fs}">${i + 1}</text>`);
       return { id: p.id, c: [cx, cy], r: fs * USER_SETTINGS.geometry.badgeHit };
     });
     const stateLayer = [];
@@ -4386,16 +4405,14 @@ class InspectorView {
 
   panelList() {
     const order = Layout.readingOrder(this.doc);
-    const keys = PromptWriter.genreKeys();
     const rows = order.map((p, i) => {
       const entry = Project.currentImage(p);
       const thumb = entry && this.app.assets.has(entry.asset)
         ? h("img", { class: "panel-row-thumb", src: this.app.assets.url(entry.asset), alt: "" })
         : h("span", { class: "panel-row-thumb empty", text: "画像なし" });
-      const own = keys.map((k) => String(p.prompt?.[k] || "").trim()).filter(Boolean).join(", ");
       const st = this.app.generator.states.get(p.id);
       const state = st ? { writing: "思考中...", waiting: "待機中...", queued: "順番待ち", running: "生成中", error: "エラー" }[st.state] : "";
-      const ta = h("textarea", { class: "autogrow panel-row-input", rows: 1, "data-focus": `instr:${p.id}`, placeholder: "生成したい内容（例: パンを咥えて走る少女）", "aria-label": `コマ ${i + 1} で生成したい内容` });
+      const ta = h("textarea", { class: "autogrow panel-row-input", rows: 1, "data-focus": `instr:${p.id}`, placeholder: "空欄ならAIによる自動生成", "aria-label": `コマ ${i + 1} で生成したい内容` });
       ta.value = p.instruction || "";
       ta.addEventListener("input", () => { p.instruction = ta.value; autoGrow(ta); });
       const meta = [p.images.length ? `画像 ${p.images.length} 枚` : "未生成", p.floating ? "置いたコマ" : "", p.source ? "素材" : "", state].filter(Boolean).join("・");
@@ -4407,8 +4424,7 @@ class InspectorView {
           h("div", { class: "panel-row-head" },
             h("span", { class: "panel-row-meta", text: meta }),
             h("button", { class: "link-btn", text: "詳細 ›", onclick: () => this.app.canvas.select(p.id) })),
-          ta,
-          !(p.instruction || "").trim() && own ? h("span", { class: "panel-row-sum", text: own }) : null));
+          ta));
     });
     return h("div", { class: "insp-sec" },
       h("h3", { class: "insp-title", text: `このページのコマ（${order.length}）` }),
@@ -4440,7 +4456,7 @@ class InspectorView {
   lockToggle(group) {
     const c = this.doc.common;
     const cb = h("input", { type: "checkbox", checked: !!c.use[group] });
-    cb.addEventListener("change", () => { c.use[group] = cb.checked; });
+    cb.addEventListener("change", () => this.app.setCommonLock(group, cb.checked));
     return h("label", { class: "check lock", title: "全コマで固定（個別の指定より優先）" }, cb, "固定");
   }
 
@@ -4645,14 +4661,13 @@ class InspectorView {
       let head;
       if (kind === "common") {
         ta.value = c.prompt[g.key] || "";
-        ta.addEventListener("input", () => { c.prompt[g.key] = ta.value; autoGrow(ta); });
+        ta.addEventListener("input", () => { const old = c.prompt[g.key] || ""; c.prompt[g.key] = ta.value; this.app.pushCommon(g.key, old); autoGrow(ta); });
         const cb = h("input", { type: "checkbox", checked: locked });
-        cb.addEventListener("change", () => { c.use[g.key] = cb.checked; });
+        cb.addEventListener("change", () => this.app.setCommonLock(g.key, cb.checked));
         head = h("div", { class: "g-head" }, h("span", { class: "g-name", text: g.label }), h("label", { class: "check", title: "全コマで固定（個別の指定より優先）" }, cb, "固定"));
       } else {
         ta.value = locked ? (c.prompt[g.key] || "") : (target.prompt[g.key] || "");
         ta.disabled = locked;
-        if (!locked && c.prompt[g.key]) ta.placeholder = `空欄なら共通: ${c.prompt[g.key]}`;
         ta.addEventListener("input", () => { target.prompt[g.key] = ta.value; autoGrow(ta); });
         head = h("div", { class: "g-head" }, h("span", { class: "g-name", text: g.label }), locked ? h("span", { class: "badge-lock", text: "共通で固定" }) : null);
       }
@@ -4689,12 +4704,11 @@ class InspectorView {
     const ta = h("textarea", { class: "autogrow", rows: 1, "aria-label": "ネガティブプロンプト" });
     if (kind === "common") {
       ta.value = c.negative || "";
-      ta.addEventListener("input", () => { c.negative = ta.value; autoGrow(ta); });
+      ta.addEventListener("input", () => { const old = c.negative || ""; c.negative = ta.value; this.app.pushCommon("negative", old); autoGrow(ta); });
     } else {
       const locked = !!c.use.negative;
       ta.value = locked ? c.negative : (target.negative || "");
       ta.disabled = locked;
-      if (!locked && c.negative) ta.placeholder = `空欄なら共通: ${c.negative}`;
       ta.addEventListener("input", () => { target.negative = ta.value; autoGrow(ta); });
     }
     return h("div", { class: "insp-sec" }, this.title("ネガティブプロンプト", kind, "negative"), ta);
@@ -4994,6 +5008,33 @@ class LibraryView {
     if (!this.dialog.open) this.dialog.showModal();
   }
 
+  pickPanels(item, part) {
+    const order = Layout.readingOrder(this.doc);
+    const picked = new Set(this.app.canvas.selectedPanels().map((p) => p.id));
+    const label = part === "all" ? "すべて" : part === "prompt" ? "プロンプト" : part === "negative" ? "ネガティブ" : part === "loras" ? "LoRA" : part === "settings" ? "生成設定" : (USER_SETTINGS.genres.find((g) => g.key === part)?.label || part);
+    const dlg = $("panel-pick");
+    const ok = h("button", { class: "primary", text: "選んだコマに上書き" });
+    const sync = () => { ok.disabled = !picked.size; ok.textContent = picked.size ? `選んだ ${picked.size} コマに上書き` : "コマを選んでください"; };
+    const rows = order.map((p, i) => {
+      const entry = Project.currentImage(p);
+      const cb = h("input", { type: "checkbox", checked: picked.has(p.id) });
+      cb.addEventListener("change", () => { if (cb.checked) picked.add(p.id); else picked.delete(p.id); sync(); });
+      return h("label", { class: "pick-row" }, cb,
+        h("span", { class: "panel-row-no", text: String(i + 1) }),
+        entry && this.app.assets.has(entry.asset) ? h("img", { src: this.app.assets.url(entry.asset), alt: "" }) : h("span", { class: "pick-empty", text: "画像なし" }),
+        h("span", { class: "pick-text", text: (p.instruction || "").trim() || "（生成したい内容なし）" }));
+    });
+    const all = h("button", { class: "mini", text: "すべて選ぶ", onclick: () => { order.forEach((p) => picked.add(p.id)); dlg.querySelectorAll(".pick-row input").forEach((x) => { x.checked = true; }); sync(); } });
+    const none = h("button", { class: "mini", text: "選択を外す", onclick: () => { picked.clear(); dlg.querySelectorAll(".pick-row input").forEach((x) => { x.checked = false; }); sync(); } });
+    ok.addEventListener("click", () => { this.app.applyLibrary(item.id, "panel", part, [...picked]); dlg.close(); });
+    dlg.replaceChildren(
+      h("div", { class: "dlg-head" }, h("h2", { text: `「${label}」を上書きするコマを選ぶ（複数可）` }), h("button", { class: "close", text: "閉じる", onclick: () => dlg.close() })),
+      h("div", { class: "pick-body" }, h("div", { class: "row" }, all, none), h("div", { class: "pick-list" }, rows)),
+      h("div", { class: "pick-foot" }, h("button", { text: "キャンセル", onclick: () => dlg.close() }), ok));
+    sync();
+    dlg.showModal();
+  }
+
   targetLabel() {
     const panel = this.app.canvas.selected();
     return panel ? `コマ ${Layout.readingOrder(this.doc).indexOf(panel) + 1}` : "コマ（未選択）";
@@ -5009,7 +5050,7 @@ class LibraryView {
     const s = meta.settings || {};
     const settingsText = [s.sampler, s.scheduler, s.steps && `${s.steps} steps`, s.cfg && `CFG ${s.cfg}`, s.clipSkip && `Clip skip ${s.clipSkip}`, s.hires && `Hires ×${s.hrScale}`].filter(Boolean).join(" / ");
     const actions = (part) => h("div", { class: "lib-row-actions" },
-      part === "model" ? null : h("button", { class: "mini", text: "→ コマ", disabled: !hasPanel, title: hasPanel ? `${this.targetLabel()} に入れる` : USER_SETTINGS.messages.needPanel, onclick: () => this.app.applyLibrary(item.id, "panel", part) }),
+      part === "model" ? null : h("button", { class: "mini", text: "コマ", title: "上書きするコマを選ぶ", onclick: () => this.pickPanels(item, part) }),
       h("button", { class: "mini", text: "→ 共通", onclick: () => this.app.applyLibrary(item.id, "common", part) }));
     const rows = h("div", { class: "lib-rows" });
     if (!item.genres) rows.append(h("div", { class: "lib-row" }, h("span", { class: "lib-row-name", text: "プロンプト" }),
@@ -5051,7 +5092,7 @@ class LibraryView {
             h("dt", { text: "形式" }), h("dd", { text: { a1111: "A1111 / Forge", comfyui: "ComfyUI", none: USER_SETTINGS.messages.libNoMeta }[meta.format] }),
             h("dt", { text: "シード" }), h("dd", { text: meta.seed ?? "-" })),
           h("div", { class: "lib-actions" },
-            h("button", { class: "primary", text: `すべてを ${this.targetLabel()} に適用`, disabled: !hasPanel, onclick: () => this.app.applyLibrary(item.id, "panel", "all") }),
+            h("button", { class: "primary", text: "すべてをコマに適用…", onclick: () => this.pickPanels(item, "all") }),
             h("button", { text: "すべてを全コマ共通に適用", onclick: () => this.app.applyLibrary(item.id, "common", "all") }),
             item === Project.mainItem(this.doc)
               ? h("span", { class: "main-flag", text: "★ ベース（ストーリーの主軸）" })
@@ -5059,7 +5100,7 @@ class LibraryView {
             h("button", { class: "danger", text: "この画像を外す", onclick: () => this.remove(item) })),
           h("div", { class: "row tag-sort-row" },
             h("span", { class: `tag-sort-state ${item.tagSort || ""}`, text: `ジャンル分け: ${item.genres ? (USER_SETTINGS.messages.tagSortState[item.tagSort] || "済み") : item.tagSort === "pending" ? USER_SETTINGS.messages.tagSortState.pending : item.tagSort === "error" ? USER_SETTINGS.messages.tagSortState.error : "まだ（実行すると文章AIが行います）"}`, title: item.tagSortError || "" }),
-            h("button", { class: "mini", text: item.genres ? "文章AIで分け直す" : "いま文章AIで分ける", disabled: item.tagSort === "pending" || !this.app.store.data.llm.model, title: this.app.store.data.llm.model ? "" : "設定で文章AIのモデルを選ぶと使えます", onclick: () => this.app.sortTags([item], { force: true }) })),
+            h("button", { class: "mini", text: item.genres ? "文章AIでジャンル分けし直す" : "文章AIでジャンル分けする", disabled: item.tagSort === "pending" || !this.app.store.data.llm.model, title: this.app.store.data.llm.model ? "" : "設定で文章AIのモデルを選ぶと使えます", onclick: () => this.app.sortTags([item], { force: true }) })),
           h("p", { class: "note", text: item.genres ? "タグを押すと選択中のコマのそのジャンルに追加します。タグは右側の「このコマ」の欄へドラッグしても入れられます。分類が違うタグは、正しいジャンルの行へドラッグすると次から覚えます。" : "ジャンル分けは「④ 実行」を押したときに文章AIが行います。それまでは画像のプロンプトをそのまま使います。" }))),
       rows,
       h("details", {}, h("summary", { text: "元のプロンプト" }), h("pre", { class: "preview-pre", text: meta.prompt || "-" })),
@@ -6205,7 +6246,7 @@ class App {
       this.updateRunUi();
       try { await this.sortTags(unsorted); } finally { this.llmBusy = false; this.updateRunUi(); }
     }
-    const blank = panels.filter((p) => StoryPlanner.isBlank(p));
+    const blank = panels.filter((p) => StoryPlanner.isBlank(p, this.doc));
     const materials = cast ? StoryPlanner.materials(this.doc) : [];
     const t0 = performance.now();
     const result = blank.length ? await this.planBlankPanels(blank, materials) : { planned: [], placed: [] };
@@ -6264,7 +6305,7 @@ class App {
     cast.forEach((item, i) => { for (const [pid, it] of placement) if (it === item) letterPanel.set(StoryPlanner.letter(i), pid); });
     const done = ids.filter((id) => {
       const p = this.doc.panels.find((x) => x.id === id);
-      return p && !placement.has(id) && StoryPlanner.isBlank(p) && plan.byPanel.has(id);
+      return p && !placement.has(id) && StoryPlanner.isBlank(p, this.doc) && plan.byPanel.has(id);
     });
     this.commit(() => {
       if (plan.synopsis && !(this.doc.story.synopsis || "").trim()) this.doc.story.synopsis = plan.synopsis;
@@ -6285,6 +6326,29 @@ class App {
     if (placement.size) this.status((done.length ? fmt(m.castPlaced, { placed: placement.size, n: done.length, synopsis }) : fmt(m.castAllPlaced, { placed: placement.size })) + tail);
     else this.status(fmt(m.autoPlanned, { synopsis, n: done.length }));
     return { planned: done, placed: [...placement.keys()] };
+  }
+
+  commonValue(key) {
+    return key === "negative" ? this.doc.common.negative || "" : this.doc.common.prompt[key] || "";
+  }
+
+  pushCommon(key, old, { force = false } = {}) {
+    const value = this.commonValue(key);
+    const locked = force || !!this.doc.common.use[key];
+    for (const p of this.doc.panels) {
+      const cur = key === "negative" ? p.negative || "" : p.prompt[key] || "";
+      if (!locked && cur.trim() && cur !== old) continue;
+      if (key === "negative") p.negative = value;
+      else p.prompt[key] = value;
+    }
+  }
+
+  setCommonLock(key, on) {
+    const isPrompt = key === "negative" || USER_SETTINGS.genres.some((g) => g.key === key);
+    this.commit(() => {
+      this.doc.common.use[key] = on;
+      if (on && isPrompt) this.pushCommon(key, "", { force: true });
+    }, { inspector: true });
   }
 
   sortTags(items, opts = {}) {
@@ -6350,19 +6414,29 @@ class App {
   }
 
   // LIBRARY APPLY
-  applyLibrary(itemId, kind, part) {
+  applyLibrary(itemId, kind, part, panelIds = null) {
     const m = USER_SETTINGS.messages;
     const item = this.library.item(itemId);
-    const panel = this.canvas.selected();
     if (!item) return;
-    if (kind === "panel" && !panel) { this.status(m.needPanel, true); return; }
-    const target = kind === "common" ? this.doc.common : panel;
-    this.commit(() => this.fillFromLibrary(item, target, part, kind));
-    const targetText = kind === "common" ? m.targetCommon : fmt(m.targetPanel, { n: Layout.readingOrder(this.doc).indexOf(panel) + 1 });
+    const order = Layout.readingOrder(this.doc);
+    const panels = kind === "panel" ? (panelIds ? order.filter((p) => panelIds.includes(p.id)) : [this.canvas.selected()].filter(Boolean)) : [];
+    if (kind === "panel" && !panels.length) { this.status(m.needPanel, true); return; }
+    this.commit(() => {
+      if (kind === "common") this.fillFromLibrary(item, this.doc.common, part, kind);
+      else panels.forEach((p, i) => this.fillFromLibrary(item, p, part, kind, { model: i === 0 }));
+    });
+    const targetText = kind === "common" ? m.targetCommon : fmt(m.targetPanel, { n: panels.map((p) => order.indexOf(p) + 1).join("・") });
     this.status(fmt(m.applied, { name: item.name, target: targetText }));
   }
 
-  fillFromLibrary(item, target, part, kind, { model = true } = {}) {
+  fillFromLibrary(item, target, part, kind, opts = {}) {
+    const keys = [...USER_SETTINGS.genres.map((g) => g.key), "negative"];
+    const before = kind === "common" ? Object.fromEntries(keys.map((k) => [k, this.commonValue(k)])) : null;
+    this.fillTarget(item, target, part, kind, opts);
+    if (before) for (const k of keys) if (this.commonValue(k) !== before[k]) this.pushCommon(k, before[k]);
+  }
+
+  fillTarget(item, target, part, kind, { model = true } = {}) {
     const meta = item.meta;
     const res = this.resources;
     const all = part === "all";
