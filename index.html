@@ -237,16 +237,13 @@ body.resizing * { user-select: none; }
 #page-svg .sel-panel { fill: none; stroke: #0d66d0; stroke-width: 3; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .sel-edge { stroke: #e68619; stroke-width: 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .drop-panel { fill: rgba(13, 102, 208, .25); stroke: #0d66d0; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
-#page-svg .shade { fill: rgba(10, 11, 24, .65); pointer-events: none; }
-#page-svg .shade.error { fill: rgba(70, 12, 20, .7); }
-#page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .8s linear infinite; pointer-events: none; }
-#page-svg .spinner.idle { opacity: .4; animation-duration: 2.4s; }
-#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .16); }
-#page-svg .spin-arc { fill: none; stroke: #5b9bff; }
-#page-svg .state-label { fill: #e9ecf5; font-weight: 400; letter-spacing: .04em; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-#page-svg .state-sub { fill: rgba(233, 236, 245, .6); font-weight: 400; text-anchor: middle; dominant-baseline: central; pointer-events: none; font-variant-numeric: tabular-nums; }
+#page-svg .shade { fill: rgba(0, 0, 0, .6); pointer-events: none; }
+#page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .9s linear infinite; pointer-events: none; }
+#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .25); }
+#page-svg .panel-state-label { font-weight: 700; dominant-baseline: central; pointer-events: none; }
+#page-svg .state-bar { fill: rgba(255, 255, 255, .22); pointer-events: none; }
 @keyframes sm-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation-duration: 3s !important; } }
 #page-svg .num-bg { fill: #0d66d0; opacity: .85; pointer-events: none; }
 #page-svg .num { fill: #ffffff; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 
@@ -702,7 +699,16 @@ script_callbacks.on_app_started(on_app_started)
   previewSide: 2048,
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
-  spinner: { ringPx: 36, strokePx: 3, labelPx: 13, subPx: 11, gapPx: 14, arc: 0.25, periodMs: 800 },
+  spinner: {
+    ringPx: 30, strokePx: 3, periodMs: 900, badgePx: 11, badgePadPx: 6, badgeInsetPx: 4, barPx: 3, barWidthPx: 96, barGapPx: 12, lamp: "#e68619",
+    states: {
+      writing: { text: "思考中...", arc: "#5aa9fa", bg: "#3a3a3a", ink: "#d6d6d6" },
+      waiting: { text: "待機中...", arc: "rgba(255, 255, 255, .85)", periodMs: 1800, bg: "#3a3a3a", ink: "#d6d6d6" },
+      queued: { text: "順番待ち", arc: "rgba(255, 255, 255, .85)", periodMs: 1600, bg: "#3a3a3a", ink: "#d6d6d6" },
+      running: { text: "生成中", arc: "#e68619", bg: "#4a3a1a", ink: "#ffd9a0" },
+      error: { text: "エラー", arc: null, bg: "#5c2521", ink: "#ffd8d4" },
+    },
+  },
   geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, minCutArea: 0.02, cutSnap: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
@@ -3493,9 +3499,7 @@ class CanvasView {
       if (!st) continue;
       const inset = this.insets.get(p.id);
       const bb = Geo.bbox(inset);
-      const label = { writing: "文章AIが作成中…", queued: "順番待ち", running: "生成中…", error: "エラー" }[st.state];
-      if (!label) continue;
-      stateLayer.push(this.stateOverlay(inset, bb, st, label));
+      stateLayer.push(this.stateOverlay(inset, st));
     }
     over.unshift(...stateLayer);
     const sel = this.selected();
@@ -3571,27 +3575,47 @@ class CanvasView {
     return at;
   }
 
-  stateOverlay(inset, bb, st, label) {
+  stateOverlay(inset, st) {
     const cfg = USER_SETTINGS.spinner;
+    const look = cfg.states[st.state];
+    if (!look) return "";
     const px = 1 / this.screenScale();
+    const bb = Geo.bbox(inset);
     const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
-    const shade = `<polygon class="shade${st.state === "error" ? " error" : ""}" points="${this.polyStr(inset)}"/>`;
-    const text = (y, size, body, cls) => `<text class="${cls}" x="${cx}" y="${y}" font-size="${size}">${body}</text>`;
-    const labelSize = cfg.labelPx * px;
-    if (st.state === "error") return shade + text(cy, labelSize, label, "state-label");
-    const r = (cfg.ringPx / 2) * px, stroke = cfg.strokePx * px;
-    const subSize = cfg.subPx * px;
-    const hasPct = st.state === "running";
-    const total = r * 2 + cfg.gapPx * px + labelSize + (hasPct ? subSize * 1.6 : 0);
-    const ringY = cy - total / 2 + r;
-    const labelY = ringY + r + cfg.gapPx * px + labelSize / 2;
-    const circ = 2 * Math.PI * r;
-    const delay = -((performance.now() % cfg.periodMs) / 1000);
-    const ring = `<g class="spinner${st.state === "queued" ? " idle" : ""}" style="animation-delay:${delay}s">`
-      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-track" stroke-width="${stroke}"/>`
-      + `<circle cx="${cx}" cy="${ringY}" r="${r}" class="spin-arc" stroke-width="${stroke}" stroke-dasharray="${circ * cfg.arc} ${circ}"/></g>`;
-    const pct = hasPct ? text(labelY + labelSize / 2 + subSize * 0.9, subSize, `${Math.round((st.progress || 0) * 100)}%`, "state-sub") : "";
-    return shade + ring + text(labelY, labelSize, label, "state-label") + pct;
+    const out = [`<polygon class="shade" points="${this.polyStr(inset)}"/>`];
+    if (look.arc) {
+      const r = (cfg.ringPx / 2 - cfg.strokePx / 2) * px, circ = 2 * Math.PI * r;
+      const period = look.periodMs || cfg.periodMs;
+      const delay = -((performance.now() % period) / 1000);
+      out.push(`<g class="spinner" style="animation-duration:${period / 1000}s;animation-delay:${delay}s">`
+        + `<circle cx="${cx}" cy="${cy}" r="${r}" class="spin-track" stroke-width="${cfg.strokePx * px}"/>`
+        + `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${look.arc}" stroke-width="${cfg.strokePx * px}" stroke-dasharray="${circ / 4} ${circ}" transform="rotate(-135 ${cx} ${cy})"/></g>`);
+    }
+    const [ax, ay] = this.cornerIn(inset, -1, cfg.badgeInsetPx * px);
+    const fs = cfg.badgePx * px, pad = cfg.badgePadPx * px;
+    const w = [...look.text].reduce((n, ch) => n + (ch.charCodeAt(0) < 256 ? 0.6 : 1), 0) * fs + pad * 2;
+    const hgt = fs * 1.5;
+    out.push(`<rect x="${ax}" y="${ay}" width="${w}" height="${hgt}" rx="${3 * px}" fill="${look.bg}"/>`
+      + `<text class="panel-state-label" x="${ax + pad}" y="${ay + hgt / 2}" font-size="${fs}" fill="${look.ink}">${look.text}</text>`);
+    if (st.state === "running") {
+      const bh = cfg.barPx * px, bw = Math.min(cfg.barWidthPx * px, bb.w * 0.6);
+      const x0 = cx - bw / 2, y0 = cy + (cfg.ringPx / 2 + cfg.barGapPx) * px;
+      out.push(`<rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="${bh / 2}" class="state-bar"/>`
+        + `<rect x="${x0}" y="${y0}" width="${bw * Math.min(Math.max(st.progress || 0, 0), 1)}" height="${bh}" rx="${bh / 2}" fill="${cfg.lamp}"/>`);
+    }
+    return out.join("");
+  }
+
+  cornerIn(poly, sx, dist) {
+    const n = poly.length;
+    let i = 0;
+    poly.forEach((v, k) => { if (sx * v[0] - v[1] > sx * poly[i][0] - poly[i][1]) i = k; });
+    const v = poly[i];
+    const unit = (a) => { const l = Math.hypot(a[0], a[1]) || 1; return [a[0] / l, a[1] / l]; };
+    const u1 = unit([poly[(i - 1 + n) % n][0] - v[0], poly[(i - 1 + n) % n][1] - v[1]]);
+    const u2 = unit([poly[(i + 1) % n][0] - v[0], poly[(i + 1) % n][1] - v[1]]);
+    const dir = unit([u1[0] + u2[0], u1[1] + u2[1]]);
+    return [v[0] + dir[0] * dist * Math.SQRT2, v[1] + dir[1] * dist * Math.SQRT2];
   }
 
   panelAt(pt) {
@@ -4002,7 +4026,7 @@ class InspectorView {
       const own = keys.map((k) => String(p.prompt?.[k] || "").trim()).filter(Boolean).join(", ");
       const summary = (p.instruction || "").trim() || own || "（プロンプト未設定・全コマ共通を使用）";
       const st = this.app.generator.states.get(p.id);
-      const state = st ? { writing: "文章AIが作成中", queued: "順番待ち", running: "生成中", error: "エラー" }[st.state] : "";
+      const state = st ? { writing: "思考中...", waiting: "待機中...", queued: "順番待ち", running: "生成中", error: "エラー" }[st.state] : "";
       return h("button", { class: "panel-row", onclick: () => this.app.canvas.select(p.id) },
         h("span", { class: "panel-row-no", text: String(i + 1) }),
         thumb,
@@ -4062,7 +4086,7 @@ class InspectorView {
   panelHead(panel) {
     const state = this.app.generator.states.get(panel.id);
     const spec = Project.spec(this.doc, panel, this.app.resources, this.app.store.data.backend);
-    const stateText = state ? { writing: "文章AIが作成中", queued: "順番待ち", running: `生成中 ${Math.round((state.progress || 0) * 100)}%`, error: "エラー" }[state.state] : "";
+    const stateText = state ? { writing: "思考中...", waiting: "待機中...", queued: "順番待ち", running: `生成中 ${Math.round((state.progress || 0) * 100)}%`, error: "エラー" }[state.state] : "";
     const sec = h("div", { class: "insp-sec" },
       h("div", { class: "insp-head" },
         h("h2", { text: `コマ ${this.numberOf(panel)}` }),
@@ -4685,6 +4709,7 @@ class Generator {
     const m = USER_SETTINGS.messages;
     const todo = batch.map((id) => this.app.doc.panels.find((p) => p.id === id)).filter((p) => p && this.needsPrompt(p));
     const failed = new Set();
+    for (const p of todo) this.states.set(p.id, { state: "waiting", progress: 0 });
     for (const [i, panel] of todo.entries()) {
       if (this.abort.signal.aborted) break;
       const n = this.numberOf(panel);
