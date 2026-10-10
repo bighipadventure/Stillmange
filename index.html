@@ -239,8 +239,8 @@ body.resizing * { user-select: none; }
 #page-svg .drop-panel { fill: rgba(13, 102, 208, .25); stroke: #0d66d0; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 #page-svg .shade { fill: rgba(0, 0, 0, .6); pointer-events: none; }
 #page-svg .spinner { transform-box: fill-box; transform-origin: center; animation: sm-spin .9s linear infinite; pointer-events: none; }
-#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .25); }
-#page-svg .panel-state-label { font-weight: 700; dominant-baseline: central; pointer-events: none; }
+#page-svg .spin-track { fill: none; stroke: rgba(255, 255, 255, .12); }
+#page-svg .panel-state-label { font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 #page-svg .state-bar { fill: rgba(255, 255, 255, .22); pointer-events: none; }
 @keyframes sm-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #page-svg .spinner { animation-duration: 3s !important; } }
@@ -700,13 +700,13 @@ script_callbacks.on_app_started(on_app_started)
   previewQuality: 0.92,
   autoStory: { maxLibraryRefs: 4, maxImages: 2, wide: 1.4, tall: 0.72 },
   spinner: {
-    ringPx: 30, strokePx: 3, periodMs: 900, badgePx: 11, badgePadPx: 6, badgeInsetPx: 4, barPx: 3, barWidthPx: 96, barGapPx: 12, lamp: "#e68619",
+    ringPx: 20, strokePx: 2, periodMs: 900, textPx: 11, textGapPx: 8, barPx: 2, barWidthPx: 72, barGapPx: 8,
     states: {
-      writing: { text: "思考中...", arc: "#5aa9fa", bg: "#3a3a3a", ink: "#d6d6d6" },
-      waiting: { text: "待機中...", arc: "rgba(255, 255, 255, .85)", periodMs: 1800, bg: "#3a3a3a", ink: "#d6d6d6" },
-      queued: { text: "順番待ち", arc: "rgba(255, 255, 255, .85)", periodMs: 1600, bg: "#3a3a3a", ink: "#d6d6d6" },
-      running: { text: "生成中", arc: "#e68619", bg: "#4a3a1a", ink: "#ffd9a0" },
-      error: { text: "エラー", arc: null, bg: "#5c2521", ink: "#ffd8d4" },
+      writing: { text: "思考中...", arc: "#5aa9fa", ink: "#e3edf9" },
+      waiting: { text: "待機中...", arc: "#b4b4b4", periodMs: 1800, ink: "#b8b8b8" },
+      queued: { text: "順番待ち", arc: "#b4b4b4", periodMs: 1600, ink: "#b8b8b8" },
+      running: { text: "生成中", arc: "#5aa9fa", ink: "#e3edf9" },
+      error: { text: "エラー", arc: null, ink: "#ffb4ab" },
     },
   },
   geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, minCutArea: 0.02, cutSnap: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
@@ -3583,39 +3583,29 @@ class CanvasView {
     const bb = Geo.bbox(inset);
     const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
     const out = [`<polygon class="shade" points="${this.polyStr(inset)}"/>`];
+    const ring = look.arc ? cfg.ringPx * px : 0;
+    const gap = look.arc ? cfg.textGapPx * px : 0;
+    const fs = cfg.textPx * px;
+    const hasBar = st.state === "running";
+    const barBlock = hasBar ? (cfg.barGapPx + cfg.barPx) * px : 0;
+    const top = cy - (ring + gap + fs + barBlock) / 2;
     if (look.arc) {
-      const r = (cfg.ringPx / 2 - cfg.strokePx / 2) * px, circ = 2 * Math.PI * r;
+      const r = (cfg.ringPx / 2 - cfg.strokePx / 2) * px, circ = 2 * Math.PI * r, ry = top + ring / 2;
       const period = look.periodMs || cfg.periodMs;
       const delay = -((performance.now() % period) / 1000);
       out.push(`<g class="spinner" style="animation-duration:${period / 1000}s;animation-delay:${delay}s">`
-        + `<circle cx="${cx}" cy="${cy}" r="${r}" class="spin-track" stroke-width="${cfg.strokePx * px}"/>`
-        + `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${look.arc}" stroke-width="${cfg.strokePx * px}" stroke-dasharray="${circ / 4} ${circ}" transform="rotate(-135 ${cx} ${cy})"/></g>`);
+        + `<circle cx="${cx}" cy="${ry}" r="${r}" class="spin-track" stroke-width="${cfg.strokePx * px}"/>`
+        + `<circle cx="${cx}" cy="${ry}" r="${r}" fill="none" stroke="${look.arc}" stroke-width="${cfg.strokePx * px}" stroke-dasharray="${circ / 4} ${circ}" transform="rotate(-135 ${cx} ${ry})"/></g>`);
     }
-    const [ax, ay] = this.cornerIn(inset, -1, cfg.badgeInsetPx * px);
-    const fs = cfg.badgePx * px, pad = cfg.badgePadPx * px;
-    const w = [...look.text].reduce((n, ch) => n + (ch.charCodeAt(0) < 256 ? 0.6 : 1), 0) * fs + pad * 2;
-    const hgt = fs * 1.5;
-    out.push(`<rect x="${ax}" y="${ay}" width="${w}" height="${hgt}" rx="${3 * px}" fill="${look.bg}"/>`
-      + `<text class="panel-state-label" x="${ax + pad}" y="${ay + hgt / 2}" font-size="${fs}" fill="${look.ink}">${look.text}</text>`);
-    if (st.state === "running") {
+    const ty = top + ring + gap + fs / 2;
+    out.push(`<text class="panel-state-label" x="${cx}" y="${ty}" font-size="${fs}" fill="${look.ink}">${look.text}</text>`);
+    if (hasBar) {
       const bh = cfg.barPx * px, bw = Math.min(cfg.barWidthPx * px, bb.w * 0.6);
-      const x0 = cx - bw / 2, y0 = cy + (cfg.ringPx / 2 + cfg.barGapPx) * px;
+      const x0 = cx - bw / 2, y0 = ty + fs / 2 + cfg.barGapPx * px;
       out.push(`<rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="${bh / 2}" class="state-bar"/>`
-        + `<rect x="${x0}" y="${y0}" width="${bw * Math.min(Math.max(st.progress || 0, 0), 1)}" height="${bh}" rx="${bh / 2}" fill="${cfg.lamp}"/>`);
+        + `<rect x="${x0}" y="${y0}" width="${bw * Math.min(Math.max(st.progress || 0, 0), 1)}" height="${bh}" rx="${bh / 2}" fill="${look.arc}"/>`);
     }
     return out.join("");
-  }
-
-  cornerIn(poly, sx, dist) {
-    const n = poly.length;
-    let i = 0;
-    poly.forEach((v, k) => { if (sx * v[0] - v[1] > sx * poly[i][0] - poly[i][1]) i = k; });
-    const v = poly[i];
-    const unit = (a) => { const l = Math.hypot(a[0], a[1]) || 1; return [a[0] / l, a[1] / l]; };
-    const u1 = unit([poly[(i - 1 + n) % n][0] - v[0], poly[(i - 1 + n) % n][1] - v[1]]);
-    const u2 = unit([poly[(i + 1) % n][0] - v[0], poly[(i + 1) % n][1] - v[1]]);
-    const dir = unit([u1[0] + u2[0], u1[1] + u2[1]]);
-    return [v[0] + dir[0] * dist * Math.SQRT2, v[1] + dir[1] * dist * Math.SQRT2];
   }
 
   panelAt(pt) {
