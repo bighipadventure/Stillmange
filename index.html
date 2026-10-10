@@ -903,6 +903,8 @@ script_callbacks.on_app_started(on_app_started)
     timeoutMs: 600000,
     imageSide: 768,
     jsonRetries: 1,
+    autoRetries: 2,
+    retryWaitMs: 1500,
     excerptChars: 160,
     retryPrompt: "Your previous reply could not be read as JSON. Reply again with ONLY the JSON object in the required format: no explanation, no markdown, no thinking text.",
   },
@@ -1123,6 +1125,8 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
     llmEmptyReply: "\n文章AIの返事が空でした。モデルが読み込まれているか確認してください。",
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
+    llmRetrying: "コマ {n} のプロンプトが作れなかったため、文章AIにもう一度頼んでいます（再挑戦 {k}/{max}）…",
+    planRetrying: "ページの流れが作れなかったため、文章AIにもう一度頼んでいます（再挑戦 {k}/{max}）…",
     llmWritingAll: "先に全コマのプロンプトを文章AIが作っています（コマ {n}・{i}/{total}）。終わったら画像を1コマずつ生成します…",
     timeLlm: "文章AI {t}",
     timeImage: "画像 {t}（1コマ平均 {avg}）",
@@ -5176,26 +5180,43 @@ class Generator {
   async writeAll(batch) {
     const m = USER_SETTINGS.messages;
     const todo = batch.map((id) => this.app.doc.panels.find((p) => p.id === id)).filter((p) => p && this.needsPrompt(p));
-    const failed = new Set();
+    const max = USER_SETTINGS.llm.autoRetries;
+    const lastError = new Map();
     for (const p of todo) this.states.set(p.id, { state: "waiting", progress: 0 });
-    for (const [i, panel] of todo.entries()) {
-      if (this.abort.signal.aborted) break;
-      const n = this.numberOf(panel);
-      this.states.set(panel.id, { state: "writing", progress: 0 });
-      this.app.status(fmt(m.llmWritingAll, { n, i: i + 1, total: todo.length }));
-      this.app.afterRuntime();
-      const t0 = performance.now();
-      try {
-        await this.app.writePrompt(panel, this.abort.signal);
-        this.states.set(panel.id, { state: "queued", progress: 0 });
-      } catch (err) {
-        if (err.name === "AbortError") break;
-        this.fail(panel.id, n, err, "文章AI");
-        failed.add(panel.id);
-      } finally {
-        this.timing.llm += performance.now() - t0;
+    let pending = todo;
+    for (let round = 0; round <= max && pending.length && !this.abort.signal.aborted; round++) {
+      if (round > 0) await sleep(USER_SETTINGS.llm.retryWaitMs, this.abort.signal).catch(() => {});
+      const next = [];
+      for (const [i, panel] of pending.entries()) {
+        if (this.abort.signal.aborted) break;
+        if (!this.app.doc.panels.includes(panel)) continue;
+        const n = this.numberOf(panel);
+        this.states.set(panel.id, { state: "writing", progress: 0 });
+        this.app.status(round ? fmt(m.llmRetrying, { n, k: round, max }) : fmt(m.llmWritingAll, { n, i: i + 1, total: pending.length }));
+        this.app.afterRuntime();
+        const t0 = performance.now();
+        try {
+          await this.app.writePrompt(panel, this.abort.signal);
+          this.states.set(panel.id, { state: "queued", progress: 0 });
+          lastError.delete(panel.id);
+        } catch (err) {
+          if (err.name === "AbortError") break;
+          lastError.set(panel.id, err);
+          this.states.set(panel.id, { state: "waiting", progress: 0 });
+          next.push(panel);
+        } finally {
+          this.timing.llm += performance.now() - t0;
+        }
+        this.app.afterRuntime({ inspector: true });
       }
-      this.app.afterRuntime({ inspector: true });
+      pending = next;
+    }
+    const failed = new Set();
+    for (const [id, err] of lastError) {
+      const panel = this.app.doc.panels.find((p) => p.id === id);
+      if (!panel) continue;
+      this.fail(id, this.numberOf(panel), err, "文章AI");
+      failed.add(id);
     }
     for (const id of batch) this.forceLlm.delete(id);
     return failed;
@@ -6292,7 +6313,17 @@ class App {
         }
       }
       this.status(cast.length ? fmt(m.castPlanning, { n: cast.length }) : m.autoPlanning);
-      plan = await StoryPlanner.plan(this, blank, this.llmAbort.signal, cast);
+      const max = USER_SETTINGS.llm.autoRetries;
+      for (let k = 0; ; k++) {
+        try {
+          plan = await StoryPlanner.plan(this, blank, this.llmAbort.signal, cast);
+          break;
+        } catch (err) {
+          if (err.name === "AbortError" || k >= max) throw err;
+          this.status(fmt(m.planRetrying, { k: k + 1, max }));
+          await sleep(USER_SETTINGS.llm.retryWaitMs, this.llmAbort.signal);
+        }
+      }
     } catch (err) {
       this.status(err.name === "AbortError" ? m.cancelled : fmt(m.autoFailed, { err: describeError(err, "文章AI") }), err.name !== "AbortError");
       return null;
