@@ -54,7 +54,7 @@
     --control: #383838;
     --control-hover: #454545;
     --accent-hover: #1473e6;
-    --accent-text: #5aa9fa;
+    --accent-text: #8cc8ff;
     --accent-soft: #1d3554;
     --on-accent-soft: #cfe3fb;
     --lamp: #f0a63a;
@@ -167,9 +167,8 @@ body.resizing * { user-select: none; }
 .tool-group .row button { flex: 1 1 auto; }
 .tag-sort-row { align-items: center; }
 .tag-sort-state { font-size: 12px; color: var(--muted); }
-.tag-sort-state.pending { color: var(--accent); }
+.tag-sort-state.pending { color: var(--accent-text); }
 .tag-sort-state.error { color: var(--danger, #c33); }
-.lib-placed { position: absolute; top: 3px; left: 3px; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; }
 .lib-drop { display: grid; place-items: center; min-height: 64px; padding: 6px; text-align: center; cursor: pointer; position: relative;
   border: 1px dashed var(--line-strong); border-radius: var(--radius-s); background: var(--surface-2); }
 .lib-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -178,8 +177,17 @@ body.resizing * { user-select: none; }
 .lib-drop .hint strong { display: block; color: var(--ink); font-size: 13px; }
 .lib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .lib-grid:empty { display: none; }
-.lib-item { position: relative; padding: 0; min-height: 0; aspect-ratio: 1; overflow: hidden; background: var(--stage); border-color: var(--line); cursor: grab; }
+.lib-item { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--stage); border: 1px solid var(--line); border-radius: var(--radius-s); cursor: grab; }
+.lib-item.main { border: 2px solid var(--accent-text); }
+.lib-open { position: absolute; inset: 0; padding: 0; min-height: 0; height: auto; border: 0; border-radius: 0; background: none; cursor: pointer; }
 .lib-item img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.lib-star, .lib-x { position: absolute; top: 3px; width: 22px; height: 22px; min-height: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; font-size: 13px; line-height: 1; background: rgba(0, 0, 0, .6); color: #fff; cursor: pointer; }
+.lib-star { left: 3px; }
+.lib-star[aria-pressed="true"] { background: #f0b400; color: #3a2a00; }
+.lib-x { right: 3px; font-size: 11px; }
+.lib-x:hover { background: #c9252d; }
+.main-flag { font-weight: 700; color: #f0b400; align-self: center; }
+.raw-prompt span { white-space: pre-wrap; word-break: break-word; font-size: 12px; }
 .lib-item .badge { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; background: rgba(0,0,0,.65); color: #fff; padding: 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-foot { flex: none; padding: 8px 10px; background: var(--head); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .run-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px; }
@@ -202,7 +210,7 @@ body.resizing * { user-select: none; }
 .panel-row-head { display: flex; align-items: center; gap: 6px; }
 .panel-row-head .panel-row-meta { flex: 1; min-width: 0; }
 .panel-row-input { width: 100%; min-height: 32px; font-size: 13px; }
-.link-btn { border: 0; background: none; color: var(--accent); padding: 0 2px; height: auto; font-size: 12px; cursor: pointer; }
+.link-btn { border: 0; background: none; color: var(--accent-text); padding: 0 2px; height: auto; font-size: 12px; cursor: pointer; }
 .back-btn { height: auto; padding: 4px 8px; font-size: 12px; }
 .panel-row-no { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
 .panel-row-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line, #d0d0d0); }
@@ -301,19 +309,17 @@ dialog.big {
 }
 dialog.big[open] { display: flex; flex-direction: column; }
 dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
-dialog.help { width: min(1440px, 100vw - 24px); height: min(920px, 100dvh - 24px); }
-.help-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-.help-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.help-step { position: relative; border: 1px solid var(--accent); border-radius: var(--radius-l); padding: 12px 14px 12px 54px; background: var(--surface-2); }
-.help-step .no { position: absolute; left: 12px; top: 12px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 15px; }
-.help-step h3 { margin: 0 0 4px; font-size: 15px; }
-.help-step p { margin: 0; font-size: 12.5px; line-height: 1.6; }
-.help-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.help-grid .card ul { margin: 0; padding-left: 1.2em; font-size: 12.5px; line-height: 1.65; }
-.help-grid .card li + li { margin-top: 2px; }
-.help-body kbd { font: inherit; font-size: 11px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); }
-.help-btn { border-color: var(--accent); color: var(--accent); font-weight: 700; }
-@media (max-width: 900px) { .help-flow, .help-grid { grid-template-columns: minmax(0, 1fr); } }
+dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px); }
+.help-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; font-size: 14px; line-height: 1.75; }
+.help-sec h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 16px; }
+.help-sec .no { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; display: grid; place-items: center; }
+.help-sec ul, .help-sec ol { margin: 0; padding-left: 58px; }
+.help-sec li + li { margin-top: 4px; }
+.help-steps li::marker { font-weight: 700; color: var(--accent-text); }
+.help-foot { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.help-body kbd { font: inherit; font-size: 12px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface-2); }
+.help-btn { border-color: var(--accent-text); color: var(--accent-text); font-weight: 700; }
+@media (max-width: 600px) { .help-sec ul, .help-sec ol { padding-left: 22px; } }
 .dlg-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; min-height: 36px; border-bottom: 1px solid var(--line); background: var(--head); }
 .dlg-head h2 { margin: 0; font-size: 13px; }
 .dlg-head .close { margin-left: auto; }
@@ -378,7 +384,7 @@ dialog.help { width: min(1440px, 100vw - 24px); height: min(920px, 100dvh - 24px
             <span class="hint"><strong>ベースにする画像をここにドロップ（複数可）</strong>コマが空のまま「④ 実行」を押すと、文章AIが画像からストーリーを作り、画像をコマに配置して、残りのコマを生成します</span>
           </label>
           <div class="lib-grid" id="lib-grid"></div>
-          <p class="note" id="lib-note">画像を押すと内容を確認できます。好きなコマへドラッグすると、そのコマに固定して使います。</p>
+          <p class="note" id="lib-note">★ の画像がストーリーの主軸（ベース）です。最初に入れた画像が自動でベースになり、☆ を押すと変えられます。ほかの画像は同じ話の別の場面に使います。好きなコマへドラッグすると、そのコマに固定できます。</p>
         </div>
       </section>
       <section class="psec">
@@ -513,49 +519,61 @@ dialog.help { width: min(1440px, 100vw - 24px); height: min(920px, 100dvh - 24px
 <dialog class="big help" id="help" aria-labelledby="help-title">
   <div class="dlg-head"><h2 id="help-title">ツールの使い方</h2><button class="close" id="help-close">閉じる</button></div>
   <div class="help-body">
-    <div class="help-flow">
-      <div class="help-step"><span class="no">1</span><h3>ベースにする画像を入れる</h3><p>左上「① ベースにする画像」に、生成済みの画像をドロップします（複数可）。画像の中身とプロンプト（メタデータ）を読み取って使います。</p></div>
-      <div class="help-step"><span class="no">2</span><h3>コマ割りを選ぶ</h3><p>「② コマ割りテンプレート」から好きな形を選びます。あとから分割・結合・大きさの変更もできます。</p></div>
-      <div class="help-step"><span class="no">3</span><h3>「④ 実行」を押す</h3><p>コマが空のままでOK。文章AIが画像からストーリーを作り、ベース画像を合うコマに配置して、残りのコマだけを生成します。</p></div>
-    </div>
-    <div class="help-grid">
-      <div class="card"><h4 class="card-title">内容を自分で決めたいとき</h4><ul>
-        <li>右の「このコマ」タブのコマ一覧で、各コマの「生成したい内容」を日本語で書けます（例: パンを咥えて走る少女）。</li>
-        <li>空欄のコマは、実行時にAIがストーリーに合わせて考えます。</li>
-        <li>ベース画像を好きなコマへ直接ドラッグすると、そのコマに固定して使います。</li>
-        <li>「全コマ共通」タブには、全コマで使うモデルやプロンプトをまとめて設定します。</li>
-      </ul></div>
-      <div class="card"><h4 class="card-title">コマの形を変える</h4><ul>
-        <li>コマを押して選び、角の □ をドラッグで大きさを変更。</li>
-        <li>区切りの ○ を押すと、その区切りだけ「隙間 ⇔ 線」の切り替えや、斜めにできます。区切りを削除すると両側のコマが結合します。</li>
-        <li>「✂ 2点で分割」: コマの辺を2か所クリックすると、その線で分けます（<kbd>Esc</kbd>で中止）。</li>
-        <li><kbd>Shift</kbd> / <kbd>Ctrl</kbd> を押しながら押すと複数選択。隣り合うコマを「結合」できます。</li>
-      </ul></div>
-      <div class="card"><h4 class="card-title">コマの中の画像を調整する</h4><ul>
-        <li>画像が入ったコマを<b>ダブルクリック</b>すると画像の調整モードになります。</li>
-        <li>ドラッグで移動、四隅をつまむと反対側の角を基準に拡大・縮小。</li>
-        <li>反転・90°回転・カラー / モノクロは左の「③ コマの編集」から。</li>
-        <li>画像がどこかへ行ったら「画像をコマの中央へ」。</li>
-      </ul></div>
-      <div class="card"><h4 class="card-title">吹き出し・セリフ</h4><ul>
-        <li>「＋ 吹き出しを追加」か、右の「吹き出し」タブでセリフを入力すると自動で追加されます。</li>
-        <li>吹き出しはドラッグで移動、しっぽの先もドラッグで向きを変えられます。</li>
-        <li>形（手書き風・もこもこ・トゲなど）、文字の大きさ、縦書き / 横書きは「吹き出し」タブで。</li>
-      </ul></div>
-      <div class="card"><h4 class="card-title">生成をやり直す</h4><ul>
-        <li>コマを選んで「このコマを再生成」。複数選んでまとめて再生成もできます。</li>
-        <li>生成した画像は何枚でも残り、コマ詳細の一覧から押して切り替えられます。</li>
-        <li>「画像が入っているコマは生成しない」をオンにすると、入っているコマを飛ばします。</li>
-        <li>まず文章AIが全コマのプロンプトを作り、その後1コマずつ画像を生成します。</li>
-      </ul></div>
-      <div class="card"><h4 class="card-title">保存・書き出し・投稿</h4><ul>
-        <li>「保存（JSON）」で作業中のデータを丸ごと保存し、「開く」で続きから。</li>
-        <li>「PNGで書き出す」で1ページの画像に。</li>
+    <section class="help-sec">
+      <h3><span class="no">1</span>基本の流れ（3ステップで1ページ完成）</h3>
+      <ol class="help-steps">
+        <li><b>ベースにする画像を入れる</b> … 左上「① ベースにする画像」に、生成済みの画像をドロップします（複数可）。最初に入れた画像が <b>★ ベース（ストーリーの主軸）</b> になります。☆ を押すとベースを変えられ、✕ で外せます。同じ画像は二重に入りません。</li>
+        <li><b>コマ割りを選ぶ</b> … 「② コマ割りテンプレート」から好きな形を選びます。</li>
+        <li><b>「④ 実行」を押す</b> … コマは空のままでOK。文章AIが画像のプロンプトをジャンル分けし、画像そのものとプロンプトの両方からストーリーを考え、画像を合うコマに配置して、残りのコマだけを生成します。</li>
+      </ol>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">2</span>コマの内容を自分で決める</h3>
+      <ul>
+        <li>右の「このコマ」タブのコマ一覧で、各コマの「生成したい内容」を日本語で書けます（例: パンを咥えて走る少女）。空欄のコマは、実行時にAIが考えます。</li>
+        <li>ベースの画像を好きなコマへ直接ドラッグすると、そのコマに固定して使います。</li>
+        <li>全コマで使うモデルやプロンプトは「全コマ共通」タブで設定します。</li>
+      </ul>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">3</span>コマの形を変える</h3>
+      <ul>
+        <li>コマを押して選び、角の □ をドラッグすると大きさが変わります。</li>
+        <li>区切りの ○ を押すと、その区切りだけ「隙間 ⇔ 線」の切り替えや斜めにできます。区切りを削除すると両側のコマが結合します。</li>
+        <li>「✂ 2点で分割」でコマの辺を2か所クリックすると、その線で分けます（<kbd>Esc</kbd> で中止）。</li>
+        <li><kbd>Shift</kbd> / <kbd>Ctrl</kbd> を押しながら押すと複数選択でき、隣り合うコマを「結合」できます。</li>
+      </ul>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">4</span>コマの中の画像を調整する</h3>
+      <ul>
+        <li>画像が入ったコマを<b>ダブルクリック</b>すると調整モードになります。ドラッグで移動、四隅をつまむと反対側の角を基準に拡大・縮小します。</li>
+        <li>反転・90°回転・カラー / モノクロは、左の「③ コマの編集」から。画像が見えなくなったら「画像をコマの中央へ」。</li>
+      </ul>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">5</span>吹き出し・セリフ</h3>
+      <ul>
+        <li>「＋ 吹き出しを追加」を押すか、右の「吹き出し」タブでセリフを入力すると吹き出しが追加されます。</li>
+        <li>吹き出しもしっぽの先もドラッグで動かせます。形・文字の大きさ・縦書き / 横書きは「吹き出し」タブで変えます。</li>
+      </ul>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">6</span>生成をやり直す</h3>
+      <ul>
+        <li>コマを選んで「このコマを再生成」。複数選んでまとめて再生成もできます。ベースの画像が入ったコマは、選んだときだけ作り直します。</li>
+        <li>生成した画像はすべて残り、コマの詳細から押して切り替えられます。</li>
+      </ul>
+    </section>
+    <section class="help-sec">
+      <h3><span class="no">7</span>保存・書き出し・投稿</h3>
+      <ul>
+        <li>「保存（JSON）」で作業中のデータを保存し、「開く」で続きから。「PNGで書き出す」で1ページの画像に。</li>
         <li>「Prompt Reel に投稿」で、ページを1枚目、各コマの画像を差分として投稿画面へ渡します。</li>
-        <li>ショートカット: <kbd>Ctrl</kbd>+<kbd>Z</kbd> 戻る / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> やり直す / <kbd>Delete</kbd> 削除。</li>
-      </ul></div>
-    </div>
-    <p class="lead">はじめて使うときは「設定」から、画像生成（WebUI / ComfyUI）と文章AI（ローカルLLM）の接続を確認してください。</p>
+        <li>ショートカット: <kbd>Ctrl</kbd>+<kbd>Z</kbd> 戻る ／ <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> やり直す ／ <kbd>Delete</kbd> 削除</li>
+      </ul>
+    </section>
+    <p class="help-foot">はじめて使うときは「設定」から、画像生成（WebUI / ComfyUI）と文章AI（ローカルLLM）の接続を確認してください。</p>
   </div>
 </dialog>
 
@@ -896,7 +914,7 @@ Meaning: quality = quality and style tags; count = number of people (1girl, 2boy
 You receive: the panels of the page in reading order (shape and size of each panel), the prompts of the images the user uploaded (Stable Diffusion prompts, often Danbooru tags), and optionally a story the user wrote.
 Some panels already have an image or an instruction. The panels marked EMPTY need an instruction from you.
 Steps:
-1. From the uploaded prompts (and images, if attached), infer who the characters are, what they look like, where they are and what situation they are in.
+1. From the uploaded prompts (and images, if attached), infer who the characters are, what they look like, where they are and what situation they are in. If an image is marked THE MAIN BASE IMAGE, it is the core of the story.
 2. Think of a short, natural story for this single page that fits that situation: a clear beginning, a development and a small punchline or emotional beat at the end. Panels that already have an image keep their content, and the story must flow into and out of them in reading order.
 3. For each EMPTY panel, write one instruction in Japanese (one or two short sentences) that says what the panel shows: who, what they do, their expression and the camera (wide shot, close-up, from above...). Use the panel shape: wide panels suit establishing shots and scenery, tall panels suit full-body shots, small panels suit close-ups and reactions.
 Never ask for text, speech bubbles or sound effects in the image.
@@ -907,7 +925,7 @@ Include every EMPTY panel number and no other panel.`,
 You receive: the panels of the page in reading order (shape and size of each panel), the materials with an analysis of each one (what the picture shows and what its generation prompt says), and optionally a story the user wrote.
 Steps:
 1. Read every material: who the characters are, what they look like, where they are, what is happening and the mood.
-2. Think of a short, natural story for this single page that uses EVERY material: a clear beginning, a development and a small punchline or emotional beat at the end. Order the materials so the story flows; use each material's suggested role as a hint.
+2. Think of a short, natural story for this single page that uses EVERY material: a clear beginning, a development and a small punchline or emotional beat at the end. One image is marked THE MAIN BASE IMAGE: it is the core of the page. Build the story around its characters, place and situation, and give it a strong panel (large, or the key moment). The other materials are supporting scenes in the same story. Order the materials so the story flows; use each material's suggested role as a hint.
 3. Place each material in exactly one EMPTY panel. A material is shown as it is, so match its content to the story moment and its shape to the panel (portrait images suit tall panels, landscape images suit wide panels). Never put two materials in one panel.
 4. For each EMPTY panel that gets no material, write one instruction in Japanese (one or two short sentences) that says what the panel shows: who, what they do, their expression and the camera (wide shot, close-up, from above...). The characters must look the same as in the materials. Also say which material the panel is closest to (same characters and place), so its look can be copied.
 Panels that already have an image or an instruction keep their content; the story must flow into and out of them.
@@ -1106,11 +1124,15 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     castUnused: "（コマが足りないため、素材 {n} 枚は使っていません）",
     castNoLlm: "文章AIが設定されていないため、素材を形の合うコマに配置しました。残りのコマは「全コマ共通」のプロンプトで生成します。",
     castAllPlaced: "素材 {placed} 枚をコマに配置しました。生成が必要なコマはありません。",
-    tagSorting: "文章AIが「{name}」のタグを整理しています…",
-    tagSorted: "文章AIが「{name}」のタグを整理しました（{n} 個）。",
-    tagSortFailed: "文章AIでタグを整理できなかったため、いまの分類のままにしました: {err}",
+    libDuplicate: "同じ画像はすでに読み込まれているため、追加しませんでした: {names}",
+    libRemoved: "「{name}」を外しました（「戻る」で元に戻せます）。",
+    libMain: "「{name}」をベース（ストーリーの主軸）にしました。",
+    tagSortAll: "文章AIが画像のプロンプトをジャンル分けしています（{i}/{n}）…",
+    tagSorting: "文章AIが「{name}」のプロンプトをジャンル分けしています…",
+    tagSorted: "文章AIが「{name}」のプロンプトをジャンル分けしました（{n} 個）。",
+    tagSortFailed: "文章AIでジャンル分けできなかったため、いまのままにしました: {err}",
     tagSortBadJson: "文章AIの返事からタグの分類（JSON）を読み取れませんでした。",
-    tagSortState: { pending: "文章AIで整理中…", llm: "文章AIで整理済み", rules: "ルールで分類（文章AIが未設定）", error: "文章AIでの整理に失敗（いまの分類のまま）" },
+    tagSortState: { pending: "文章AIで分けています…", llm: "文章AIで分け済み", rules: "済み", error: "文章AIで分けられませんでした" },
     analyzeBadJson: "文章AIの返事から素材の解析結果（JSON）を読み取れませんでした。",
     allMaterials: "生成するコマがありません（すべてのコマに素材の画像が入っています）。素材のコマを作り直すときは、そのコマを選んで「このコマを再生成」を押してください。",
     autoBadJson: "文章AIの返事からページの流れ（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
@@ -1187,6 +1209,18 @@ function setMsg(el, text, kind = "") {
 function fillSelect(select, entries, value) {
   select.replaceChildren(...entries.map(([v, label]) => new Option(label, v)));
   if (value !== undefined && entries.some(([v]) => String(v) === String(value))) select.value = String(value);
+}
+
+async function fileHash(blob) {
+  const buf = await blob.arrayBuffer();
+  if (globalThis.crypto?.subtle) {
+    const d = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  }
+  const bytes = new Uint8Array(buf);
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < bytes.length; i++) { h1 = Math.imul(h1 ^ bytes[i], 0x01000193); h2 = Math.imul(h2 ^ bytes[i], 0x85ebca6b); }
+  return `${(h1 >>> 0).toString(16)}${(h2 >>> 0).toString(16)}${bytes.length}`;
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -2184,7 +2218,7 @@ class TagSorter {
     if (extra > 0) for (const k of Object.keys(cache).slice(0, extra)) delete cache[k];
     app.store.save();
     const out = {};
-    for (const t of tags) (out[dict[t.key] || cache[t.key] || TagClassifier.genreOf(t, dict)] ??= []).push(t.text);
+    for (const t of tags) (out[dict[t.key] || cache[t.key] || USER_SETTINGS.unclassifiedGenre] ??= []).push(t.text);
     return out;
   }
 }
@@ -2820,11 +2854,14 @@ class PromptWriter {
       if (!item) return null;
       return {
         kind: "lib", item, label: "the base image",
-        genres: Object.fromEntries(this.genreKeys().map((k) => [k, (item.genres[k] || []).join(", ")])),
+        genres: item.genres
+          ? Object.fromEntries(this.genreKeys().map((k) => [k, (item.genres[k] || []).join(", ")]))
+          : Object.fromEntries(this.genreKeys().map((k) => [k, k === USER_SETTINGS.freeGenre ? item.meta.prompt || "" : ""])),
         image: item.thumb,
       };
     }
-    return fromPanel(order.find((p) => p !== panel && p.source));
+    const main = Project.mainItem(doc);
+    return fromPanel(order.find((p) => p !== panel && main && p.source === main.id) || order.find((p) => p !== panel && p.source));
   }
 
   static key(doc, panel, base) {
@@ -2928,7 +2965,10 @@ class StoryPlanner {
 
   static materials(doc) {
     const used = new Set(doc.panels.map((p) => p.source));
-    return doc.library.filter((l) => !used.has(l.id)).slice(0, USER_SETTINGS.autoStory.maxMaterials);
+    const main = Project.mainItem(doc);
+    const list = doc.library.filter((l) => !used.has(l.id));
+    list.sort((a, b) => (b === main) - (a === main));
+    return list.slice(0, USER_SETTINGS.autoStory.maxMaterials);
   }
 
   static letter(i) {
@@ -2981,7 +3021,8 @@ class StoryPlanner {
     if (order.some((p) => p.source && this.hasPrompt(p))) return "auto";
     const typed = order.find((p) => this.hasPrompt(p));
     if (typed) return `panel:${typed.id}`;
-    const lib = doc.library.filter((l) => (l.meta.prompt || "").trim()).pop();
+    const main = Project.mainItem(doc);
+    const lib = main && (main.meta.prompt || "").trim() ? main : doc.library.find((l) => (l.meta.prompt || "").trim());
     return lib ? `lib:${lib.id}` : null;
   }
 
@@ -3006,14 +3047,15 @@ class StoryPlanner {
     Layout.readingOrder(doc).forEach((p, i) => {
       const head = `- Panel ${i + 1} (${this.shape(doc, p)})`;
       const instr = (p.instruction || "").trim();
-      if (this.hasPrompt(p)) lines.push(`${head}: HAS IMAGE. Prompt: ${this.promptOf(doc, p)}`);
+      const isMain = p.source && p.source === Project.mainItem(doc)?.id;
+      if (this.hasPrompt(p)) lines.push(`${head}: HAS IMAGE${isMain ? " (THE MAIN BASE IMAGE)" : ""}. Prompt: ${this.promptOf(doc, p)}`);
       else if (instr) lines.push(`${head}: HAS INSTRUCTION (keep it): "${instr}"`);
       else lines.push(`${head}: ${targets.includes(p) ? "EMPTY" : "not drawn in this run (keep the story consistent with it)"}`);
     });
     const refs = cast.length ? [] : this.libraryRefs(doc);
     if (cast.length) {
       lines.push("", `Materials to place (${cast.length}):`);
-      cast.forEach((item, i) => lines.push(this.materialLine(item, i)));
+      cast.forEach((item, i) => lines.push(this.materialLine(item, i) + (item === Project.mainItem(doc) ? " | THE MAIN BASE IMAGE" : "")));
       if (images) lines.push(`The attached pictures are Material ${cast.slice(0, images).map((_, i) => this.letter(i)).join(", ")} in this order.`);
     }
     if (refs.length) {
@@ -3304,6 +3346,10 @@ class Project {
     const s = Math.max(bbox.w / entry.w, bbox.h / entry.h) * (view.zoom || 1);
     const w = entry.w * s, hgt = entry.h * s;
     return { x: bbox.x + (bbox.w - w) / 2 + (view.ox || 0), y: bbox.y + (bbox.h - hgt) / 2 + (view.oy || 0), w, h: hgt };
+  }
+
+  static mainItem(doc) {
+    return doc.library.find((l) => l.id === doc.mainBase) || doc.library[0] || null;
   }
 
   static currentImage(panel) {
@@ -4864,38 +4910,76 @@ class LibraryView {
     const items = [];
     const errors = [];
     this.app.status(m.readingLib);
+    const added = [];
+    const dupes = [];
+    await this.ensureHashes();
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
         if (!/\.json$/i.test(file.name)) errors.push(m.libNotImage + file.name);
         continue;
       }
       try {
+        const hash = await fileHash(file);
+        const same = [...this.doc.library, ...added].find((l) => l.hash === hash);
+        if (same) { dupes.push(file.name); items.push(same); continue; }
         const meta = await MetaReader.read(file);
         const thumb = await this.makeThumb(file);
-        items.push({
-          id: uid(), name: file.name, thumb: this.app.assets.add(thumb.dataUrl), image: this.app.assets.add(thumb.preview), w: thumb.w, h: thumb.h, meta,
+        const item = {
+          id: uid(), name: file.name, hash, thumb: this.app.assets.add(thumb.dataUrl), image: this.app.assets.add(thumb.preview), w: thumb.w, h: thumb.h, meta,
           original: this.app.assets.add(await blobToDataUrl(file)),
-          genres: TagClassifier.classify(meta.prompt, this.app.store.data.tagDict),
-        });
+          genres: null,
+        };
+        added.push(item);
+        items.push(item);
       } catch (err) {
         errors.push(`${file.name}: ${err.message}`);
       }
     }
-    if (items.length) this.app.commit(() => this.doc.library.push(...items));
-    this.app.status([items.length ? fmt(m.libAdded, { n: items.length }) : "", ...errors].filter(Boolean).join("\n"), errors.length > 0 && !items.length);
-    if (items.length) this.app.sortTags(items);
+    if (added.length) this.app.commit(() => this.doc.library.push(...added));
+    this.app.status([
+      added.length ? fmt(m.libAdded, { n: added.length }) : "",
+      dupes.length ? fmt(m.libDuplicate, { names: dupes.join("、") }) : "",
+      ...errors,
+    ].filter(Boolean).join("\n"), errors.length > 0 && !items.length);
     return items;
+  }
+
+  async ensureHashes() {
+    for (const item of this.doc.library) {
+      if (item.hash || !item.original || !this.app.assets.has(item.original)) continue;
+      try { item.hash = await fileHash(dataUrlToBlob(this.app.assets.dataUrl(item.original))); } catch {}
+    }
+  }
+
+  remove(item) {
+    this.app.commit(() => {
+      const i = this.doc.library.indexOf(item);
+      if (i >= 0) this.doc.library.splice(i, 1);
+      if (this.doc.mainBase === item.id) this.doc.mainBase = null;
+    });
+    if (this.openId === item.id && this.dialog.open) this.dialog.close();
+    this.app.status(fmt(USER_SETTINGS.messages.libRemoved, { name: item.name }));
+  }
+
+  setMain(item) {
+    this.app.commit(() => { this.doc.mainBase = item.id; }, { inspector: true });
+    this.app.status(fmt(USER_SETTINGS.messages.libMain, { name: item.name }));
   }
 
   render() {
     const grid = $("lib-grid");
     const order = Layout.readingOrder(this.doc);
+    const main = Project.mainItem(this.doc);
     grid.replaceChildren(...this.doc.library.map((item) => {
       const at = order.findIndex((p) => p.source === item.id);
-      const b = h("button", { class: "lib-item", draggable: true, title: item.name, onclick: () => this.open(item.id) },
-        h("img", { src: this.app.assets.url(item.thumb), alt: "" }),
-        at >= 0 ? h("span", { class: "lib-placed", text: `コマ ${at + 1}` }) : null,
-        h("span", { class: "badge", text: item.meta.format === "none" ? "メタデータなし" : item.name }));
+      const isMain = item === main;
+      const label = [isMain ? "ベース" : "", at >= 0 ? `コマ ${at + 1}` : "", item.meta.format === "none" ? "メタデータなし" : item.name].filter(Boolean).join("・");
+      const b = h("div", { class: `lib-item${isMain ? " main" : ""}`, draggable: true, title: item.name },
+        h("button", { class: "lib-open", "aria-label": `${item.name} の内容を見る`, onclick: () => this.open(item.id) },
+          h("img", { src: this.app.assets.url(item.thumb), alt: "" })),
+        h("button", { class: "lib-star", text: isMain ? "★" : "☆", "aria-pressed": String(isMain), title: isMain ? "この画像がベース（ストーリーの主軸）です" : "この画像をベース（ストーリーの主軸）にする", onclick: () => { if (!isMain) this.setMain(item); } }),
+        h("button", { class: "lib-x", text: "✕", title: "この画像を外す", "aria-label": `${item.name} を外す`, onclick: () => this.remove(item) }),
+        h("span", { class: "badge", text: label }));
       b.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData("application/x-stillmange-lib", item.id);
       });
@@ -4928,7 +5012,9 @@ class LibraryView {
       part === "model" ? null : h("button", { class: "mini", text: "→ コマ", disabled: !hasPanel, title: hasPanel ? `${this.targetLabel()} に入れる` : USER_SETTINGS.messages.needPanel, onclick: () => this.app.applyLibrary(item.id, "panel", part) }),
       h("button", { class: "mini", text: "→ 共通", onclick: () => this.app.applyLibrary(item.id, "common", part) }));
     const rows = h("div", { class: "lib-rows" });
-    for (const g of USER_SETTINGS.genres.filter((x) => x.key !== USER_SETTINGS.freeGenre)) {
+    if (!item.genres) rows.append(h("div", { class: "lib-row" }, h("span", { class: "lib-row-name", text: "プロンプト" }),
+      h("div", { class: "chips raw-prompt" }, h("span", { class: meta.prompt ? "" : "empty", text: meta.prompt || "なし" })), actions("prompt")));
+    for (const g of item.genres ? USER_SETTINGS.genres.filter((x) => x.key !== USER_SETTINGS.freeGenre) : []) {
       const tags = item.genres[g.key] || [];
       const chips = h("div", { class: "chips" }, tags.length ? tags.map((tag, i) => {
         const chip = h("button", { class: "chip", draggable: true, text: tag, title: hasPanel ? `押すと ${this.targetLabel()} の「${g.label}」に追加。別のジャンルへドラッグで移動` : "別のジャンルへドラッグで移動" });
@@ -4967,11 +5053,14 @@ class LibraryView {
           h("div", { class: "lib-actions" },
             h("button", { class: "primary", text: `すべてを ${this.targetLabel()} に適用`, disabled: !hasPanel, onclick: () => this.app.applyLibrary(item.id, "panel", "all") }),
             h("button", { text: "すべてを全コマ共通に適用", onclick: () => this.app.applyLibrary(item.id, "common", "all") }),
-            h("button", { class: "danger", text: "この素材を外す", onclick: () => { this.app.commit(() => this.doc.library.splice(this.doc.library.indexOf(item), 1)); this.dialog.close(); } })),
+            item === Project.mainItem(this.doc)
+              ? h("span", { class: "main-flag", text: "★ ベース（ストーリーの主軸）" })
+              : h("button", { text: "☆ この画像をベースにする", onclick: () => this.setMain(item) }),
+            h("button", { class: "danger", text: "この画像を外す", onclick: () => this.remove(item) })),
           h("div", { class: "row tag-sort-row" },
-            h("span", { class: `tag-sort-state ${item.tagSort || ""}`, text: `タグの整理: ${(USER_SETTINGS.messages.tagSortState[item.tagSort] || "ルールで分類")}`, title: item.tagSortError || "" }),
-            h("button", { class: "mini", text: "文章AIで整理し直す", disabled: item.tagSort === "pending" || !this.app.store.data.llm.model, title: this.app.store.data.llm.model ? "" : "設定で文章AIのモデルを選ぶと使えます", onclick: () => this.app.sortTags([item], { force: true }) })),
-          h("p", { class: "note", text: "タグを押すと選択中のコマのそのジャンルに追加します。タグは右側の「このコマ」の欄へドラッグしても入れられます。分類が違うタグは、正しいジャンルの行へドラッグすると次から覚えます。" }))),
+            h("span", { class: `tag-sort-state ${item.tagSort || ""}`, text: `ジャンル分け: ${item.genres ? (USER_SETTINGS.messages.tagSortState[item.tagSort] || "済み") : item.tagSort === "pending" ? USER_SETTINGS.messages.tagSortState.pending : item.tagSort === "error" ? USER_SETTINGS.messages.tagSortState.error : "まだ（実行すると文章AIが行います）"}`, title: item.tagSortError || "" }),
+            h("button", { class: "mini", text: item.genres ? "文章AIで分け直す" : "いま文章AIで分ける", disabled: item.tagSort === "pending" || !this.app.store.data.llm.model, title: this.app.store.data.llm.model ? "" : "設定で文章AIのモデルを選ぶと使えます", onclick: () => this.app.sortTags([item], { force: true }) })),
+          h("p", { class: "note", text: item.genres ? "タグを押すと選択中のコマのそのジャンルに追加します。タグは右側の「このコマ」の欄へドラッグしても入れられます。分類が違うタグは、正しいジャンルの行へドラッグすると次から覚えます。" : "ジャンル分けは「④ 実行」を押したときに文章AIが行います。それまでは画像のプロンプトをそのまま使います。" }))),
       rows,
       h("details", {}, h("summary", { text: "元のプロンプト" }), h("pre", { class: "preview-pre", text: meta.prompt || "-" })),
     );
@@ -6110,6 +6199,12 @@ class App {
     if (this.llmBusy || !panels.length) return;
     this.endEdit();
     if (this.tagSorting) await this.tagSorting;
+    const unsorted = this.doc.library.filter((l) => !l.genres && (l.meta.prompt || "").trim());
+    if (unsorted.length && this.store.data.llm.model) {
+      this.llmBusy = true;
+      this.updateRunUi();
+      try { await this.sortTags(unsorted); } finally { this.llmBusy = false; this.updateRunUi(); }
+    }
     const blank = panels.filter((p) => StoryPlanner.isBlank(p));
     const materials = cast ? StoryPlanner.materials(this.doc) : [];
     const t0 = performance.now();
@@ -6178,7 +6273,8 @@ class App {
         const p = this.doc.panels.find((x) => x.id === id);
         p.instruction = plan.byPanel.get(id);
         if ((p.baseRef || "auto") !== "auto") continue;
-        const fromMaterial = letterPanel.get(plan.baseOf.get(id)) || (placement.size > 1 ? [...placement.keys()][0] : null);
+        const mainPanel = [...placement].find(([, it]) => it === Project.mainItem(this.doc))?.[0];
+        const fromMaterial = letterPanel.get(plan.baseOf.get(id)) || (placement.size > 1 ? mainPanel || [...placement.keys()][0] : null);
         if (fromMaterial) p.baseRef = `panel:${fromMaterial}`;
         else if (baseRef && baseRef !== "auto" && baseRef !== `panel:${p.id}`) p.baseRef = baseRef;
       }
@@ -6200,19 +6296,15 @@ class App {
   async runTagSort(items, { force = false } = {}) {
     const m = USER_SETTINGS.messages;
     const refresh = () => { if (this.library.dialog.open) this.library.renderDialog(); };
-    if (!this.store.data.llm.model) {
-      items.forEach((item) => { item.tagSort = "rules"; });
-      refresh();
-      return;
-    }
-    for (const item of items) {
+    if (!this.store.data.llm.model) return;
+    for (const [i, item] of items.entries()) {
       if (!this.doc.library.includes(item)) continue;
       const tags = TagClassifier.splitTags(item.meta.prompt).map((raw) => TagClassifier.normalize(raw)).filter((t) => t.key);
-      if (!tags.length) { item.tagSort = "llm"; continue; }
+      if (!tags.length) { item.genres ??= {}; item.tagSort = "llm"; continue; }
       item.tagSort = "pending";
       delete item.tagSortError;
       refresh();
-      this.status(fmt(m.tagSorting, { name: item.name }));
+      this.status(items.length > 1 ? fmt(m.tagSortAll, { i: i + 1, n: items.length }) : fmt(m.tagSorting, { name: item.name }));
       try {
         const genres = await TagSorter.sort(this, tags, { force, signal: new AbortController().signal });
         if (!this.doc.library.includes(item)) continue;
@@ -6234,11 +6326,16 @@ class App {
 
   refillFromItem(item, old) {
     const keys = TagSorter.genreKeys();
-    const was = (target) => keys.every((k) => String(target.prompt[k] || "") === (old[k] || []).join(", "));
+    const free = USER_SETTINGS.freeGenre;
+    const raw = item.meta.prompt || "";
+    const was = (target) => old
+      ? keys.every((k) => String(target.prompt[k] || "") === (old[k] || []).join(", "))
+      : raw && String(target.prompt[free] || "") === raw && keys.every((k) => !String(target.prompt[k] || "").trim());
     const targets = [...this.doc.panels.filter((p) => p.source === item.id), this.doc.common];
     for (const target of targets) {
       if (!was(target)) continue;
       for (const k of keys) target.prompt[k] = (item.genres[k] || []).join(", ");
+      if (!old) target.prompt[free] = "";
     }
   }
 
@@ -6269,9 +6366,16 @@ class App {
     const meta = item.meta;
     const res = this.resources;
     const all = part === "all";
-    for (const g of USER_SETTINGS.genres) {
-      if (g.key === USER_SETTINGS.freeGenre) continue;
-      if (all || part === g.key) target.prompt[g.key] = (item.genres[g.key] || []).join(", ");
+    const free = USER_SETTINGS.freeGenre;
+    if (all || part === "prompt") {
+      for (const g of USER_SETTINGS.genres) {
+        if (g.key === free) continue;
+        target.prompt[g.key] = item.genres ? (item.genres[g.key] || []).join(", ") : "";
+      }
+      if (!item.genres) target.prompt[free] = meta.prompt || "";
+      else if (String(target.prompt[free] || "") === (meta.prompt || "")) target.prompt[free] = "";
+    } else if (USER_SETTINGS.genres.some((g) => g.key === part && g.key !== free)) {
+      target.prompt[part] = (item.genres?.[part] || []).join(", ");
     }
     if (all || part === "negative") target.negative = meta.negative || "";
     if ((all && model) || part === "model") {
@@ -6446,10 +6550,7 @@ class App {
   }
 
   baseItem() {
-    const lib = this.doc.library;
-    const panel = Layout.readingOrder(this.doc).find((p) => p.source && lib.some((l) => l.id === p.source));
-    if (panel) return lib.find((l) => l.id === panel.source);
-    return [...lib].reverse().find((l) => l.meta?.raw || l.meta?.prompt) || null;
+    return Project.mainItem(this.doc);
   }
 
   shareBase() {
