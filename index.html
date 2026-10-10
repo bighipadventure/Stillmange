@@ -5461,7 +5461,9 @@ class SettingsView {
   async test(msgEl) {
     const client = this.app.client();
     setMsg(msgEl, "確認しています…");
+    const ticket = this.app.nextProbe();
     const state = await Net.probe(client.probeUrl);
+    this.app.showSdState(state, ticket);
     setMsg(msgEl, `${USER_SETTINGS.backends[this.app.store.data.backend].label}（${this.app.store.url}）: ${Net.message(state, Net.corsLine(this.app.store.data.backend))}`, state === "ok" ? "ok" : "err");
     if (state === "ok") this.app.loadResources();
   }
@@ -6496,13 +6498,25 @@ class App {
   }
 
   // CONNECTION
-  async refreshConnection() {
+  nextProbe() {
+    this.probeTicket = (this.probeTicket || 0) + 1;
+    return this.probeTicket;
+  }
+
+  showSdState(state, ticket) {
+    if (ticket !== this.probeTicket) return false;
     const pill = $("pill-sd");
     const name = USER_SETTINGS.backends[this.store.data.backend].short;
-    const state = await Net.probe(this.client().probeUrl);
     pill.dataset.state = state === "ok" ? "ok" : state === "cors" ? "warn" : "down";
     pill.textContent = `${name}: ${{ ok: "接続OK", cors: "接続が許可されていません", error: `エラー（${Net.lastStatus}）` }[state] || "接続できません"}`;
     pill.title = Net.message(state, Net.corsLine(this.store.data.backend));
+    return true;
+  }
+
+  async refreshConnection() {
+    const ticket = this.nextProbe();
+    const state = await Net.probe(this.client().probeUrl);
+    if (!this.showSdState(state, ticket)) return;
     if (state === "ok") {
       await this.loadResources();
       await this.syncFromWebui("empty");
