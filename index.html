@@ -924,6 +924,7 @@ script_callbacks.on_app_started(on_app_started)
     comfy: ["model", "vae", "sampler", "scheduler", "steps", "cfg", "clipSkip"],
     labels: { model: "Checkpoint", vae: "VAE", sampler: "サンプラー", scheduler: "スケジューラー", steps: "ステップ数", cfg: "CFG", clipSkip: "Clip skip", family: "UI Preset" },
   },
+  stall: { imageTimeoutMs: 1800000, retries: 2 },
   numberControl: { repeatDelayMs: 400, repeatMs: 70 },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
   llm: {
@@ -933,7 +934,7 @@ script_callbacks.on_app_started(on_app_started)
       { name: "LM Studio / Bionic", url: "http://localhost:1234/v1" }, { name: "Ollama", url: "http://localhost:11434/v1" },
       { name: "llama.cpp", url: "http://localhost:8080/v1" }, { name: "KoboldCpp", url: "http://localhost:5001/v1" }, { name: "Jan", url: "http://localhost:1337/v1" },
     ],
-    timeoutMs: 600000,
+    timeoutMs: 1800000,
     imageSide: 768,
     jsonRetries: 1,
     autoRetries: 2,
@@ -1158,6 +1159,10 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
     llmEmptyReply: "\n文章AIの返事が空でした。モデルが読み込まれているか確認してください。",
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
+    llmStalled: "文章AIの応答が {min} 分たってもないため、もう一度頼んでいます（再実行 {k}/{max}）…",
+    llmStalledFailed: "文章AIの応答が {min} 分たってもありませんでした（{max} 回やり直してもだめでした）。",
+    imageStalled: "コマ {n} の画像が {min} 分たっても届かないため、生成をやり直しています（再実行 {k}/{max}）…",
+    imageStalledFailed: "画像生成の応答が {min} 分たってもありませんでした（{max} 回やり直してもだめでした）。",
     llmRetrying: "コマ {n} のプロンプトが作れなかったため、文章AIにもう一度頼んでいます（再挑戦 {k}/{max}）…",
     planRetrying: "ページの流れが作れなかったため、文章AIにもう一度頼んでいます（再挑戦 {k}/{max}）…",
     llmWritingAll: "先に全コマのプロンプトを文章AIが作っています（コマ {n}・{i}/{total}）。終わったら画像を1コマずつ生成します…",
@@ -2596,6 +2601,20 @@ class ComfyClient {
 }
 
 // ===== LLM CLIENT =====
+// ===== DEADLINE (TIME LIMIT THAT CAN TELL A STALL FROM A USER CANCEL) =====
+class Deadline {
+  static start(parent, ms) {
+    const ctl = new AbortController();
+    const d = { signal: ctl.signal, timedOut: false };
+    const onParent = () => ctl.abort(parent.reason);
+    if (parent?.aborted) ctl.abort(parent.reason);
+    else parent?.addEventListener("abort", onParent, { once: true });
+    const timer = setTimeout(() => { d.timedOut = true; ctl.abort(new DOMException("timed out", "TimeoutError")); }, ms);
+    d.stop = () => { clearTimeout(timer); parent?.removeEventListener("abort", onParent); };
+    return d;
+  }
+}
+
 class LlmClient {
   constructor(cfg) {
     this.cfg = cfg;
@@ -2625,15 +2644,32 @@ class LlmClient {
   }
 
   async chat(system, userText, images, signal, followUps = []) {
+    const m = USER_SETTINGS.messages;
+    const max = USER_SETTINGS.stall.retries;
+    const min = Math.round(USER_SETTINGS.llm.timeoutMs / 60000);
+    for (let k = 0; ; k++) {
+      const deadline = Deadline.start(signal, USER_SETTINGS.llm.timeoutMs);
+      try {
+        return await this.chatOnce(system, userText, images, deadline.signal, followUps);
+      } catch (err) {
+        if (!deadline.timedOut) throw err;
+        if (k >= max) throw Object.assign(new UserError(fmt(m.llmStalledFailed, { min, max })), { stalled: true });
+        LlmClient.onStall?.(fmt(m.llmStalled, { min, k: k + 1, max }));
+      } finally {
+        deadline.stop();
+      }
+    }
+  }
+
+  async chatOnce(system, userText, images, signal, followUps) {
     const content = images?.length ? [{ type: "text", text: userText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : userText;
-    const timeout = AbortSignal.timeout(USER_SETTINGS.llm.timeoutMs);
     const res = await fetch(`${this.base}/chat/completions`, {
       method: "POST", headers: this.headers(),
       body: JSON.stringify({
         model: this.cfg.model, temperature: Number(this.cfg.temperature), max_tokens: Number(this.cfg.maxTokens),
         messages: [{ role: "system", content: system }, { role: "user", content }, ...followUps],
       }),
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      signal,
     });
     if (!res.ok) throw new Error(`文章AIがエラーを返しました（${res.status}）: ${(await res.text()).slice(0, 400)}`);
     const json = await res.json();
@@ -5236,7 +5272,7 @@ class Generator {
           if (err.name === "AbortError") break;
           lastError.set(panel.id, err);
           this.states.set(panel.id, { state: "waiting", progress: 0 });
-          next.push(panel);
+          if (!err.stalled) next.push(panel);
         } finally {
           this.timing.llm += performance.now() - t0;
         }
@@ -5269,16 +5305,34 @@ class Generator {
       const backend = this.app.store.data.backend;
       const spec = Project.spec(this.app.doc, panel, this.app.resources, backend);
       this.client = this.app.client();
-      const result = await this.client.generate(spec, {
-        signal: this.abort.signal,
-        onProgress: (v) => {
-          const st = this.states.get(id);
-          if (st?.state !== "running") return;
-          st.progress = Math.min(Math.max(v, 0), 1);
-          this.progress = st.progress;
+      const stall = USER_SETTINGS.stall;
+      const min = Math.round(stall.imageTimeoutMs / 60000);
+      let result;
+      for (let k = 0; ; k++) {
+        const deadline = Deadline.start(this.abort.signal, stall.imageTimeoutMs);
+        try {
+          result = await this.client.generate(spec, {
+            signal: deadline.signal,
+            onProgress: (v) => {
+              const st = this.states.get(id);
+              if (st?.state !== "running") return;
+              st.progress = Math.min(Math.max(v, 0), 1);
+              this.progress = st.progress;
+              this.app.afterRuntime();
+            },
+          });
+          break;
+        } catch (err) {
+          if (!deadline.timedOut || this.abort.signal.aborted) throw err;
+          await this.client.interrupt?.();
+          if (k >= stall.retries) throw new UserError(fmt(m.imageStalledFailed, { min, max: stall.retries }));
+          this.states.set(id, { state: "running", progress: 0 });
+          this.app.status(fmt(m.imageStalled, { n, min, k: k + 1, max: stall.retries }));
           this.app.afterRuntime();
-        },
-      });
+        } finally {
+          deadline.stop();
+        }
+      }
       const asset = this.app.assets.add(result.dataUrl);
       const img = await this.app.assets.image(asset);
       const live = this.app.doc.panels.find((p) => p.id === id);
@@ -5663,6 +5717,7 @@ class App {
     this.assets = new AssetStore();
     this.history = new History(USER_SETTINGS.historyLimit);
     this.discarded = new Set();
+    LlmClient.onStall = (text) => this.status(text);
     this.resources = { models: [], loras: [], samplers: [], schedulers: [], vaes: [], upscalers: [] };
     this.doc = Project.newDoc();
     this.dirty = false;
@@ -6473,7 +6528,7 @@ class App {
           plan = await StoryPlanner.plan(this, blank, this.llmAbort.signal, cast);
           break;
         } catch (err) {
-          if (err.name === "AbortError" || k >= max) throw err;
+          if (err.name === "AbortError" || err.stalled || k >= max) throw err;
           this.status(fmt(m.planRetrying, { k: k + 1, max }));
           await sleep(USER_SETTINGS.llm.retryWaitMs, this.llmAbort.signal);
         }
