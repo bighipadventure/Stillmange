@@ -226,9 +226,9 @@ body.resizing * { user-select: none; }
 /* 中央 */
 .col-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
 .status-panel { flex: none; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); border-bottom: 1px solid var(--line); }
-.status-head { display: flex; align-items: center; gap: 10px; min-height: 26px; }
+.status-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 26px; }
 .mode-seg { width: 270px; flex: none; }
-.canvas-tools { display: flex; gap: 4px; flex: none; }
+.canvas-tools { display: flex; flex-wrap: wrap; gap: 4px; flex: 0 1 auto; }
 .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .shape-btn { flex-direction: column; padding: 3px 2px; min-height: 0; gap: 1px; font-size: 10px; line-height: 1.2; color: var(--ink); }
 .shape-btn svg { width: 100%; height: 34px; display: block; }
@@ -254,7 +254,7 @@ body.resizing * { user-select: none; }
 .bubble-item[aria-current="true"] { border-color: var(--accent, #0d66d0); background: rgba(13, 102, 208, .1); font-weight: 600; }
 .ai-sec { background: var(--accent-soft); }
 .ai-sec .note { color: var(--on-accent-soft); }
-.overall { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; }
+.overall { display: flex; align-items: center; gap: 8px; flex: 1 1 140px; min-width: 140px; }
 .progress { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .progress > div { height: 100%; width: 0; background: var(--lamp); transition: width .3s; }
 .overall-pct { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -687,6 +687,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <label class="field">モデル<select id="llm-model"></select></label>
         <div class="row"><button id="llm-fetch">モデルの一覧を更新</button></div>
         <label class="check"><input type="checkbox" id="llm-vision"> ベースの画像もAIに見せる（画像対応モデルのみ）</label>
+        <label class="check"><input type="checkbox" id="llm-free-vram"> 文章AIが動く間は、画像生成のモデルをVRAMから外す（同じPCで両方動かすときの速度低下を防ぎます）</label>
         <label class="field">発想の自由度（温度）<input type="number" id="llm-temp" min="0" max="1.5" step="0.05"></label>
         <label class="field">最大トークン数（返事の長さの上限。考える過程を出すモデルは 8192 以上）<input type="number" id="llm-max-tokens" min="256" max="65536" step="256"></label>
         <label class="field">APIキー（ローカルなら空欄）<input type="text" id="llm-key" autocomplete="off"></label>
@@ -925,16 +926,21 @@ script_callbacks.on_app_started(on_app_started)
     labels: { model: "Checkpoint", vae: "VAE", sampler: "サンプラー", scheduler: "スケジューラー", steps: "ステップ数", cfg: "CFG", clipSkip: "Clip skip", family: "UI Preset" },
   },
   stall: { imageTimeoutMs: 1800000, retries: 2 },
+  vramReloadTimeoutMs: 600000,
   numberControl: { repeatDelayMs: 400, repeatMs: 70 },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
   llm: {
-    defaults: { url: "http://localhost:1234/v1", model: "", apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192 },
+    defaults: { url: "http://localhost:1234/v1", model: "", apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192, freeVram: true },
     legacyMaxTokens: 2048,
     servers: [
       { name: "LM Studio / Bionic", url: "http://localhost:1234/v1" }, { name: "Ollama", url: "http://localhost:11434/v1" },
       { name: "llama.cpp", url: "http://localhost:8080/v1" }, { name: "KoboldCpp", url: "http://localhost:5001/v1" }, { name: "Jan", url: "http://localhost:1337/v1" },
     ],
     timeoutMs: 1800000,
+    stream: true,
+    noThinkSuffix: "\n\n/no_think",
+    noThinkExtras: { chat_template_kwargs: { enable_thinking: false }, reasoning_effort: "low" },
+    progressEveryMs: 1000,
     imageSide: 768,
     jsonRetries: 1,
     autoRetries: 2,
@@ -1158,6 +1164,13 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     llmTruncated: "返事が途中で切れています（最大トークン数に達しました）。「設定」→「文章AI」の最大トークン数を増やしてください（考える過程を出すモデルは 8192 以上が目安）。",
     llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
     llmEmptyReply: "\n文章AIの返事が空でした。モデルが読み込まれているか確認してください。",
+    vramFreed: "文章AIの作業の間、画像生成のモデルをVRAMから外しました。",
+    vramRestoring: "画像生成のモデルをVRAMに読み込み直しています…",
+    llmServerError: "文章AIのサーバーがエラーを返しました: {err}",
+    llmThinkingOnly: "文章AIが考える過程だけで最大トークン数を使い切り、答えを書けませんでした。",
+    llmNoThinkRetry: "文章AIが考える過程だけで終わったため、考える過程を省くよう頼み直しています…",
+    llmReceiving: "（文章AIから受信中: 考え中 {think} 字・答え {answer} 字）",
+    llmWaitingFirst: "（文章AIの返事を待っています… {sec} 秒）",
     llmWriting: "コマ {n} のプロンプトを文章AIが作っています…",
     llmStalled: "文章AIの応答が {min} 分たってもないため、もう一度頼んでいます（再実行 {k}/{max}）…",
     llmStalledFailed: "文章AIの応答が {min} 分たってもありませんでした（{max} 回やり直してもだめでした）。",
@@ -2464,6 +2477,14 @@ class A1111Client {
     }
   }
 
+  freeVram() {
+    return fetch(`${this.base}/sdapi/v1/unload-checkpoint`, { method: "POST", signal: AbortSignal.timeout(USER_SETTINGS.listTimeoutMs) }).then((r) => r.ok).catch(() => false);
+  }
+
+  restoreVram() {
+    return fetch(`${this.base}/sdapi/v1/reload-checkpoint`, { method: "POST", signal: AbortSignal.timeout(USER_SETTINGS.vramReloadTimeoutMs) }).then((r) => r.ok).catch(() => false);
+  }
+
   interrupt() {
     return fetch(`${this.base}/sdapi/v1/interrupt`, { method: "POST" }).catch(() => {});
   }
@@ -2594,6 +2615,14 @@ class ComfyClient {
     return () => { try { socket?.close(); } catch {} };
   }
 
+  freeVram() {
+    return fetch(`${this.base}/free`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }), signal: AbortSignal.timeout(USER_SETTINGS.listTimeoutMs) }).then((r) => r.ok).catch(() => false);
+  }
+
+  restoreVram() {
+    return Promise.resolve(true);
+  }
+
   interrupt() {
     const body = JSON.stringify(this.current ? { prompt_id: this.current } : {});
     return fetch(`${this.base}/interrupt`, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {});
@@ -2603,6 +2632,22 @@ class ComfyClient {
 // ===== LLM CLIENT =====
 // ===== DEADLINE (TIME LIMIT THAT CAN TELL A STALL FROM A USER CANCEL) =====
 class Deadline {
+  static idle(parent, ms) {
+    const ctl = new AbortController();
+    const d = { signal: ctl.signal, timedOut: false };
+    const onParent = () => ctl.abort(parent.reason);
+    if (parent?.aborted) ctl.abort(parent.reason);
+    else parent?.addEventListener("abort", onParent, { once: true });
+    let timer = null;
+    d.touch = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { d.timedOut = true; ctl.abort(new DOMException("timed out", "TimeoutError")); }, ms);
+    };
+    d.stop = () => { clearTimeout(timer); parent?.removeEventListener("abort", onParent); };
+    d.touch();
+    return d;
+  }
+
   static start(parent, ms) {
     const ctl = new AbortController();
     const d = { signal: ctl.signal, timedOut: false };
@@ -2643,61 +2688,152 @@ class LlmClient {
     return null;
   }
 
-  async chat(system, userText, images, signal, followUps = []) {
+  async chat(system, userText, images, signal, { followUps = [], noThink = false } = {}) {
     const m = USER_SETTINGS.messages;
     const max = USER_SETTINGS.stall.retries;
     const min = Math.round(USER_SETTINGS.llm.timeoutMs / 60000);
     for (let k = 0; ; k++) {
-      const deadline = Deadline.start(signal, USER_SETTINGS.llm.timeoutMs);
+      const idle = Deadline.idle(signal, USER_SETTINGS.llm.timeoutMs);
       try {
-        return await this.chatOnce(system, userText, images, deadline.signal, followUps);
+        return await this.chatOnce(system, userText, images, idle, { followUps, noThink });
       } catch (err) {
-        if (!deadline.timedOut) throw err;
+        if (!idle.timedOut) throw err;
         if (k >= max) throw Object.assign(new UserError(fmt(m.llmStalledFailed, { min, max })), { stalled: true });
         LlmClient.onStall?.(fmt(m.llmStalled, { min, k: k + 1, max }));
+        await sleep(USER_SETTINGS.llm.retryWaitMs);
       } finally {
-        deadline.stop();
+        idle.stop();
       }
     }
   }
 
-  async chatOnce(system, userText, images, signal, followUps) {
-    const content = images?.length ? [{ type: "text", text: userText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : userText;
-    const res = await fetch(`${this.base}/chat/completions`, {
-      method: "POST", headers: this.headers(),
-      body: JSON.stringify({
-        model: this.cfg.model, temperature: Number(this.cfg.temperature), max_tokens: Number(this.cfg.maxTokens),
-        messages: [{ role: "system", content: system }, { role: "user", content }, ...followUps],
-      }),
-      signal,
+  body(system, userText, images, { followUps, noThink, stream, extras }) {
+    const text = noThink ? userText + USER_SETTINGS.llm.noThinkSuffix : userText;
+    const content = images?.length ? [{ type: "text", text }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : text;
+    return {
+      model: this.cfg.model, temperature: Number(this.cfg.temperature), max_tokens: Number(this.cfg.maxTokens),
+      messages: [{ role: "system", content: system }, { role: "user", content }, ...followUps],
+      ...(stream ? { stream: true } : {}),
+      ...(noThink && extras ? USER_SETTINGS.llm.noThinkExtras : {}),
+    };
+  }
+
+  async chatOnce(system, userText, images, idle, { followUps, noThink }) {
+    const stream = USER_SETTINGS.llm.stream && !LlmClient.noStream;
+    const extras = !LlmClient.noExtras;
+    const send = (opts) => fetch(`${this.base}/chat/completions`, {
+      method: "POST", headers: this.headers(), signal: idle.signal,
+      body: JSON.stringify(this.body(system, userText, images, { followUps, noThink, ...opts })),
     });
-    if (!res.ok) throw new Error(`文章AIがエラーを返しました（${res.status}）: ${(await res.text()).slice(0, 400)}`);
-    const json = await res.json();
-    const choice = json.choices?.[0] || {};
-    const raw = choice.message?.content || "";
+    const started = performance.now();
+    const waitTimer = setInterval(() => LlmClient.onProgress?.(fmt(USER_SETTINGS.messages.llmWaitingFirst, { sec: Math.round((performance.now() - started) / 1000) })), USER_SETTINGS.llm.progressEveryMs * 5);
+    let res;
+    try {
+      res = await send({ stream, extras });
+      if (res.status === 400 && (noThink && extras)) {
+        LlmClient.noExtras = true;
+        res = await send({ stream, extras: false });
+      }
+      if (res.status === 400 && stream) {
+        LlmClient.noStream = true;
+        res = await send({ stream: false, extras: extras && !LlmClient.noExtras });
+      }
+    } finally {
+      clearInterval(waitTimer);
+    }
+    idle.touch();
+    if (!res.ok) throw Object.assign(new Error(`文章AIがエラーを返しました（${res.status}）: ${(await res.text()).slice(0, 400)}`), { fatal: res.status >= 400 && res.status < 500 });
+    const type = res.headers.get("content-type") || "";
+    const out = type.includes("text/event-stream") ? await this.readStream(res, idle) : this.readJson(await res.json());
+    return this.finish(out);
+  }
+
+  readJson(json) {
+    if (json?.error) throw Object.assign(new UserError(fmt(USER_SETTINGS.messages.llmServerError, { err: typeof json.error === "string" ? json.error : json.error.message || JSON.stringify(json.error) })), { fatal: true });
+    const choice = json?.choices?.[0] || {};
+    const msg = choice.message || {};
+    return { content: msg.content || "", reasoning: msg.reasoning_content || msg.reasoning || "", finish: choice.finish_reason || "" };
+  }
+
+  async readStream(res, idle) {
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", content = "", reasoning = "", finish = "", last = 0;
+    const report = () => {
+      const now = performance.now();
+      if (now - last < USER_SETTINGS.llm.progressEveryMs) return;
+      last = now;
+      LlmClient.onProgress?.(fmt(USER_SETTINGS.messages.llmReceiving, { think: reasoning.length + (content.match(/<think>[\s\S]*?(<\/think>|$)/)?.[0].length || 0), answer: content.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").length }));
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      idle.touch();
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") continue;
+        let json;
+        try { json = JSON.parse(data); } catch { continue; }
+        if (json.error) throw Object.assign(new UserError(fmt(USER_SETTINGS.messages.llmServerError, { err: typeof json.error === "string" ? json.error : json.error.message || JSON.stringify(json.error) })), { fatal: true });
+        const choice = json.choices?.[0] || {};
+        const d = choice.delta || choice.message || {};
+        if (d.content) content += d.content;
+        if (d.reasoning_content) reasoning += d.reasoning_content;
+        else if (d.reasoning) reasoning += d.reasoning;
+        if (choice.finish_reason) finish = choice.finish_reason;
+        report();
+      }
+    }
+    return { content, reasoning, finish };
+  }
+
+  finish({ content, reasoning, finish }) {
+    const raw = content || "";
     let text = raw.replace(/<think>[\s\S]*?<\/think>/g, "");
     if (text.includes("</think>")) text = text.split("</think>").pop();
-    if (!text.trim()) text = choice.message?.reasoning_content || choice.message?.reasoning || raw;
-    return { text: text.trim(), raw, finish: choice.finish_reason || "" };
+    if (/<think>/.test(text) && !/<\/think>/.test(text)) text = text.replace(/<think>[\s\S]*$/, "");
+    const answered = !!text.trim();
+    if (!answered) text = reasoning || "";
+    return { text: text.trim(), raw, finish, thinkingOnly: !answered && (!!reasoning || /<think>/.test(raw)) };
   }
 
   async askJson(system, userText, images, signal, accept, badMessage) {
     const m = USER_SETTINGS.messages;
-    let reply = await this.chat(system, userText, images, signal);
-    for (let attempt = 0; ; attempt++) {
+    const tryRead = (reply) => {
       for (const obj of LooseJson.candidates(reply.text, { allowClose: reply.finish !== "length" })) {
-        try { return accept(obj); } catch {}
+        try { return { ok: true, value: accept(obj) }; } catch {}
       }
-      if (attempt >= USER_SETTINGS.llm.jsonRetries) {
-        const head = reply.text.replace(/\s+/g, " ").slice(0, USER_SETTINGS.llm.excerptChars);
-        const why = reply.finish === "length" ? m.llmTruncated : "";
-        throw new UserError(`${badMessage}${why}${head ? fmt(m.llmReplyHead, { head }) : m.llmEmptyReply}`);
+      return { ok: false };
+    };
+    let reply = await this.chat(system, userText, images, signal);
+    let got = tryRead(reply);
+    if (got.ok) return got.value;
+    let noThink = false;
+    for (let attempt = 0; attempt < USER_SETTINGS.llm.jsonRetries; attempt++) {
+      if (reply.thinkingOnly || !reply.text) {
+        noThink = true;
+        LlmClient.onStall?.(m.llmNoThinkRetry);
+        reply = await this.chat(system, userText, images, signal, { noThink });
+      } else {
+        reply = await this.chat(system, userText, images, signal, {
+          noThink,
+          followUps: [
+            { role: "assistant", content: reply.text.slice(0, 4000) },
+            { role: "user", content: USER_SETTINGS.llm.retryPrompt },
+          ],
+        });
       }
-      reply = await this.chat(system, userText, images, signal, [
-        { role: "assistant", content: reply.raw || reply.text || "(empty)" },
-        { role: "user", content: USER_SETTINGS.llm.retryPrompt },
-      ]);
+      got = tryRead(reply);
+      if (got.ok) return got.value;
     }
+    const head = reply.text.replace(/\s+/g, " ").slice(0, USER_SETTINGS.llm.excerptChars);
+    const why = reply.thinkingOnly && reply.finish === "length" ? m.llmThinkingOnly + m.llmTruncated : reply.finish === "length" ? m.llmTruncated : "";
+    throw new UserError(`${badMessage}${why}${head ? fmt(m.llmReplyHead, { head }) : m.llmEmptyReply}`);
   }
 }
 
@@ -5272,7 +5408,7 @@ class Generator {
           if (err.name === "AbortError") break;
           lastError.set(panel.id, err);
           this.states.set(panel.id, { state: "waiting", progress: 0 });
-          if (!err.stalled) next.push(panel);
+          if (!err.stalled && !err.fatal) next.push(panel);
         } finally {
           this.timing.llm += performance.now() - t0;
         }
@@ -5361,6 +5497,7 @@ class Generator {
       while (this.queue.length && !this.abort.signal.aborted) {
         const batch = this.queue.splice(0);
         const failed = await this.writeAll(batch);
+        if (batch.some((id) => !failed.has(id)) && !this.abort.signal.aborted) await this.app.restoreImageVram();
         for (const id of batch) {
           if (this.abort.signal.aborted) break;
           if (!failed.has(id)) await this.generateOne(id);
@@ -5374,6 +5511,7 @@ class Generator {
       if (err.name !== "AbortError") throw err;
     }
     const aborted = this.abort.signal.aborted;
+    await this.app.restoreImageVram({ quiet: true });
     for (const id of this.queue) this.states.delete(id);
     this.queue = [];
     this.forceLlm.clear();
@@ -5462,6 +5600,7 @@ class SettingsView {
     on($("llm-url"), "change", () => { llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); });
     on($("llm-model"), "change", () => { llm().model = $("llm-model").value; saveLlm(); });
     on($("llm-vision"), "change", (e) => { llm().vision = e.target.checked; saveLlm(); });
+    on($("llm-free-vram"), "change", (e) => { llm().freeVram = e.target.checked; saveLlm(); });
     on($("llm-temp"), "change", (e) => { llm().temperature = Number(e.target.value); saveLlm(); });
     on($("llm-max-tokens"), "change", (e) => { llm().maxTokens = Math.max(256, Number(e.target.value) || USER_SETTINGS.llm.defaults.maxTokens); saveLlm(); });
     on($("llm-key"), "change", (e) => { llm().apiKey = e.target.value; saveLlm(); });
@@ -5560,6 +5699,7 @@ class SettingsView {
     $("cors-ext-ping").textContent = CorsExtension.pingUrl(d.urls.a1111);
     $("llm-url").value = d.llm.url;
     $("llm-vision").checked = !!d.llm.vision;
+    $("llm-free-vram").checked = d.llm.freeVram !== false;
     $("llm-temp").value = d.llm.temperature;
     $("llm-max-tokens").value = d.llm.maxTokens;
     $("llm-key").value = d.llm.apiKey || "";
@@ -5718,6 +5858,7 @@ class App {
     this.history = new History(USER_SETTINGS.historyLimit);
     this.discarded = new Set();
     LlmClient.onStall = (text) => this.status(text);
+    LlmClient.onProgress = (text) => this.progressNote(text);
     this.resources = { models: [], loras: [], samplers: [], schedulers: [], vaes: [], upscalers: [] };
     this.doc = Project.newDoc();
     this.dirty = false;
@@ -5879,8 +6020,13 @@ class App {
   }
 
   status(text, isError = false) {
+    this.statusBase = text;
     $("run-status").textContent = text;
     $("run-status").className = isError ? "err" : "";
+  }
+
+  progressNote(text) {
+    $("run-status").textContent = `${this.statusBase || ""} ${text}`.trim();
   }
 
   updateUndoUi() {
@@ -6468,9 +6614,26 @@ class App {
     await this.runPanels(panels, { cast: true });
   }
 
+  async freeImageVram() {
+    if (this.vramFreed || !this.store.data.llm.model || this.store.data.llm.freeVram === false) return;
+    if (await this.client().freeVram()) {
+      this.vramFreed = true;
+      this.status(USER_SETTINGS.messages.vramFreed);
+    }
+  }
+
+  async restoreImageVram({ quiet = false } = {}) {
+    if (!this.vramFreed) return;
+    this.vramFreed = false;
+    if (!quiet) this.status(USER_SETTINGS.messages.vramRestoring);
+    await this.client().restoreVram();
+  }
+
   async runPanels(panels, { cast = false } = {}) {
     if (this.llmBusy || !panels.length) return;
     this.endEdit();
+    const needsLlm = this.store.data.llm.model && (this.doc.library.some((l) => !l.genres) || panels.some((p) => StoryPlanner.isBlank(p, this.doc) || this.generator.needsPrompt(p)));
+    if (needsLlm) await this.freeImageVram();
     if (this.tagSorting) await this.tagSorting;
     const unsorted = this.doc.library.filter((l) => !l.genres && (l.meta.prompt || "").trim());
     if (unsorted.length && this.store.data.llm.model) {
@@ -6482,9 +6645,9 @@ class App {
     const materials = cast ? StoryPlanner.materials(this.doc) : [];
     const t0 = performance.now();
     const result = blank.length ? await this.planBlankPanels(blank, materials) : { planned: [], placed: [] };
-    if (result === null) return;
+    if (result === null) { await this.restoreImageVram({ quiet: true }); return; }
     const ids = panels.map((p) => p.id).filter((id) => !result.placed.includes(id) && this.doc.panels.some((p) => p.id === id));
-    if (!ids.length) return;
+    if (!ids.length) { await this.restoreImageVram({ quiet: true }); return; }
     this.generator.run(ids, { llm: result.planned, llmMs: blank.length ? performance.now() - t0 : 0 });
   }
 
@@ -6528,7 +6691,7 @@ class App {
           plan = await StoryPlanner.plan(this, blank, this.llmAbort.signal, cast);
           break;
         } catch (err) {
-          if (err.name === "AbortError" || err.stalled || k >= max) throw err;
+          if (err.name === "AbortError" || err.stalled || err.fatal || k >= max) throw err;
           this.status(fmt(m.planRetrying, { k: k + 1, max }));
           await sleep(USER_SETTINGS.llm.retryWaitMs, this.llmAbort.signal);
         }
