@@ -662,6 +662,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <li>送る前のJSONは「MOSS に送るJSONを確認・手直し」で見られ、手で直してそのまま生成することもできます。</li>
         <li>生成したページのサムネイルを押すと、その画像のプロンプトと設定を読み込みます。そのまま生成すると同じプロンプトで再生成、「MOSS に送るJSON」を書き換えて生成するとその内容で生成します。コマ・吹き出しの変更を反映するときは「コマ・吹き出しから作り直す」を押します。おまかせのスイッチがオンでも、自分で書いた指示とセリフは優先して残します。</li>
         <li>生成した画像を表示しているときに上の「吹き出し」を押すと、その画像を作ったときの吹き出しを薄く重ねて表示します（「コマ編集」に戻すと消えます）。ドラッグで移動、セリフを書き換えて「④ MOSSで生成」を押すと、文字の部分だけをいまの吹き出しで作り直して生成します。</li>
+        <li>生成ボタンを押すと、英語の説明に空欄があればその部分だけを、いま入力されている日本語の内容やストーリーから文章AIが書いてから生成します（書いてある部分はそのまま）。コマの内容を変えたいときは、そのコマの英語の欄を消して日本語を書き換えて生成します。</li>
         <li>「連続生成（枚）」を2以上にすると、シードを変えて続けて生成します。生成したページは、ページの下にサムネイルで並び、押すと切り替わります（コマ割りの表示に戻すときは、MOSS タブの「ページの表示」で「レイアウト」を選びます）。</li>
         <li>「仕上げ」で「MOSSのまま」（基本）と「アプリで仕上げる」を切り替えられます。次の白黒変換・塗りつぶし・文字の重ね描きは「アプリで仕上げる」のときだけ使います。</li>
         <li>白黒のときは、生成した画像を Stillmange で完全なグレースケールに変換します。ベース画像のキャラクター名・作品名は、全体の説明と各コマの説明に入ります（「紙面と画風」で書き換え可）。「コマの外側をページの色で塗る」をオンにすると、生成後にコマの外を黒（または白）で塗ります。</li>
@@ -1175,9 +1176,10 @@ Write:
 - "panels": for EVERY panel, one English sentence that says what it shows: who, the action, the expression and the camera (wide shot, close-up, from above...). Follow the user's instruction. For EMPTY panels, invent a moment that fits the story and the balloons of that panel. Repeat key visual traits so the characters stay consistent.
 - "bubbles": for EVERY balloon number, a short English phrase that says what kind of text it is and who says it (for example "Speech balloon of the mechanic", "Narration box", "Sound effect of the screwdriver", "Manga title").
 If character names are given, they are existing characters: use their exact names (and series) in "summary" and in every panel sentence where they appear, and also describe their look. In each panel, "characters" lists the given names that appear in it (empty for panels without them).
+When the input has a "WRITE ONLY" list, write only those parts and leave every other key out; the parts marked "already written" are context, keep the story and the characters consistent with them. For a panel marked EMPTY also write "instruction": one short Japanese sentence for the user that says what the panel shows.
 Never translate, change or add the text that is written in the image, and do not quote the balloon text in your sentences.
 Output ONLY one JSON object, with no explanation and no markdown:
-{"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."]}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}}`,
+{"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."], "instruction": ""}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}}`,
     messages: {
       tab: "MOSS",
       needForge: "MOSS-Image のページ生成は、いまは SD WebUI（Forge Neo）に接続しているときだけ使えます。「設定」→「画像生成の接続」で SD WebUI を選んでください。",
@@ -1199,7 +1201,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
       onlyMossNote: "名前に moss を含むものだけ表示しています。",
       modulesNote: "空欄のときは、Forge の画面で選んでいるものをそのまま使います。",
       overlayNote: "「アプリで重ねる」は、MOSS には吹き出しの場所を空けておくよう伝え、生成後に Stillmange の吹き出しを上に重ねます。",
-      captionNote: "文章AIが書いた英語の説明です。直接直せます（コマの指示や吹き出しを変えると、次の実行で書き直します）。",
+      captionNote: "文章AIが書いた英語の説明です。直接直せます。英語の欄を空にして生成すると、その部分だけ、いま入力されている日本語の内容やストーリーから文章AIが書き直します（日本語の欄も空なら、そのコマの内容から考えます）。",
       overrideNote: "オンにすると、下のJSONをそのまま送ります（コマや吹き出しを変えても反映されません）。",
       copied: "JSON をコピーしました。",
       shareOpened: "MOSS-Image で生成したページを Prompt Reel の投稿画面に渡しました。開いたタブでタイトル・タグ・ジャンルを確認して投稿してください。",
@@ -1226,6 +1228,8 @@ Output ONLY one JSON object, with no explanation and no markdown:
       addLine: "＋ セリフを追加",
       emptyLine: "セリフ",
       quickRun: "おまかせで漫画を作る",
+      filling: "空欄になっている部分（{list}）を、いま入力されている内容から文章AIが書いています…",
+      overrideOffByEdit: "コマの内容・説明を書き換えたので、表示中の画像のプロンプトではなく、いまの入力内容からプロンプトを作って生成します。",
       loaded: "{n} 枚目の画像のプロンプトで生成します",
       loadedManual: "手で直したJSONで生成します",
       loadedSame: "（書き換えていないので、同じプロンプトでシードを変えて再生成します）。コマの変更は反映されません。",
@@ -4129,7 +4133,22 @@ class MossLayout {
 
 // ===== MOSS-IMAGE CAPTION PLANNER (LOCAL LLM -> ENGLISH CAPTIONS) =====
 class MossPlanner {
-  static userText(doc) {
+  static needs(doc) {
+    const cap = doc.moss.captions || {};
+    const order = Layout.readingOrder(doc);
+    const blank = (v) => !String(v || "").trim();
+    return {
+      style: blank(cap.style), summary: blank(cap.summary),
+      panels: order.filter((p) => blank(cap.panels?.[p.id])).map((p) => p.id),
+      bubbles: MossLayout.bubbles(doc).filter(({ b }) => blank(cap.bubbles?.[b.id])).map(({ b }) => b.id),
+    };
+  }
+
+  static hasNeeds(need) {
+    return need.style || need.summary || need.panels.length > 0 || need.bubbles.length > 0;
+  }
+
+  static userText(doc, need = null) {
     const m = doc.moss;
     const w = USER_SETTINGS.moss.words;
     const order = Layout.readingOrder(doc);
@@ -4155,7 +4174,22 @@ class MossPlanner {
         lines.push(`- Balloon ${k + 1} (${where}, ${w.shapes[b.shape] || w.shapes.ellipse}): "${String(b.text).replace(/\n/g, " / ")}"`);
       });
     }
-    lines.push("", `Write the captions for all ${order.length} panels${bubbles.length ? ` and all ${bubbles.length} balloons` : ""}.`);
+    if (!need) {
+      lines.push("", `Write the captions for all ${order.length} panels${bubbles.length ? ` and all ${bubbles.length} balloons` : ""}.`);
+      return lines.join("\n");
+    }
+    const cap = m.captions || {};
+    const known = [];
+    if (!need.style && cap.style) known.push(`- style: ${cap.style}`);
+    if (!need.summary && cap.summary) known.push(`- summary: ${cap.summary}`);
+    order.forEach((p, i) => { if (!need.panels.includes(p.id) && cap.panels?.[p.id]) known.push(`- panel ${i + 1}: ${cap.panels[p.id]}`); });
+    if (known.length) lines.push("", "Already written (context only, do not repeat):", ...known);
+    const want = [];
+    if (need.style) want.push("style");
+    if (need.summary) want.push("summary");
+    if (need.panels.length) want.push(`panels ${need.panels.map((id) => order.findIndex((p) => p.id === id) + 1).join(", ")}`);
+    if (need.bubbles.length) want.push(`balloons ${need.bubbles.map((id) => bubbles.findIndex(({ b }) => b.id === id) + 1).join(", ")}`);
+    lines.push("", `WRITE ONLY: ${want.join("; ")}.`);
     return lines.join("\n");
   }
 
@@ -4165,11 +4199,13 @@ class MossPlanner {
     const entries = (v) => (Array.isArray(v) ? v.map((x, i) => [i + 1, x]) : Object.entries(v || {}));
     const panels = {};
     const panelChars = {};
+    const instructions = {};
     for (const [n, v] of entries(obj.panels)) {
       const p = order[Number(String(n).replace(/\D/g, "")) - 1];
       const text = str(v);
       if (p && text) panels[p.id] = text;
       if (p && Array.isArray(v?.characters)) panelChars[p.id] = v.characters.map((x) => String(x).trim()).filter(Boolean);
+      if (p && typeof v?.instruction === "string" && v.instruction.trim()) instructions[p.id] = v.instruction.trim();
     }
     const bubbles = {};
     const listed = MossLayout.bubbles(doc);
@@ -4178,17 +4214,18 @@ class MossPlanner {
       const text = str(v);
       if (hit && text) bubbles[hit.b.id] = text;
     }
-    if (!Object.keys(panels).length) throw new Error("no panels");
-    return { style: str(obj.style), summary: str(obj.summary), panels, panelChars, bubbles };
+    const out = { style: str(obj.style), summary: str(obj.summary), panels, panelChars, bubbles, instructions };
+    if (!Object.keys(panels).length && !out.style && !out.summary && !Object.keys(bubbles).length) throw new Error("no captions");
+    return out;
   }
 
-  static async plan(app, signal) {
+  static async plan(app, signal, need = null) {
     const cfg = app.store.data.llm;
     const doc = app.doc;
     const item = Project.mainItem(doc);
     const asset = item && [item.image, item.thumb].find((id) => id && app.assets.has(id));
     const images = cfg.vision && asset ? [await PromptWriter.smallImage(app, asset)] : null;
-    return new LlmClient(cfg).askJson(USER_SETTINGS.moss.plannerPrompt, this.userText(doc), images, signal, (obj) => this.fromObject(obj, doc), USER_SETTINGS.moss.messages.planBadJson);
+    return new LlmClient(cfg).askJson(USER_SETTINGS.moss.plannerPrompt, this.userText(doc, need), images, signal, (obj) => this.fromObject(obj, doc), USER_SETTINGS.moss.messages.planBadJson);
   }
 }
 
@@ -4600,16 +4637,38 @@ class MossRunner {
     const doc = app.doc;
     const m = doc.moss;
     if (m.useOverride && !force) return;
-    const key = MossLayout.key(doc);
-    if (!force && m.captions.key === key) return;
+    const need = force ? null : MossPlanner.needs(doc);
+    if (need && !MossPlanner.hasNeeds(need)) return;
     if (!app.store.data.llm.model) { app.status(this.msg.noLlm); return; }
     if (!force && !app.store.data.ui.useLlm) return;
     await app.freeImageVram();
     this.setState("writing");
-    app.status(this.msg.planning);
+    app.status(need ? fmt(this.msg.filling, { list: this.needLabel(need) }) : this.msg.planning);
     try {
-      const plan = await MossPlanner.plan(app, this.abort.signal);
-      app.commit(() => { m.captions = { key, ...plan }; }, { inspector: true });
+      const plan = await MossPlanner.plan(app, this.abort.signal, need);
+      app.commit(() => {
+        const cap = m.captions;
+        const order = Layout.readingOrder(doc);
+        if (!need) {
+          m.captions = { key: "", style: plan.style, summary: plan.summary, panels: { ...plan.panels }, panelChars: { ...plan.panelChars }, bubbles: { ...plan.bubbles } };
+        } else {
+          if (need.style && plan.style) cap.style = plan.style;
+          if (need.summary && plan.summary) cap.summary = plan.summary;
+          cap.panels ??= {};
+          cap.panelChars ??= {};
+          cap.bubbles ??= {};
+          for (const id of need.panels) {
+            if (plan.panels[id]) cap.panels[id] = plan.panels[id];
+            if (plan.panelChars[id]) cap.panelChars[id] = plan.panelChars[id];
+          }
+          for (const id of need.bubbles) if (plan.bubbles[id]) cap.bubbles[id] = plan.bubbles[id];
+        }
+        for (const p of order) {
+          const text = plan.instructions?.[p.id];
+          if (text && !(p.instruction || "").trim() && (!need || need.panels.includes(p.id))) { p.instruction = text; p.aiInstruction = text; }
+        }
+        m.captions.key = MossLayout.key(doc);
+      }, { inspector: true });
       app.status(this.msg.planned);
     } catch (err) {
       if (err.name === "AbortError") throw err;
@@ -4618,6 +4677,24 @@ class MossRunner {
     } finally {
       this.state = null;
     }
+  }
+
+  needLabel(need) {
+    const order = Layout.readingOrder(this.app.doc);
+    const parts = [];
+    if (need.style) parts.push("画風");
+    if (need.summary) parts.push("登場人物と舞台");
+    if (need.panels.length) parts.push(`コマ ${need.panels.map((id) => order.findIndex((p) => p.id === id) + 1).join("・")}`);
+    if (need.bubbles.length) parts.push(`吹き出し ${need.bubbles.length} 個の説明`);
+    return parts.join("、");
+  }
+
+  fieldsEdited() {
+    const m = this.app.doc.moss;
+    if (!m.useOverride) return;
+    m.useOverride = false;
+    m.loadedAsset = null;
+    this.app.status(this.msg.overrideOffByEdit);
   }
 
   async generate(spec) {
@@ -4769,7 +4846,8 @@ class MossRunner {
       m.images.push({
         asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, info: result.info || "", prompt: spec.prompt, negative: spec.negative,
         model: spec.model, loras: spec.loras, textEncoder: m.textEncoder, vae: m.vae, settings: spec.settings, textMode: m.textMode, mono, gray, at: new Date().toISOString(),
-        bubbles: clone(app.doc.bubbles), bubbleCaptions: clone(m.captions.bubbles || {}),
+        bubbles: clone(app.doc.bubbles), bubbleCaptions: clone(m.captions.bubbles || {}), captions: clone(m.captions),
+        instructions: Object.fromEntries(app.doc.panels.map((p) => [p.id, [p.instruction || "", p.aiInstruction || ""]])),
       });
       m.current = m.images.length - 1;
       m.view = "result";
@@ -6623,14 +6701,14 @@ class InspectorView {
         h("button", { class: "mini title-action", text: "文章AIで説明を書き直す", disabled: app.moss.busy || app.llmBusy, onclick: () => app.moss.writeCaptions() })),
       h("p", { class: "note", text: USER_SETTINGS.moss.messages.captionNote }),
       h("span", { class: "prop-label", text: "画風（英語）" }),
-      this.mossText(cap.style, (v) => { cap.style = v; }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "画風（英語）", "data-focus": "moss:style" }),
+      this.mossText(cap.style, (v) => { cap.style = v; app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "画風（英語）", "data-focus": "moss:style" }),
       h("span", { class: "prop-label", text: "登場人物と舞台（英語）" }),
-      this.mossText(cap.summary, (v) => { cap.summary = v; }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "登場人物と舞台（英語）", "data-focus": "moss:summary" }));
+      this.mossText(cap.summary, (v) => { cap.summary = v; app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "登場人物と舞台（英語）", "data-focus": "moss:summary" }));
     Layout.readingOrder(doc).forEach((p, i) => {
       sec.append(h("div", { class: "moss-panel" },
         h("div", { class: "g-head" }, h("span", { class: "g-name", text: `コマ ${i + 1}` }), h("span", { text: MossLayout.position(doc, p) })),
-        this.mossText(p.instruction, (v) => { p.instruction = v; }, { placeholder: "生成したい内容（日本語。空欄なら文章AIが考えます）", "aria-label": `コマ ${i + 1} で生成したい内容`, "data-focus": `minstr:${p.id}` }),
-        this.mossText(cap.panels[p.id], (v) => { cap.panels[p.id] = v; }, { placeholder: "英語の説明（実行時に文章AIが書きます）", "aria-label": `コマ ${i + 1} の英語の説明`, "data-focus": `mcap:${p.id}` })));
+        this.mossText(p.instruction, (v) => { p.instruction = v; app.moss.fieldsEdited(); }, { placeholder: "生成したい内容（日本語。空欄なら文章AIが考えます）", "aria-label": `コマ ${i + 1} で生成したい内容`, "data-focus": `minstr:${p.id}` }),
+        this.mossText(cap.panels[p.id], (v) => { cap.panels[p.id] = v; app.moss.fieldsEdited(); }, { placeholder: "英語の説明（実行時に文章AIが書きます）", "aria-label": `コマ ${i + 1} の英語の説明`, "data-focus": `mcap:${p.id}` })));
     });
     return sec;
   }
@@ -7810,6 +7888,11 @@ class App {
       if (Array.isArray(e.bubbles)) {
         this.doc.bubbles = clone(e.bubbles);
         m.captions.bubbles = { ...(m.captions.bubbles || {}), ...(e.bubbleCaptions || {}) };
+      }
+      if (e.captions) m.captions = { ...clone(e.captions), bubbles: m.captions.bubbles };
+      for (const p of this.doc.panels) {
+        const saved = e.instructions?.[p.id];
+        if (saved) [p.instruction, p.aiInstruction] = saved;
       }
       m.loadedBubbleKey = MossLayout.bubbleKey(this.doc);
     });
