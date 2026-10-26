@@ -344,6 +344,7 @@ body.resizing * { user-select: none; }
 .moss-panel { display: flex; flex-direction: column; gap: 3px; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface-2); }
 .moss-panel .g-head span:last-child:not(:first-child) { margin-left: auto; font-size: 11px; }
 .moss-loaded { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid var(--accent-text); border-radius: var(--radius-s); background: var(--surface-2); }
+.size-row input { width: 76px; }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
 .moss-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -462,20 +463,25 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <section class="psec">
         <h2 class="psec-title">② コマ割りテンプレート</h2>
         <div class="psec-body">
-          <div class="tpl-grid" id="tpl-grid"></div>
-          <div class="prop"><span class="prop-label">配置を反転</span><div class="row">
+          <div class="prop"><span class="prop-label">コマ</span><div class="seg" id="panel-on" role="group" aria-label="コマのありなし" title="なしにすると、ページ全体を1枚絵（ポスター・CDジャケット風など）にします"></div></div>
+          <div class="prop"><span class="prop-label">用紙</span><select id="page-preset" aria-label="用紙"></select></div>
+          <div class="prop" id="custom-size"><span class="prop-label">サイズ</span><div class="row size-row">
+            <input type="number" id="page-w" aria-label="幅"><span>×</span><input type="number" id="page-h" aria-label="高さ">
+            <button id="page-swap" type="button" title="縦と横を入れ替えます">⇄</button>
+          </div></div>
+          <div class="tpl-grid multi-only" id="tpl-grid"></div>
+          <div class="prop multi-only"><span class="prop-label">配置を反転</span><div class="row">
             <button id="flip-layout-x" title="コマの配置を左右反転します（画像そのものは反転しません）">⇆ 左右</button>
             <button id="flip-layout-y" title="コマの配置を上下反転します（画像そのものは反転しません）">⇅ 上下</button>
           </div></div>
-          <div class="prop"><span class="prop-label">用紙</span><select id="page-preset" aria-label="用紙"></select></div>
-          <div class="prop"><span class="prop-label">区切り</span><div class="seg" id="gutter-mode" role="group" aria-label="区切り"></div></div>
+          <div class="prop multi-only"><span class="prop-label">区切り</span><div class="seg" id="gutter-mode" role="group" aria-label="区切り"></div></div>
           <div class="prop"><span class="prop-label">ページの色</span><div class="seg" id="page-color" role="group" aria-label="ページの色"></div></div>
           <div class="prop"><span class="prop-label">コマの中</span><div class="seg" id="panel-fill" role="group" aria-label="コマの中の色"></div></div>
-          <div class="prop"><span class="prop-label">枠線の色</span><div class="seg" id="frame-color" role="group" aria-label="枠線の色"></div></div>
+          <div class="prop multi-only"><span class="prop-label">枠線の色</span><div class="seg" id="frame-color" role="group" aria-label="枠線の色"></div></div>
           <div class="prop"><span class="prop-label">画像の色</span><div class="seg" id="image-mono" role="group" aria-label="画像の色（全体）" title="全コマの画像をまとめてカラー / モノクロにします。そのあと、コマごとに切り替えることもできます"></div></div>
-          <label class="prop"><span class="prop-label">隙間 <output id="gutter-out"></output></span><input type="range" id="gutter"></label>
-          <label class="prop"><span class="prop-label">枠線 <output id="line-out"></output></span><input type="range" id="line-width"></label>
-          <label class="prop"><span class="prop-label">余白 <output id="margin-out"></output></span><input type="range" id="margin"></label>
+          <label class="prop multi-only"><span class="prop-label">隙間 <output id="gutter-out"></output></span><input type="range" id="gutter"></label>
+          <label class="prop multi-only"><span class="prop-label">枠線 <output id="line-out"></output></span><input type="range" id="line-width"></label>
+          <label class="prop multi-only"><span class="prop-label">余白 <output id="margin-out"></output></span><input type="range" id="margin"></label>
         </div>
       </section>
 
@@ -654,7 +660,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <ul>
         <li>左上「① ベースにする画像」には、★ベースの画像を元の縦横比のまま大きく表示し、その下に読み込んだ画像を正方形のサムネイルで並べます。</li>
         <li><b>いちばん手軽な使い方</b>: 画像を <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付ける（または「MOSS」タブの枠にドロップ）→「おまかせで作る」。文章AIが画像を見て、話・コマ割り・セリフを考え、MOSS-Image で1ページを生成します。「コマ割り」「コマの内容」「セリフ・文字」はそれぞれ、おまかせにするかをスイッチで選べます。</li>
-        <li>「紙面と画風」の「作品の種類」で、漫画のほかにポスター・映画ポスター・雑誌の表紙・CDジャケット・小説の表紙・イラストを選べます。漫画以外はページ全体を1つの絵（1コマ・余白なし）にして、タイトル・キャッチコピー・クレジットなどの文字を置きます。縦長・横長・正方形は左の「用紙」で選びます。</li>
+        <li>「コマ」を「なし（1枚絵）」にすると、ページ全体を1枚の絵として生成します（ポスター・CDジャケット風など）。「1枚絵の種類」でポスター・映画ポスター・雑誌の表紙・CDジャケット・小説の表紙・イラストを選ぶと、文章AIがタイトル・キャッチコピー・クレジットなどの文字も考えます。用紙は B5・A4・A3・正方形・カスタム（幅と高さを自由に）から選べます。</li>
         <li>セリフは「MOSS」タブの「セリフ・文字（コマごと）」で、コマごとに追加・編集できます。種類（吹き出し・叫び・心の声・ナレーション・効果音・枠なしテキスト・タイトル・キャッチコピー・クレジット・ラベル）、書体（筆文字も）、色、縦書き / 横書き、大きさ、位置（おまかせ・右上など・ドラッグした位置）を決められます。</li>
         <li>右の「MOSS」タブで「このページは MOSS-Image で生成する」をオンにすると、「④ 実行」がページ全体を1枚で生成するボタンになります（接続先は SD WebUI（Forge Neo）＋ MOSS-Image 拡張機能）。</li>
         <li>コマの形・位置、吹き出しのセリフ（縦書き / 横書き・書体・形）、各コマの「生成したい内容」、全体の画風が、そのまま MOSS 用のレイアウトJSON（bbox 付き）になります。英語の説明は文章AIが書きます。</li>
@@ -1091,6 +1097,7 @@ install()
       ["label", "ラベル・帯", { shape: "square", font: "gothic", vertical: false, bold: true, scale: 0.9 }],
     ],
     designKinds: ["title", "copy", "credit", "label"],
+    singleDefault: "poster",
     textColors: [["", "（指定なし）"], ["black", "黒"], ["white", "白"], ["red", "赤"], ["blue", "青"], ["yellow", "黄"], ["gold", "金"]],
     colorFills: { black: "#000000", white: "#ffffff", red: "#d0202a", blue: "#1f5fd0", yellow: "#f2c200", gold: "#b8902a" },
     workTypes: [
@@ -1257,8 +1264,10 @@ When the work type is not manga, there is only panel 1: its caption describes th
       addLine: "＋ セリフを追加",
       emptyLine: "セリフ",
       quickRun: "おまかせで作る",
-      workTypeNote: "漫画以外（ポスター・表紙・ジャケットなど）は、ページ全体を1つの絵として作ります。コマ割りは「1コマ」・余白なしに切り替わり、文字は「セリフ・文字」の欄で置きます。縦長・横長・正方形は「② コマ割りテンプレート」の「用紙」で選びます。",
-      workTypeChanged: "作品の種類を「{name}」にしました（meta と色もおすすめに合わせました）。",
+      workTypeNote: "「コマ: なし」にすると、ページ全体を1枚絵（ポスター・CDジャケット風など）として生成します。文字は「セリフ・文字」の欄で置きます。大きさは左の「用紙」で選び、「カスタム」なら縦横を自由に決められます。",
+      workTypeChanged: "1枚絵の種類を「{name}」にしました（meta と色もおすすめに合わせました）。",
+      singleOn: "コマなし（1枚絵）にしました。種類は「{name}」です（MOSS タブの「1枚絵の種類」で変えられます）。",
+      singleOff: "コマありに戻しました（前のコマ割りに戻しています）。",
       filling: "空欄になっている部分（{list}）を、いま入力されている内容から文章AIが書いています…",
       overrideOffByEdit: "コマの内容・説明を書き換えたので、表示中の画像のプロンプトではなく、いまの入力内容からプロンプトを作って生成します。",
       loaded: "{n} 枚目の画像のプロンプトで生成します",
@@ -1309,10 +1318,11 @@ When the work type is not manga, there is only panel 1: its caption describes th
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
   page: {
     presets: [
-      ["b5", "B5（漫画原稿）", 1820, 2570], ["a4", "A4", 2100, 2970], ["a5", "A5", 1480, 2100],
-      ["portrait23", "縦長（2:3・ポスター）", 2000, 3000], ["tall", "縦長（9:16）", 1440, 2560],
-      ["landscape32", "横長（3:2）", 3000, 2000], ["wide", "横長（16:9）", 2560, 1440], ["square", "正方形", 2000, 2000],
+      ["b5", "B5", 1820, 2570], ["a4", "A4", 2100, 2970], ["a3", "A3", 2970, 4200], ["square", "正方形", 2000, 2000],
     ],
+    custom: { id: "custom", label: "カスタム（縦横を自由に）", min: 300, max: 6000, step: 10 },
+    panelChoices: [["on", "あり"], ["off", "なし（1枚絵）"]],
+    singleMemo: ["template", "margin", "lineWidth", "pageColor"],
     defaultPreset: "b5",
     defaults: { margin: 90, gutter: 30, lineWidth: 5, pageColor: "white", panelFill: "white", frameColor: "black", gutterMode: "gap", template: "basic5", mono: false },
     ranges: { gutter: [0, 120, 2], lineWidth: [0, 20, 1], margin: [0, 300, 5] },
@@ -4009,7 +4019,8 @@ class MossLayout {
 
   static workType(doc) {
     const list = this.cfg.workTypes;
-    return list.find(([id]) => id === doc.moss.workType) || list[0];
+    if (!doc.page.single) return list[0];
+    return list.find(([id]) => id === doc.moss.workType && id !== "manga") || list.find(([id]) => id === this.cfg.singleDefault);
   }
 
   static isManga(doc) {
@@ -5036,6 +5047,47 @@ class Project {
       id: uid(), pts, gaps, floating: false, mono: "auto", prompt: {}, negative: "", model: "", vae: "", loras: [], settings: {}, images: [], current: -1,
       view: Project.freshView(), instruction: "", baseRef: "auto", source: null, llmKey: "",
     };
+  }
+
+  static presetOf(page) {
+    const hit = USER_SETTINGS.page.presets.find((p) => p[0] === page.preset && p[2] === page.w && p[3] === page.h);
+    return hit ? hit[0] : USER_SETTINGS.page.custom.id;
+  }
+
+  static presetLabel(page) {
+    const hit = USER_SETTINGS.page.presets.find((p) => p[0] === this.presetOf(page));
+    return hit ? hit[1] : `${USER_SETTINGS.page.custom.label.replace(/（.*$/, "")} ${page.w}×${page.h}`;
+  }
+
+  static resizePage(doc, w, hgt, preset) {
+    const before = Layout.live(doc.page);
+    Object.assign(doc.page, { preset, w, h: hgt });
+    Layout.remapLive(doc, before);
+    Layout.applyGutterMode(doc);
+  }
+
+  static setSingle(doc, on) {
+    const pg = doc.page;
+    if (!!pg.single === on && (!on || (pg.template === "one" && doc.panels.length === 1))) return;
+    const keys = USER_SETTINGS.page.singleMemo;
+    if (on) {
+      if (!pg.single) pg.multiMemo = Object.fromEntries(keys.map((k) => [k, pg[k]]));
+      pg.single = true;
+      const before = Layout.live(pg);
+      pg.margin = 0;
+      Layout.remapLive(doc, before);
+      this.applyTemplate(doc, "one");
+      Object.assign(pg, { lineWidth: 0, pageColor: "white" });
+    } else {
+      const memo = { ...USER_SETTINGS.page.defaults, ...(pg.multiMemo || {}) };
+      pg.single = false;
+      const before = Layout.live(pg);
+      pg.margin = memo.margin;
+      Layout.remapLive(doc, before);
+      Object.assign(pg, { lineWidth: memo.lineWidth, pageColor: memo.pageColor });
+      this.applyTemplate(doc, memo.template === "one" ? USER_SETTINGS.page.defaults.template : memo.template);
+    }
+    Layout.applyGutterMode(doc);
   }
 
   static newDoc() {
@@ -6722,7 +6774,7 @@ class InspectorView {
         h("p", { class: "note keep", text: this.mossLoadedText(m) }),
         h("button", { class: "mini", text: c.messages.rebuild, onclick: () => app.commit(() => { m.useOverride = false; m.override = ""; m.loadedAsset = null; }) })) : null,
       h("p", { class: "note keep", text: fmt(c.messages.tokens, { n: MossLayout.tokens(JSON.stringify(MossLayout.layout(this.doc))), max: c.tokenLimit }) }),
-      h("p", { class: "note keep", text: `生成サイズ ${size.width}×${size.height}（用紙「${(USER_SETTINGS.page.presets.find((x) => x[0] === this.doc.page.preset) || [])[1] || this.doc.page.preset}」の縦横比・16の倍数）` }),
+      h("p", { class: "note keep", text: `生成サイズ ${size.width}×${size.height}（用紙「${Project.presetLabel(this.doc.page)}」の縦横比・16の倍数）` }),
       m.images.length ? h("p", { class: "note", text: c.messages.guideNote }) : null,
       h("div", { class: "prop" }, h("span", { class: "prop-label", text: c.messages.batchLabel }), batch),
       h("p", { class: "note", text: c.messages.batchNote }),
@@ -6758,13 +6810,15 @@ class InspectorView {
     meta.addEventListener("input", () => { m.meta = meta.value; });
     const chars = h("input", { type: "text", value: m.characters || "", placeholder: MossLayout.autoCharacters(doc).join(", "), "aria-label": "キャラクター名・作品名" });
     chars.addEventListener("input", () => { m.characters = chars.value; });
-    const work = h("select", { "aria-label": "作品の種類" });
-    fillSelect(work, c.workTypes.map(([id, label]) => [id, label]), m.workType || "manga");
-    work.addEventListener("change", () => app.setMossWorkType(work.value));
     const manga = MossLayout.isManga(doc);
+    const work = h("select", { "aria-label": "1枚絵の種類" });
+    fillSelect(work, c.workTypes.filter(([id]) => id !== "manga").map(([id, label]) => [id, label]), MossLayout.workType(doc)[0]);
+    work.addEventListener("change", () => app.setMossWorkType(work.value));
     return h("div", { class: "insp-sec" },
       h("h3", { class: "insp-title", text: "紙面と画風" }),
-      h("div", { class: "set-grid" }, h("span", { class: "prop-label", text: "作品の種類" }), work),
+      h("div", { class: "set-grid" },
+        h("span", { class: "prop-label", text: "コマ" }), this.mossSeg(USER_SETTINGS.page.panelChoices, doc.page.single ? "off" : "on", "コマのありなし", (v) => app.setSingle(v === "off")),
+        manga ? null : h("span", { class: "prop-label", text: "1枚絵の種類" }), manga ? null : work),
       h("p", { class: "note", text: c.messages.workTypeNote }),
       h("span", { class: "prop-label", text: "全体の画風（日本語でOK）" }),
       this.mossText(m.style, (v) => { m.style = v; }, { placeholder: "例: 緻密なペン入れとスクリーントーン、映画のような構図の青年漫画", "aria-label": "全体の画風" }),
@@ -7962,38 +8016,43 @@ class App {
     if (inspector) this.inspector.render();
   }
 
-  setMossWorkType(id) {
+  applyWorkType(id) {
     const c = USER_SETTINGS.moss;
     const type = c.workTypes.find(([k]) => k === id);
-    if (!type) return;
+    if (!type) return null;
     const [, name, opt] = type;
+    const doc = this.doc;
+    const m = doc.moss;
+    if (id !== "manga") m.workType = id;
+    m.meta = opt.meta;
+    m.mono = !!opt.mono;
+    if (opt.preset && Project.presetOf(doc.page) !== opt.preset) {
+      const pre = USER_SETTINGS.page.presets.find((p) => p[0] === opt.preset);
+      if (pre) Project.resizePage(doc, pre[2], pre[3], pre[0]);
+    }
+    if (id !== "manga") Object.assign(m, { maskOutside: false, panelItems: false });
+    return name;
+  }
+
+  setMossWorkType(id) {
+    if (id === "manga") { this.setSingle(false); return; }
+    let name = null;
     this.commit(() => {
-      const doc = this.doc;
-      const m = doc.moss;
-      m.workType = id;
-      m.meta = opt.meta;
-      m.mono = !!opt.mono;
-      if (opt.preset) {
-        const pre = USER_SETTINGS.page.presets.find((p) => p[0] === opt.preset);
-        if (pre) {
-          const before = Layout.live(doc.page);
-          Object.assign(doc.page, { preset: pre[0], w: pre[2], h: pre[3] });
-          Layout.remapLive(doc, before);
-        }
-      }
-      if (id !== "manga") {
-        const before = Layout.live(doc.page);
-        doc.page.margin = 0;
-        Layout.remapLive(doc, before);
-        if (doc.page.template !== "one" || doc.panels.length !== 1) Project.applyTemplate(doc, "one");
-        doc.page.lineWidth = 0;
-        doc.page.pageColor = "white";
-        m.maskOutside = false;
-        m.panelItems = false;
-      }
-      Layout.applyGutterMode(doc);
+      Project.setSingle(this.doc, true);
+      name = this.applyWorkType(id);
     });
-    this.status(fmt(c.messages.workTypeChanged, { name }));
+    if (name) this.status(fmt(USER_SETTINGS.moss.messages.workTypeChanged, { name }));
+  }
+
+  setSingle(on) {
+    const msg = USER_SETTINGS.moss.messages;
+    if (!!this.doc.page.single === on) return;
+    let name = null;
+    this.commit(() => {
+      Project.setSingle(this.doc, on);
+      name = this.applyWorkType(on ? MossLayout.workType(this.doc)[0] : "manga");
+    });
+    this.status(on ? fmt(msg.singleOn, { name }) : msg.singleOff);
   }
 
   selectMossImage(i) {
@@ -8197,15 +8256,29 @@ class App {
     }));
     seg("panel-mono", USER_SETTINGS.monoChoices, (v) => this.setPanelMono(v));
     $("gutter-mode").title = "隙間: すべて隙間 / 線: すべて1本線 / 複合: 横の区切りは隙間、縦の区切りは線";
-    fillSelect($("page-preset"), USER_SETTINGS.page.presets.map(([id, label, w, hgt]) => [id, `${label}（${w}×${hgt}）`]));
+    const pcfg = USER_SETTINGS.page;
+    seg("panel-on", pcfg.panelChoices, (v) => this.setSingle(v === "off"));
+    fillSelect($("page-preset"), [...pcfg.presets.map(([id, label, w, hgt]) => [id, `${label}（${w}×${hgt}）`]), [pcfg.custom.id, pcfg.custom.label]]);
     this.on($("page-preset"), "change", (e) => {
-      const [, , w, hgt] = USER_SETTINGS.page.presets.find((p) => p[0] === e.target.value);
+      const hit = pcfg.presets.find((p) => p[0] === e.target.value);
+      const pg = this.doc.page;
       this.commit(() => {
-        const before = Layout.live(this.doc.page);
-        Object.assign(this.doc.page, { preset: e.target.value, w, h: hgt });
-        Layout.remapLive(this.doc, before);
-        Layout.applyGutterMode(this.doc);
+        if (hit) Project.resizePage(this.doc, hit[2], hit[3], hit[0]);
+        else pg.preset = pcfg.custom.id;
       });
+    });
+    for (const id of ["page-w", "page-h"]) {
+      Object.assign($(id), { min: pcfg.custom.min, max: pcfg.custom.max, step: pcfg.custom.step });
+      this.on($(id), "change", () => {
+        const clamp = (v, d) => (Number.isFinite(v) ? Math.min(pcfg.custom.max, Math.max(pcfg.custom.min, Math.round(v))) : d);
+        const pg = this.doc.page;
+        const w = clamp(Number($("page-w").value), pg.w), hgt = clamp(Number($("page-h").value), pg.h);
+        this.commit(() => Project.resizePage(this.doc, w, hgt, pcfg.custom.id));
+      });
+    }
+    this.on($("page-swap"), "click", () => {
+      const pg = this.doc.page;
+      this.commit(() => Project.resizePage(this.doc, pg.h, pg.w, pcfg.custom.id));
     });
     const ranges = USER_SETTINGS.page.ranges;
     for (const [id, key, out] of [["gutter", "gutter", "gutter-out"], ["line-width", "lineWidth", "line-out"], ["margin", "margin", "margin-out"]]) {
@@ -8237,7 +8310,12 @@ class App {
     pressed("frame-color", pg.frameColor);
     pressed("image-mono", pg.mono ? "mono" : "color");
     pressed("edit-mode", this.store.data.ui.mode);
-    $("page-preset").value = pg.preset;
+    const preset = Project.presetOf(pg);
+    $("page-preset").value = preset;
+    pressed("panel-on", pg.single ? "off" : "on");
+    $("page-w").value = pg.w; $("page-h").value = pg.h;
+    $("custom-size").hidden = preset !== USER_SETTINGS.page.custom.id;
+    document.querySelectorAll(".multi-only").forEach((el) => { el.hidden = !!pg.single; });
     $("gutter").value = pg.gutter; $("gutter-out").textContent = pg.gutter;
     $("line-width").value = pg.lineWidth; $("line-out").textContent = pg.lineWidth;
     $("margin").value = pg.margin; $("margin-out").textContent = pg.margin;
