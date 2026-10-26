@@ -653,8 +653,9 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <h3><span class="no">8</span>MOSS-Image でページを1枚で生成する</h3>
       <ul>
         <li>左上「① ベースにする画像」には、★ベースの画像を元の縦横比のまま大きく表示し、その下に読み込んだ画像を正方形のサムネイルで並べます。</li>
-        <li><b>いちばん手軽な使い方</b>: 画像を <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付ける（または「MOSS」タブの枠にドロップ）→「おまかせで漫画を作る」。文章AIが画像を見て、話・コマ割り・セリフを考え、MOSS-Image で1ページを生成します。「コマ割り」「コマの内容」「セリフ・文字」はそれぞれ、おまかせにするかをスイッチで選べます。</li>
-        <li>セリフは「MOSS」タブの「セリフ・文字（コマごと）」で、コマごとに追加・編集できます。種類（吹き出し・叫び・心の声・ナレーション・効果音・枠なしテキスト）、書体、縦書き / 横書き、大きさ、位置（おまかせ・右上など・ドラッグした位置）を決められます。</li>
+        <li><b>いちばん手軽な使い方</b>: 画像を <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付ける（または「MOSS」タブの枠にドロップ）→「おまかせで作る」。文章AIが画像を見て、話・コマ割り・セリフを考え、MOSS-Image で1ページを生成します。「コマ割り」「コマの内容」「セリフ・文字」はそれぞれ、おまかせにするかをスイッチで選べます。</li>
+        <li>「紙面と画風」の「作品の種類」で、漫画のほかにポスター・映画ポスター・雑誌の表紙・CDジャケット・小説の表紙・イラストを選べます。漫画以外はページ全体を1つの絵（1コマ・余白なし）にして、タイトル・キャッチコピー・クレジットなどの文字を置きます。縦長・横長・正方形は左の「用紙」で選びます。</li>
+        <li>セリフは「MOSS」タブの「セリフ・文字（コマごと）」で、コマごとに追加・編集できます。種類（吹き出し・叫び・心の声・ナレーション・効果音・枠なしテキスト・タイトル・キャッチコピー・クレジット・ラベル）、書体（筆文字も）、色、縦書き / 横書き、大きさ、位置（おまかせ・右上など・ドラッグした位置）を決められます。</li>
         <li>右の「MOSS」タブで「このページは MOSS-Image で生成する」をオンにすると、「④ 実行」がページ全体を1枚で生成するボタンになります（接続先は SD WebUI（Forge Neo）＋ MOSS-Image 拡張機能）。</li>
         <li>コマの形・位置、吹き出しのセリフ（縦書き / 横書き・書体・形）、各コマの「生成したい内容」、全体の画風が、そのまま MOSS 用のレイアウトJSON（bbox 付き）になります。英語の説明は文章AIが書きます。</li>
         <li>Checkpoint・Text Encoder・VAE・LoRA は MOSS 専用に選びます。anima などでコマごとに生成するときの設定とは別に保存されます。</li>
@@ -1069,7 +1070,7 @@ install()
       settings: { sampler: "Euler", scheduler: "MOSS", steps: 50, cfg: 3, seed: -1, megapixels: 1.5 },
       captions: { key: "", style: "", summary: "", panels: {}, bubbles: {} },
       override: "", useOverride: false, images: [], current: -1,
-      auto: { layout: true, story: true, dialogue: true }, synopsis: "", characters: "", foundCharacters: [], maskOutside: false, finish: "moss", batch: 1,
+      auto: { layout: true, story: true, dialogue: true }, synopsis: "", characters: "", foundCharacters: [], maskOutside: false, finish: "moss", batch: 1, workType: "manga",
     },
     recommended: { settings: { sampler: "Euler", scheduler: "MOSS", steps: 50, cfg: 3, megapixels: 1.5 }, baseNegative: "nsfw, worst quality, bad anatomy, watermark, jpeg artifact", basePattern: /base/i },
     tokenLimit: 4096,
@@ -1084,16 +1085,34 @@ install()
       ["narration", "ナレーション（四角）", { shape: "square", font: "mincho", vertical: false, bold: false }],
       ["sfx", "効果音・描き文字", { shape: "none", font: "gothic", vertical: true, bold: true }],
       ["text", "テキストだけ（枠なし）", { shape: "none", font: "mincho", vertical: false, bold: false }],
+      ["title", "タイトル（いちばん大きく）", { shape: "none", font: "mincho", vertical: false, bold: true, scale: 2.4 }],
+      ["copy", "キャッチコピー", { shape: "none", font: "mincho", vertical: false, bold: true, scale: 1.35 }],
+      ["credit", "クレジット・小さな文字", { shape: "none", font: "gothic", vertical: false, bold: false, scale: 0.7 }],
+      ["label", "ラベル・帯", { shape: "square", font: "gothic", vertical: false, bold: true, scale: 0.9 }],
     ],
-    dialogueSizes: [["0.8", "小"], ["1", "中"], ["1.35", "大"], ["1.8", "特大"]],
+    designKinds: ["title", "copy", "credit", "label"],
+    textColors: [["", "（指定なし）"], ["black", "黒"], ["white", "白"], ["red", "赤"], ["blue", "青"], ["yellow", "黄"], ["gold", "金"]],
+    colorFills: { black: "#000000", white: "#ffffff", red: "#d0202a", blue: "#1f5fd0", yellow: "#f2c200", gold: "#b8902a" },
+    workTypes: [
+      ["manga", "漫画（コマ割り）", { what: "Japanese manga page", meta: "manga, modern design, text-heavy", mono: true }],
+      ["poster", "ポスター", { what: "poster design", meta: "poster, modern design, text-heavy, anime illustration", mono: false }],
+      ["movie", "映画ポスター", { what: "movie poster", meta: "movie, modern design, text-heavy, anime illustration", mono: false }],
+      ["magazine", "雑誌の表紙", { what: "magazine cover", meta: "magazine, modern design, text-heavy, anime illustration", mono: false }],
+      ["cd", "CDジャケット", { what: "CD album cover", meta: "cd, modern design, text-heavy, anime illustration", mono: false, preset: "square" }],
+      ["novel", "小説の表紙", { what: "Japanese novel cover", meta: "novel, modern design, text-heavy, anime illustration", mono: false }],
+      ["illust", "イラスト（文字少なめ）", { what: "illustration", meta: "anime illustration", mono: false }],
+    ],
+    dialogueSizes: [["0.7", "極小"], ["0.8", "小"], ["1", "中"], ["1.35", "大"], ["1.8", "特大"], ["2.4", "最大（タイトル）"]],
     positions: [["auto", "おまかせ"], ["top-right", "右上"], ["top-center", "上"], ["top-left", "左上"], ["middle-right", "右"], ["center", "中央"], ["middle-left", "左"], ["bottom-right", "右下"], ["bottom-center", "下"], ["bottom-left", "左下"], ["fixed", "ドラッグした位置"]],
-    autoPlace: { fx: { left: 0.2, center: 0.5, right: 0.8 }, fy: { top: 0.2, middle: 0.5, bottom: 0.8 }, pad: 0.04, gap: 0.03, minFont: 0.45, tail: 2.2, defaultPos: { vertical: "top-right", horizontal: "top-left" } },
+    autoPlace: { fx: { left: 0.2, center: 0.5, right: 0.8 }, fy: { top: 0.2, middle: 0.5, bottom: 0.8 }, pad: 0.04, gap: 0.03, minFont: 0.45, tail: 2.2, defaultPos: { vertical: "top-right", horizontal: "top-left" }, kindPos: { title: "top-center", copy: "bottom-center", credit: "bottom-center", label: "top-left" } },
     storyPrompt: `You are a manga writer. Write the story of ONE manga page from the user's picture (attached when available) and/or its generation prompt.
+If the input says the work type is not manga, write the concept of that design instead (what the main visual shows, the mood and the title idea), in two or three Japanese sentences.
 Use the characters in the picture (keep existing character names exactly), their look, the place and the mood. Write in Japanese, three to five sentences: a clear beginning, a development and a small punchline or emotional beat at the end, with the moments that will become the panels. Do not list panels and do not write dialogue lines.
 If the user gave notes, follow them.
 Output ONLY one JSON object, with no explanation and no markdown:
 {"story": "Japanese story of the page"}`,
     directorPrompt: `You are a manga storyboard writer and letterer. You plan ONE manga page that the image model MOSS-Image will draw as a single image.
+When the input says the work type is not manga (a poster, a cover, an album jacket...), follow the special instructions in the input for that design instead of making panels.
 You receive: the user's picture (attached when available) and/or its generation prompt, an optional theme from the user (may be Japanese), the art style wanted, the page templates you may choose from (when the layout is yours to choose) or the current panels, and the user's existing panel instructions and balloons when they must be kept.
 Steps:
 1. Read the picture and prompt: who the characters are (age, hair, eyes, outfit, accessories), where they are and the mood. These characters must appear on the page looking the same.
@@ -1121,8 +1140,14 @@ Output ONLY one JSON object, with no explanation and no markdown:
     ],
     canvas: "single",
     words: {
-      mono: "Strictly neutral black-and-white Japanese manga page, no colored pixels",
-      color: "Full-color Japanese manga page",
+      mono: "Strictly neutral black-and-white {what}, no colored pixels",
+      color: "Full-color {what}",
+      orientations: { portrait: "portrait", landscape: "landscape", square: "square" },
+      mangaComposition: "Dense detailed ink and screentones, dramatic perspective, cinematic manga composition, NOT a simple four-panel strip",
+      mainVisual: "Main visual: {caption}",
+      largest: "Largest primary display lettering.",
+      smallest: "Smallest lettering.",
+      colorText: "Lettering color: {color}.",
       gutters: { gap: "thick white gutters", line: "thin black lines", mixed: "white horizontal gutters and black vertical lines" },
       blackGutters: { gap: "thick black gutters", line: "thin white lines", mixed: "black horizontal gutters and white vertical lines" },
       diagonal: ", some diagonal",
@@ -1156,11 +1181,14 @@ Output ONLY one JSON object, with no explanation and no markdown:
       fonts: {
         mincho: "Japanese manga balloon lettering in anchikku style: every kanji in bold Gothic (sans-serif), every hiragana and katakana in Mincho (serif), mixed within the same line.",
         gothic: "Japanese lettering in Gothic (sans-serif).",
+        minchoPlain: "Japanese lettering in elegant Mincho (serif).",
+        brush: "Japanese brush Mincho calligraphy lettering (bold brush strokes).",
         maru: "Japanese lettering in rounded Gothic (maru gothic).",
       },
       roles: {
         speech: "Speech balloon of {who}", shout: "Shout balloon of {who}", thought: "Thought balloon of {who}", whisper: "Whisper balloon of {who}",
-        narration: "Narration box", sfx: "Sound effect of {who}", text: "Lettering", title: "Manga title, largest display lettering",
+        narration: "Narration box", sfx: "Sound effect of {who}", text: "Lettering", title: "Main title, largest primary display lettering",
+        copy: "Catchphrase lettering", credit: "Small credit text", label: "Label badge with a filled background",
       },
       shapes: {
         ellipse: "Rounded speech balloon", hand: "Hand-drawn speech balloon", poly: "Angular speech balloon", rect: "Rounded rectangular speech balloon",
@@ -1179,6 +1207,7 @@ If character names are given, they are existing characters: use their exact name
 When the input has a "WRITE ONLY" list, write only those parts and leave every other key out; the parts marked "already written" are context, keep the story and the characters consistent with them. For a panel marked EMPTY also write "instruction": one short Japanese sentence for the user that says what the panel shows.
 Never translate, change or add the text that is written in the image, and do not quote the balloon text in your sentences.
 Output ONLY one JSON object, with no explanation and no markdown:
+When the work type is not manga, there is only panel 1: its caption describes the main visual of the whole design (characters, pose, background, composition and the empty space kept for the lettering).
 {"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."], "instruction": ""}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}}`,
     messages: {
       tab: "MOSS",
@@ -1206,7 +1235,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
       copied: "JSON をコピーしました。",
       shareOpened: "MOSS-Image で生成したページを Prompt Reel の投稿画面に渡しました。開いたタブでタイトル・タグ・ジャンルを確認して投稿してください。",
       noLlm: "文章AIが設定されていないため、説明なしで（コマの指示をそのまま入れて）生成します。",
-      quickTitle: "画像からおまかせで漫画を作る",
+      quickTitle: "画像からおまかせで作る",
       quickDrop: "ここに画像をドロップ / Ctrl+V で貼り付け / クリックして選ぶ",
       quickNote: "貼った画像（★ベース）の人物・雰囲気をもとに、文章AIが話を考え、MOSS-Image で1ページを生成します。画像は文章AIが見て説明に使います（画像対応モデルがおすすめ）。",
       quickNoImage: "まだ画像がありません。画像を貼り付けるか、ここにドロップしてください（画像なしでもストーリーだけで作れます）。",
@@ -1221,13 +1250,15 @@ Output ONLY one JSON object, with no explanation and no markdown:
       directed: "文章AIがページを組み立てました。{synopsis}",
       directBadJson: "文章AIの返事からページの組み立て（JSON）を読み取れませんでした。",
       directFailed: "文章AIでページを組み立てられませんでした: {err}",
-      pasted: "貼り付けた画像を★ベースにしました。「MOSS」タブの「おまかせで漫画を作る」で生成できます。",
+      pasted: "貼り付けた画像を★ベースにしました。「MOSS」タブの「おまかせで作る」で生成できます。",
       dialogueTitle: "セリフ・文字（コマごと）",
       dialogueNote: "種類・書体・縦書き / 横書き・大きさ・位置をコマごとに決められます。位置が「おまかせ」の文字はコマの中に自動で並べます。ページ上でドラッグすると、その位置に固定します。",
       outside: "コマの外",
       addLine: "＋ セリフを追加",
       emptyLine: "セリフ",
-      quickRun: "おまかせで漫画を作る",
+      quickRun: "おまかせで作る",
+      workTypeNote: "漫画以外（ポスター・表紙・ジャケットなど）は、ページ全体を1つの絵として作ります。コマ割りは「1コマ」・余白なしに切り替わり、文字は「セリフ・文字」の欄で置きます。縦長・横長・正方形は「② コマ割りテンプレート」の「用紙」で選びます。",
+      workTypeChanged: "作品の種類を「{name}」にしました（meta と色もおすすめに合わせました）。",
       filling: "空欄になっている部分（{list}）を、いま入力されている内容から文章AIが書いています…",
       overrideOffByEdit: "コマの内容・説明を書き換えたので、表示中の画像のプロンプトではなく、いまの入力内容からプロンプトを作って生成します。",
       loaded: "{n} 枚目の画像のプロンプトで生成します",
@@ -1279,7 +1310,8 @@ Output ONLY one JSON object, with no explanation and no markdown:
   page: {
     presets: [
       ["b5", "B5（漫画原稿）", 1820, 2570], ["a4", "A4", 2100, 2970], ["a5", "A5", 1480, 2100],
-      ["square", "正方形", 2000, 2000], ["tall", "縦長（9:16）", 1440, 2560], ["wide", "横長（16:9）", 2560, 1440],
+      ["portrait23", "縦長（2:3・ポスター）", 2000, 3000], ["tall", "縦長（9:16）", 1440, 2560],
+      ["landscape32", "横長（3:2）", 3000, 2000], ["wide", "横長（16:9）", 2560, 1440], ["square", "正方形", 2000, 2000],
     ],
     defaultPreset: "b5",
     defaults: { margin: 90, gutter: 30, lineWidth: 5, pageColor: "white", panelFill: "white", frameColor: "black", gutterMode: "gap", template: "basic5", mono: false },
@@ -1304,6 +1336,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
       ["gothic", "ゴシック", '"Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif'],
       ["mincho", "明朝（アンチック風）", '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif'],
       ["maru", "丸ゴシック", '"Hiragino Maru Gothic ProN", "Kosugi Maru", "M PLUS Rounded 1c", sans-serif'],
+      ["brush", "筆文字（毛筆）", '"Yuji Syuku", "HGGyoshotai", "HG行書体", "Yu Mincho", "Hiragino Mincho ProN", serif'],
     ],
     defaults: { shape: "ellipse", vertical: true, font: "gothic", bold: false, clip: true, autoSize: true },
     defaultText: "セリフ",
@@ -3929,7 +3962,7 @@ class MossLayout {
   static key(doc) {
     const order = Layout.readingOrder(doc);
     return textHash(JSON.stringify([
-      doc.moss.style, doc.moss.mono, doc.story.synopsis, Project.mainItem(doc)?.meta?.prompt || "", this.characters(doc),
+      doc.moss.style, doc.moss.mono, doc.moss.workType || "manga", doc.story.synopsis, Project.mainItem(doc)?.meta?.prompt || "", this.characters(doc),
       order.map((p) => p.instruction || ""), this.bubbles(doc).map(({ b, panel }) => [b.text, panel, b.shape]),
     ]));
   }
@@ -3970,8 +4003,35 @@ class MossLayout {
 
   static meta(doc) {
     const list = String(doc.moss.meta || "").split(",").map((t) => t.trim()).filter(Boolean);
-    if (doc.moss.mono && !list.includes("monochrome manga")) list.push("monochrome manga");
+    if (doc.moss.mono && this.isManga(doc) && !list.includes("monochrome manga")) list.push("monochrome manga");
     return list;
+  }
+
+  static workType(doc) {
+    const list = this.cfg.workTypes;
+    return list.find(([id]) => id === doc.moss.workType) || list[0];
+  }
+
+  static isManga(doc) {
+    return this.workType(doc)[0] === "manga";
+  }
+
+  static what(doc) {
+    const base = this.workType(doc)[2].what;
+    if (this.isManga(doc)) return base;
+    const r = doc.page.w / (doc.page.h || 1);
+    const o = this.cfg.words.orientations;
+    return `${r > 1.08 ? o.landscape : r < 0.93 ? o.portrait : o.square} ${base}`;
+  }
+
+  static textRanks(doc) {
+    const list = this.bubbles(doc).map(({ b }) => b).filter((b) => b.fontSize);
+    if (list.length < 3) return { big: null, small: null };
+    const sorted = [...list].sort((a, c) => c.fontSize - a.fontSize);
+    const big = sorted[0].fontSize > sorted[1].fontSize * 1.25 ? sorted[0].id : null;
+    const last = sorted[sorted.length - 1];
+    const small = last.fontSize < sorted[sorted.length - 2].fontSize * 0.85 ? last.id : null;
+    return { big, small };
   }
 
   static build(doc) {
@@ -3984,20 +4044,24 @@ class MossLayout {
     const cap = m.captions || {};
     const gutters = (doc.page.pageColor === "black" ? w.blackGutters : w.gutters)[doc.page.gutterMode] || w.gutters.gap;
     const diagonal = order.some((p) => this.tilted(p)) ? w.diagonal : "";
+    const manga = this.isManga(doc);
     const list = order.map((p, i) => `(${i + 1}) ${this.position(doc, p)}: ${this.clause(this.panelCaption(doc, p))}`).join("; ");
+    const visual = !manga ? fmt(w.mainVisual, { caption: this.clause(order.map((p) => this.panelCaption(doc, p)).join(" ")) }) : "";
     const caption = [
-      `${m.mono ? w.mono : w.color}, ${size.width}x${size.height}`,
+      `${fmt(m.mono ? w.mono : w.color, { what: this.what(doc) })}, ${size.width}x${size.height}`,
       cap.style || m.style,
       cap.summary,
       this.characters(doc).length ? fmt(w.characters, { names: this.characters(doc).join(", ") }) : "",
-      `${fmt(w.panelCount, { n: order.length, gutters, diagonal })}: ${list}`,
-      doc.page.pageColor === "black" ? w.pageBlack : w.pageWhite,
+      manga ? `${fmt(w.panelCount, { n: order.length, gutters, diagonal })}: ${list}` : visual,
+      manga && order.length >= 5 ? w.mangaComposition : "",
+      manga ? (doc.page.pageColor === "black" ? w.pageBlack : w.pageWhite) : "",
       m.textMode === "moss" ? w.mossText : w.overlayText,
       w.blank, w.flat,
       fmt(w.coords, { x0: -size.width / 2, x1: size.width / 2, y0: -size.height / 2, y1: size.height / 2 }),
     ].map((s) => this.sentence(s)).filter(Boolean).join(" ");
     const items = [];
-    if (m.panelItems) {
+    const ranks = this.textRanks(doc);
+    if (m.panelItems && manga) {
       order.forEach((p, i) => {
         const b = Geo.bbox(Layout.insetPts(doc, p));
         items.push({ label: "object", caption: fmt(w.panelItem, { n: i + 1, caption: this.sentence(this.panelCaption(doc, p)) }), bbox: map({ x0: b.x, y0: b.y, x1: b.x1, y1: b.y1 }) });
@@ -4010,10 +4074,15 @@ class MossLayout {
       }
       const lines = this.lineBoxes(b);
       const role = this.clause(cap.bubbles?.[b.id] || cap.bubbles?.[String(k + 1)] || w.shapes[b.shape] || w.shapes.ellipse);
-      const where = panel < order.length ? fmt(w.inPanel, { n: panel + 1 }) : "";
+      const where = manga && panel < order.length ? fmt(w.inPanel, { n: panel + 1 }) : "";
+      const said = role.toLowerCase();
+      const rank = b.id === ranks.big && !said.includes("largest") ? w.largest : b.id === ranks.small && !said.includes("small") ? w.smallest : "";
+      const plain = b.font === "mincho" && (!manga || this.cfg.designKinds.includes(b.kind));
+      const font = plain ? w.fonts.minchoPlain : w.fonts[b.font] || w.fonts.gothic;
+      const color = b.color ? fmt(w.colorText, { color: b.color }) : "";
       lines.forEach((ln, i) => {
         const part = lines.length > 1 ? fmt(b.vertical ? w.column : w.line, { i: i + 1, n: lines.length }) : "";
-        const text = [`${role}${where}${part}.`, w.fonts[b.font] || w.fonts.gothic, b.bold ? w.bold : "", w.exact, b.vertical ? w.vertical : w.horizontal].filter(Boolean).join(" ");
+        const text = [`${role}${where}${part}.`, rank, font, b.bold ? w.bold : "", color, w.exact, b.vertical ? w.vertical : w.horizontal].filter(Boolean).join(" ");
         items.push({ label: "text", caption: text, text: ln.text, bbox: map(ln.box) });
       });
     });
@@ -4047,7 +4116,7 @@ class MossLayout {
 
   static bubbleKey(doc) {
     const r = (v) => Math.round(Number(v) || 0);
-    return textHash(JSON.stringify(doc.bubbles.map((b) => [b.text, r(b.x), r(b.y), r(b.w), r(b.h), b.vertical, b.font, b.shape, b.bold, r(b.fontSize), b.panelId])));
+    return textHash(JSON.stringify(doc.bubbles.map((b) => [b.text, r(b.x), r(b.y), r(b.w), r(b.h), b.vertical, b.font, b.shape, b.bold, r(b.fontSize), b.panelId, b.color || ""])));
   }
 
   static bubblesChanged(doc) {
@@ -4153,6 +4222,7 @@ class MossPlanner {
     const w = USER_SETTINGS.moss.words;
     const order = Layout.readingOrder(doc);
     const lines = [];
+    lines.push(MossDirector.workLine(doc));
     if ((m.style || "").trim()) lines.push(`Art style wanted by the user: ${m.style.trim()}`);
     lines.push(`Colors: ${m.mono ? "black and white" : "full color"}`);
     if ((doc.story.synopsis || "").trim()) lines.push(`Page story: ${doc.story.synopsis.trim()}`);
@@ -4238,7 +4308,9 @@ class BubbleAuto {
   static applyKind(doc, b, kindId) {
     const kind = USER_SETTINGS.moss.dialogueKinds.find(([id]) => id === kindId);
     if (!kind) return;
-    Object.assign(b, kind[2], { kind: kindId });
+    const { scale, ...look } = kind[2];
+    Object.assign(b, look, { kind: kindId });
+    if (scale) b.scale = scale;
     b.tail = USER_SETTINGS.bubble.noTail.includes(b.shape) ? null : Bubbles.defaultTail(b);
     this.rescale(doc, b);
   }
@@ -4300,7 +4372,8 @@ class BubbleAuto {
       const pad = Math.min(box.w, box.h) * cfg.pad;
       const used = new Map();
       const placed = [];
-      for (const b of list) {
+      const edge = (b) => (b.kind === "credit" ? 0 : 1);
+      for (const b of [...list].sort((x, y) => edge(x) - edge(y))) {
         if (b.autoSize !== false) Bubbles.fit(b);
         const maxW = box.w - pad * 2, maxH = box.h - pad * 2;
         if (b.w > maxW || b.h > maxH) {
@@ -4308,7 +4381,7 @@ class BubbleAuto {
           b.fontSize = Math.max(8, Math.round(b.fontSize * f));
           Bubbles.fit(b);
         }
-        const anchor = b.pos === "auto" ? cfg.defaultPos[b.vertical ? "vertical" : "horizontal"] : b.pos;
+        const anchor = b.pos === "auto" ? cfg.kindPos[b.kind] || cfg.defaultPos[b.vertical ? "vertical" : "horizontal"] : b.pos;
         const [v, hz] = anchor === "center" ? ["middle", "center"] : anchor.split("-");
         const offset = used.get(anchor) || 0;
         let cx = box.x + box.w * (cfg.fx[hz] ?? 0.5), cy = box.y + box.h * (cfg.fy[v] ?? 0.5);
@@ -4337,7 +4410,7 @@ class MossStoryWriter {
   static userText(doc, hasImage) {
     const m = doc.moss;
     const item = Project.mainItem(doc);
-    const lines = [hasImage ? "The user's picture is attached." : "No picture is attached."];
+    const lines = [hasImage ? "The user's picture is attached." : "No picture is attached.", MossDirector.workLine(doc)];
     if ((item?.meta?.prompt || "").trim()) lines.push(`Generation prompt of the picture: ${item.meta.prompt.trim()}`);
     const names = MossLayout.characters(doc);
     if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
@@ -4381,9 +4454,15 @@ class MossDirector {
     if ((doc.story.synopsis || "").trim()) lines.push(`Story of this page (follow it closely and split it into the panels in order): ${doc.story.synopsis.trim()}`);
     if ((m.style || "").trim()) lines.push(`Art style wanted: ${m.style.trim()}`);
     lines.push(`Colors: ${m.mono ? "black and white" : "full color"}`);
+    lines.push(this.workLine(doc));
     lines.push("");
     const keep = this.kept(doc);
-    if (this.layoutFree(doc)) {
+    if (!MossLayout.isManga(doc)) {
+      lines.push(`This is NOT a manga page. Use "" for "template" and write exactly ONE panel: panel 1 is the whole ${MossLayout.what(doc)}.`);
+      lines.push("Its caption describes the main visual (characters, pose, background, composition, where the lettering sits).");
+      lines.push("Put the lettering in panel 1's \"dialogue\": the main title with kind \"title\" (once), a catchphrase with kind \"copy\", other short lines with \"text\" or \"label\", and small credits with \"credit\". 2 to 6 items, short Japanese text, no speech balloons unless a character really talks.");
+      lines.push("Leave \"title\" empty at the top level (the title goes in the dialogue).");
+    } else if (this.layoutFree(doc)) {
       lines.push("Choose the layout: pick one template id from this list.");
       this.templates(doc).filter((t) => t.n >= keep.minPanels).forEach((t) => lines.push(`- ${t.id}: ${t.name} (${t.n} panels)`));
       if (keep.minPanels) lines.push(`The user's instructions below use panel numbers in reading order, so keep those panels in that order.`);
@@ -4406,6 +4485,11 @@ class MossDirector {
     return lines.join("\n");
   }
 
+  static workLine(doc) {
+    const manga = MossLayout.isManga(doc);
+    return manga ? "Work type: a manga page." : `Work type: ${MossLayout.what(doc)} (one single design, not manga panels).`;
+  }
+
   static userInstruction(p) {
     const text = (p.instruction || "").trim();
     return text && text !== (p.aiInstruction || "").trim() ? text : "";
@@ -4424,7 +4508,7 @@ class MossDirector {
   }
 
   static layoutFree(doc) {
-    return doc.moss.auto.layout && !this.kept(doc).bubbles.some(({ panel }) => panel < doc.panels.length);
+    return MossLayout.isManga(doc) && doc.moss.auto.layout && !this.kept(doc).bubbles.some(({ panel }) => panel < doc.panels.length);
   }
 
   static fromObject(obj, doc) {
@@ -4498,7 +4582,7 @@ class MossDirector {
         captions.bubbles[b.id] = fmt(roles[d.kind] || roles.speech, { who: d.speaker || "the character" });
       }
     });
-    if (auto.dialogue && plan.title && order.length && !keptBubbles.some((b) => b.kind === "text" && Bubbles.charLen(b.text) && b.scale >= 1.8)) {
+    if (auto.dialogue && plan.title && order.length && MossLayout.isManga(doc) && !keptBubbles.some((b) => b.kind === "text" && Bubbles.charLen(b.text) && b.scale >= 1.8)) {
       const area = (p) => { const bb = Geo.bbox(Layout.insetPts(doc, p)); return bb.w * bb.h; };
       const largest = order.reduce((a, p) => (area(p) > area(a) ? p : a));
       const b = BubbleAuto.create(doc, largest.id, { text: plan.title, kind: "text", pos: "bottom-left", scale: 1.8 });
@@ -5340,8 +5424,9 @@ class Bubbles {
     const font = (c.fonts.find((x) => x[0] === b.font) || c.fonts[0])[2];
     const t = this.textBox(b);
     const fs = b.fontSize;
-    const halo = b.shape === "none" ? ` stroke="#ffffff" stroke-width="${this.f(fs * c.haloRatio)}" paint-order="stroke" stroke-linejoin="round"` : "";
-    const common = `font-family='${font}' font-size="${fs}" font-weight="${b.bold ? 700 : 400}" fill="#000000"${halo}`;
+    const ink = USER_SETTINGS.moss.colorFills[b.color] || "#000000";
+    const halo = b.shape === "none" ? ` stroke="${ink === "#ffffff" ? "#000000" : "#ffffff"}" stroke-width="${this.f(fs * c.haloRatio)}" paint-order="stroke" stroke-linejoin="round"` : "";
+    const common = `font-family='${font}' font-size="${fs}" font-weight="${b.bold ? 700 : 400}" fill="${ink}"${halo}`;
     return t.lines.map((line, i) => {
       if (b.vertical) {
         const x = b.x + t.w / 2 - fs / 2 - i * fs * c.lineGap;
@@ -6673,8 +6758,14 @@ class InspectorView {
     meta.addEventListener("input", () => { m.meta = meta.value; });
     const chars = h("input", { type: "text", value: m.characters || "", placeholder: MossLayout.autoCharacters(doc).join(", "), "aria-label": "キャラクター名・作品名" });
     chars.addEventListener("input", () => { m.characters = chars.value; });
+    const work = h("select", { "aria-label": "作品の種類" });
+    fillSelect(work, c.workTypes.map(([id, label]) => [id, label]), m.workType || "manga");
+    work.addEventListener("change", () => app.setMossWorkType(work.value));
+    const manga = MossLayout.isManga(doc);
     return h("div", { class: "insp-sec" },
       h("h3", { class: "insp-title", text: "紙面と画風" }),
+      h("div", { class: "set-grid" }, h("span", { class: "prop-label", text: "作品の種類" }), work),
+      h("p", { class: "note", text: c.messages.workTypeNote }),
       h("span", { class: "prop-label", text: "全体の画風（日本語でOK）" }),
       this.mossText(m.style, (v) => { m.style = v; }, { placeholder: "例: 緻密なペン入れとスクリーントーン、映画のような構図の青年漫画", "aria-label": "全体の画風" }),
       h("div", { class: "set-grid" },
@@ -6683,9 +6774,9 @@ class InspectorView {
         h("span", { class: "prop-label", text: "文字" }), this.mossSeg(c.textModes, m.textMode, "文字", (v) => app.commit(() => { m.textMode = v; }))),
       h("p", { class: "note", text: c.messages.overlayNote + (m.textMode === "overlay" && m.finish !== "app" ? c.messages.finishOff : "") }),
       m.mono ? h("p", { class: "note", text: c.messages.monoNote + (m.finish !== "app" ? c.messages.finishOff : "") }) : null,
-      this.mossCheck("コマの位置も枠（bbox）で指定する（実験的）", m.panelItems, (v) => app.commit(() => { m.panelItems = v; }), "オフのときは、コマ割りを全体の説明文で伝えます（実績のある方法）"),
-      this.mossCheck(`コマの外側をページの色（${doc.page.pageColor === "black" ? "黒" : "白"}）で塗る（生成後に Stillmange で塗る）`, m.maskOutside, (v) => app.commit(() => { m.maskOutside = v; })),
-      h("p", { class: "note", text: c.messages.maskNote + (m.maskOutside && m.finish !== "app" ? c.messages.finishOff : "") }),
+      manga ? this.mossCheck("コマの位置も枠（bbox）で指定する（実験的）", m.panelItems, (v) => app.commit(() => { m.panelItems = v; }), "オフのときは、コマ割りを全体の説明文で伝えます（実績のある方法）") : null,
+      manga ? this.mossCheck(`コマの外側をページの色（${doc.page.pageColor === "black" ? "黒" : "白"}）で塗る（生成後に Stillmange で塗る）`, m.maskOutside, (v) => app.commit(() => { m.maskOutside = v; })) : null,
+      manga ? h("p", { class: "note", text: c.messages.maskNote + (m.maskOutside && m.finish !== "app" ? c.messages.finishOff : "") }) : null,
       h("span", { class: "prop-label", text: "キャラクター名・作品名（カンマ区切り）" }),
       chars,
       h("p", { class: "note", text: fmt(c.messages.charactersNote, { auto: MossLayout.autoCharacters(doc).join(", ") || c.messages.charactersNone }) }));
@@ -6706,7 +6797,7 @@ class InspectorView {
       this.mossText(cap.summary, (v) => { cap.summary = v; app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "登場人物と舞台（英語）", "data-focus": "moss:summary" }));
     Layout.readingOrder(doc).forEach((p, i) => {
       sec.append(h("div", { class: "moss-panel" },
-        h("div", { class: "g-head" }, h("span", { class: "g-name", text: `コマ ${i + 1}` }), h("span", { text: MossLayout.position(doc, p) })),
+        h("div", { class: "g-head" }, h("span", { class: "g-name", text: MossLayout.isManga(doc) ? `コマ ${i + 1}` : "メインビジュアル" }), MossLayout.isManga(doc) ? h("span", { text: MossLayout.position(doc, p) }) : null),
         this.mossText(p.instruction, (v) => { p.instruction = v; app.moss.fieldsEdited(); }, { placeholder: "生成したい内容（日本語。空欄なら文章AIが考えます）", "aria-label": `コマ ${i + 1} で生成したい内容`, "data-focus": `minstr:${p.id}` }),
         this.mossText(cap.panels[p.id], (v) => { cap.panels[p.id] = v; app.moss.fieldsEdited(); }, { placeholder: "英語の説明（実行時に文章AIが書きます）", "aria-label": `コマ ${i + 1} の英語の説明`, "data-focus": `mcap:${p.id}` })));
     });
@@ -6773,6 +6864,9 @@ class InspectorView {
     const pos = h("select", { "aria-label": "位置" });
     fillSelect(pos, c.positions, b.pos || "fixed");
     pos.addEventListener("change", () => app.commit(() => { b.pos = pos.value; }));
+    const color = h("select", { "aria-label": "文字の色" });
+    fillSelect(color, c.textColors, b.color || "");
+    color.addEventListener("change", () => app.commit(() => { b.color = color.value; }));
     const role = h("input", { type: "text", value: cap.bubbles[b.id] || "", placeholder: c.words.shapes[b.shape] || "", "aria-label": "誰の・どんな文字か（英語）" });
     role.addEventListener("input", () => { cap.bubbles[b.id] = role.value; });
     const del = h("button", { class: "mini danger", text: "削除", onclick: () => app.commit(() => { doc.bubbles = doc.bubbles.filter((x) => x !== b); }) });
@@ -6783,6 +6877,7 @@ class InspectorView {
         h("span", { class: "prop-label", text: "書体" }), font,
         h("span", { class: "prop-label", text: "向き" }), dir,
         h("span", { class: "prop-label", text: "大きさ" }), size,
+        h("span", { class: "prop-label", text: "色" }), color,
         h("span", { class: "prop-label", text: "位置" }), pos,
         h("span", { class: "prop-label", text: "説明（英語）" }), role),
       h("div", { class: "row" }, h("button", { class: "mini", text: "ページで選ぶ", onclick: () => { app.setMode("bubble"); app.canvas.selectBubble(b.id); } }), del));
@@ -6795,7 +6890,7 @@ class InspectorView {
     const cap = doc.moss.captions;
     const order = Layout.readingOrder(doc);
     const sec = h("div", { class: "insp-sec" }, h("h3", { class: "insp-title", text: msg.dialogueTitle }), h("p", { class: "note", text: msg.dialogueNote }));
-    const groups = [...order.map((p, i) => [p.id, `コマ ${i + 1}`]), [null, msg.outside]];
+    const groups = [...order.map((p, i) => [p.id, MossLayout.isManga(doc) ? `コマ ${i + 1}` : "デザイン全体"]), [null, msg.outside]];
     for (const [pid, label] of groups) {
       const list = doc.bubbles.filter((b) => (pid ? b.panelId === pid : !order.some((p) => p.id === b.panelId)));
       if (!pid && !list.length) continue;
@@ -7865,6 +7960,40 @@ class App {
     this.updateLeft();
     this.updateTools();
     if (inspector) this.inspector.render();
+  }
+
+  setMossWorkType(id) {
+    const c = USER_SETTINGS.moss;
+    const type = c.workTypes.find(([k]) => k === id);
+    if (!type) return;
+    const [, name, opt] = type;
+    this.commit(() => {
+      const doc = this.doc;
+      const m = doc.moss;
+      m.workType = id;
+      m.meta = opt.meta;
+      m.mono = !!opt.mono;
+      if (opt.preset) {
+        const pre = USER_SETTINGS.page.presets.find((p) => p[0] === opt.preset);
+        if (pre) {
+          const before = Layout.live(doc.page);
+          Object.assign(doc.page, { preset: pre[0], w: pre[2], h: pre[3] });
+          Layout.remapLive(doc, before);
+        }
+      }
+      if (id !== "manga") {
+        const before = Layout.live(doc.page);
+        doc.page.margin = 0;
+        Layout.remapLive(doc, before);
+        if (doc.page.template !== "one" || doc.panels.length !== 1) Project.applyTemplate(doc, "one");
+        doc.page.lineWidth = 0;
+        doc.page.pageColor = "white";
+        m.maskOutside = false;
+        m.panelItems = false;
+      }
+      Layout.applyGutterMode(doc);
+    });
+    this.status(fmt(c.messages.workTypeChanged, { name }));
   }
 
   selectMossImage(i) {
