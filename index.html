@@ -205,6 +205,11 @@ body.resizing * { user-select: none; }
   border: 1px dashed var(--line-strong); border-radius: var(--radius-s); background: var(--surface-2); }
 .lib-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .lib-drop.over { border-color: var(--accent-text); background: var(--accent-soft); }
+#lib-drop.has-image { border-style: solid; border-color: var(--line); background: var(--stage); padding: 4px; gap: 4px; }
+#lib-drop.has-image .hint { display: none; }
+#lib-preview { display: block; max-width: 100%; max-height: 300px; object-fit: contain; pointer-events: none; }
+#lib-preview[hidden], .lib-preview-name[hidden] { display: none; }
+.lib-preview-name { font-size: 11px; color: #e8e8e8; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 .lib-drop .hint { color: var(--muted); font-size: 12px; }
 .lib-drop .hint strong { display: block; color: var(--ink); font-size: 13px; }
 .lib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
@@ -344,8 +349,6 @@ body.resizing * { user-select: none; }
 .moss-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .moss-strip-item[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .moss-strip-item .no { position: absolute; left: 2px; bottom: 2px; font-size: 10px; padding: 0 4px; border-radius: 3px; background: rgba(0, 0, 0, .65); color: #fff; }
-.moss-strip-layout { width: 68px; height: 96px; flex: 0 0 auto; padding: 2px; font-size: 10px; white-space: normal; }
-.moss-strip-layout[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
 .moss-quick-drop { min-height: 96px; gap: 6px; grid-template-columns: auto minmax(0, 1fr); text-align: left; }
 .moss-quick-img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-s); }
 .moss-line { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-top: 1px dashed var(--line); }
@@ -448,6 +451,8 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <div class="psec-body">
           <label class="lib-drop" id="lib-drop">
             <input type="file" id="lib-input" multiple accept="image/png,image/jpeg,image/webp" aria-label="ベースにする画像を選ぶ">
+            <img id="lib-preview" alt="★ ベースの画像" hidden>
+            <span class="lib-preview-name" id="lib-preview-name" hidden></span>
             <span class="hint"><strong>ベースにする画像をここにドロップ（複数可）</strong>コマが空のまま「④ 実行」を押すと、文章AIが画像からストーリーを作り、画像をコマに配置して、残りのコマを生成します</span>
           </label>
           <div class="lib-grid" id="lib-grid"></div>
@@ -647,6 +652,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     <section class="help-sec">
       <h3><span class="no">8</span>MOSS-Image でページを1枚で生成する</h3>
       <ul>
+        <li>左上「① ベースにする画像」には、★ベースの画像を元の縦横比のまま大きく表示し、その下に読み込んだ画像を正方形のサムネイルで並べます。</li>
         <li><b>いちばん手軽な使い方</b>: 画像を <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付ける（または「MOSS」タブの枠にドロップ）→「おまかせで漫画を作る」。文章AIが画像を見て、話・コマ割り・セリフを考え、MOSS-Image で1ページを生成します。「コマ割り」「コマの内容」「セリフ・文字」はそれぞれ、おまかせにするかをスイッチで選べます。</li>
         <li>セリフは「MOSS」タブの「セリフ・文字（コマごと）」で、コマごとに追加・編集できます。種類（吹き出し・叫び・心の声・ナレーション・効果音・枠なしテキスト）、書体、縦書き / 横書き、大きさ、位置（おまかせ・右上など・ドラッグした位置）を決められます。</li>
         <li>右の「MOSS」タブで「このページは MOSS-Image で生成する」をオンにすると、「④ 実行」がページ全体を1枚で生成するボタンになります（接続先は SD WebUI（Forge Neo）＋ MOSS-Image 拡張機能）。</li>
@@ -655,8 +661,8 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <li>文字は「MOSSが描く」か「アプリで重ねる」を選べます。生成後は「ページの表示」で「生成結果」と「レイアウト」を切り替えられます。</li>
         <li>送る前のJSONは「MOSS に送るJSONを確認・手直し」で見られ、手で直してそのまま生成することもできます。</li>
         <li>生成したページのサムネイルを押すと、その画像のプロンプトと設定を読み込みます。そのまま生成すると同じプロンプトで再生成、「MOSS に送るJSON」を書き換えて生成するとその内容で生成します。コマ・吹き出しの変更を反映するときは「コマ・吹き出しから作り直す」を押します。おまかせのスイッチがオンでも、自分で書いた指示とセリフは優先して残します。</li>
-        <li>ページ下の「吹き出しを動かす」で、生成した画像の上に吹き出しを薄く重ねて表示します。ドラッグで移動、セリフを書き換えて「④ MOSSで生成」を押すと、文字の部分だけをいまの吹き出しで作り直して生成します。</li>
-        <li>「連続生成（枚）」を2以上にすると、シードを変えて続けて生成します。生成したページは、ページの下にサムネイルで並び、押すと切り替わります（左端の「レイアウト」でコマ割りの表示に戻ります）。</li>
+        <li>生成した画像を表示しているときに上の「吹き出し」を押すと、その画像を作ったときの吹き出しを薄く重ねて表示します（「コマ編集」に戻すと消えます）。ドラッグで移動、セリフを書き換えて「④ MOSSで生成」を押すと、文字の部分だけをいまの吹き出しで作り直して生成します。</li>
+        <li>「連続生成（枚）」を2以上にすると、シードを変えて続けて生成します。生成したページは、ページの下にサムネイルで並び、押すと切り替わります（コマ割りの表示に戻すときは、MOSS タブの「ページの表示」で「レイアウト」を選びます）。</li>
         <li>「仕上げ」で「MOSSのまま」（基本）と「アプリで仕上げる」を切り替えられます。次の白黒変換・塗りつぶし・文字の重ね描きは「アプリで仕上げる」のときだけ使います。</li>
         <li>白黒のときは、生成した画像を Stillmange で完全なグレースケールに変換します。ベース画像のキャラクター名・作品名は、全体の説明と各コマの説明に入ります（「紙面と画風」で書き換え可）。「コマの外側をページの色で塗る」をオンにすると、生成後にコマの外を黒（または白）で塗ります。</li>
         <li>生成設定は MOSS-Image のおすすめ（Euler・MOSS・50 ステップ・CFG 3・1.5MP、Base モデルはおすすめのネガティブ）が基本です。「おすすめ設定に戻す」でいつでも戻せます。</li>
@@ -1068,7 +1074,7 @@ install()
     tokenLimit: 4096,
     guideOpacity: 0.6,
     batchMax: 20,
-    autoSwitches: [["layout", "コマ割りをおまかせ", "画像とお題に合うコマ割りを、文章AIがテンプレートから選びます"], ["story", "コマの内容をおまかせ", "オフのときは、書いてある「生成したい内容」を残し、空欄のコマだけ考えます"], ["dialogue", "セリフ・文字をおまかせ", "オフのときは、いまの吹き出しをそのまま使います"]],
+    autoSwitches: [["layout", "コマ割りをおまかせ", "画像とストーリーに合うコマ割りを、文章AIがテンプレートから選びます"], ["story", "コマの内容をおまかせ", "オフのときは、書いてある「生成したい内容」を残し、空欄のコマだけ考えます"], ["dialogue", "セリフ・文字をおまかせ", "オフのときは、いまの吹き出しをそのまま使います"]],
     dialogueKinds: [
       ["speech", "吹き出し（ふつう）", { shape: "ellipse", font: "mincho", vertical: true, bold: false }],
       ["shout", "吹き出し（叫び）", { shape: "spike", font: "mincho", vertical: true, bold: true }],
@@ -1081,6 +1087,11 @@ install()
     dialogueSizes: [["0.8", "小"], ["1", "中"], ["1.35", "大"], ["1.8", "特大"]],
     positions: [["auto", "おまかせ"], ["top-right", "右上"], ["top-center", "上"], ["top-left", "左上"], ["middle-right", "右"], ["center", "中央"], ["middle-left", "左"], ["bottom-right", "右下"], ["bottom-center", "下"], ["bottom-left", "左下"], ["fixed", "ドラッグした位置"]],
     autoPlace: { fx: { left: 0.2, center: 0.5, right: 0.8 }, fy: { top: 0.2, middle: 0.5, bottom: 0.8 }, pad: 0.04, gap: 0.03, minFont: 0.45, tail: 2.2, defaultPos: { vertical: "top-right", horizontal: "top-left" } },
+    storyPrompt: `You are a manga writer. Write the story of ONE manga page from the user's picture (attached when available) and/or its generation prompt.
+Use the characters in the picture (keep existing character names exactly), their look, the place and the mood. Write in Japanese, three to five sentences: a clear beginning, a development and a small punchline or emotional beat at the end, with the moments that will become the panels. Do not list panels and do not write dialogue lines.
+If the user gave notes, follow them.
+Output ONLY one JSON object, with no explanation and no markdown:
+{"story": "Japanese story of the page"}`,
     directorPrompt: `You are a manga storyboard writer and letterer. You plan ONE manga page that the image model MOSS-Image will draw as a single image.
 You receive: the user's picture (attached when available) and/or its generation prompt, an optional theme from the user (may be Japanese), the art style wanted, the page templates you may choose from (when the layout is yours to choose) or the current panels, and the user's existing panel instructions and balloons when they must be kept.
 Steps:
@@ -1196,9 +1207,14 @@ Output ONLY one JSON object, with no explanation and no markdown:
       quickTitle: "画像からおまかせで漫画を作る",
       quickDrop: "ここに画像をドロップ / Ctrl+V で貼り付け / クリックして選ぶ",
       quickNote: "貼った画像（★ベース）の人物・雰囲気をもとに、文章AIが話を考え、MOSS-Image で1ページを生成します。画像は文章AIが見て説明に使います（画像対応モデルがおすすめ）。",
-      quickNoImage: "まだ画像がありません。画像を貼り付けるか、ここにドロップしてください（画像なしでもお題だけで作れます）。",
+      quickNoImage: "まだ画像がありません。画像を貼り付けるか、ここにドロップしてください（画像なしでもストーリーだけで作れます）。",
       quickNeedLlm: "おまかせで作るには文章AIが必要です。「設定」→「文章AI（LLM）」でモデルを選んでください。",
-      quickNothing: "画像もお題もありません。画像を貼り付けるか、お題を書いてください。",
+      storyLabel: "ストーリー（空欄なら文章AIが先に書きます）",
+      storyPlaceholder: "例: 雨の夜だけ開く修理屋で、整備士がアンドロイドの少女を目覚めさせる。少女は「ここはどこ？」と戸惑うが、夜明けの街を見て笑顔になる。タイトル「ネジ巻きの夜」",
+      writingStory: "文章AIが画像を見て、このページのストーリーを書いています…",
+      storyWritten: "文章AIがストーリーを書きました。このストーリーをもとに、コマ割り・各コマの内容・セリフを考えます…",
+      storyBadJson: "文章AIの返事からストーリー（JSON）を読み取れませんでした。",
+      quickNothing: "画像もストーリーもありません。画像を貼り付けるか、ストーリーを書いてください。",
       directing: "文章AIが画像を見て、話・コマ割り・セリフを考えています…",
       directed: "文章AIがページを組み立てました。{synopsis}",
       directBadJson: "文章AIの返事からページの組み立て（JSON）を読み取れませんでした。",
@@ -1216,7 +1232,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
       loadedEdited: "（書き換えた内容で生成します）。コマの変更は反映されません。",
       rebuild: "コマ・吹き出しから作り直す",
       loadedBubbles: "吹き出しを動かした・書き換えたので、セリフの部分（文字の枠）だけはいまの吹き出しで作り直して生成します。",
-      guideTitle: "生成した画像の上に、その画像を作ったときの吹き出しを薄く重ねます。ドラッグで移動、ダブルクリックでセリフを編集し、「④ MOSSで生成」で作り直せます。",
+      guideNote: "上の「吹き出し」を押すと、表示中の画像を作ったときの吹き出しを薄く重ねて表示します。ドラッグで移動、「吹き出し」タブでセリフを書き換えて「④ MOSSで生成」を押すと、文字の部分だけ作り直して生成します。",
       selected: "{n} 枚目の画像（シード {seed}）のプロンプトと設定を読み込みました。「MOSS に送るJSON」を書き換えて生成すると、その内容で生成します。",
       batchLabel: "連続生成（枚）",
       batchNote: "同じプロンプトでシードを変えて、続けて生成します（シードを指定しているときは 1 ずつ増やします）。中止すると、そこまでの画像は残ります。",
@@ -1533,6 +1549,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     cancelled: "中止しました。",
     readingLib: "素材を読み込んでいます…",
     libAdded: "素材を {n} 枚読み込みました。",
+    libPreviewName: "★ {name}（ここに画像をドロップ・クリックで追加）",
     libNoMeta: "（メタデータが見つかりませんでした）",
     libNotImage: "画像ではないため読み込めません: ",
     applied: "「{name}」の内容を {target} に適用しました。",
@@ -4272,6 +4289,42 @@ class BubbleAuto {
   }
 }
 
+// ===== MOSS-IMAGE STORY WRITER (PICTURE -> STORY OF THE PAGE) =====
+class MossStoryWriter {
+  static needed(doc) {
+    const text = (doc.story.synopsis || "").trim();
+    if (!text) return true;
+    return !!doc.moss.auto.story && text === (doc.story.aiStory || "").trim();
+  }
+
+  static userText(doc, hasImage) {
+    const m = doc.moss;
+    const item = Project.mainItem(doc);
+    const lines = [hasImage ? "The user's picture is attached." : "No picture is attached."];
+    if ((item?.meta?.prompt || "").trim()) lines.push(`Generation prompt of the picture: ${item.meta.prompt.trim()}`);
+    const names = MossLayout.characters(doc);
+    if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
+    if ((m.style || "").trim()) lines.push(`Art style wanted: ${m.style.trim()}`);
+    const notes = Layout.readingOrder(doc).map((p) => MossDirector.userInstruction(p)).filter(Boolean);
+    if (notes.length) lines.push(`Notes from the user for some panels: ${notes.join(" / ")}`);
+    return lines.join("\n");
+  }
+
+  static async write(app, signal) {
+    const cfg = app.store.data.llm;
+    const doc = app.doc;
+    const item = Project.mainItem(doc);
+    const asset = item && [item.image, item.thumb].find((id) => id && app.assets.has(id));
+    const images = cfg.vision && asset ? [await PromptWriter.smallImage(app, asset)] : null;
+    const accept = (obj) => {
+      const story = typeof obj.story === "string" ? obj.story.trim() : "";
+      if (!story) throw new Error("no story");
+      return story;
+    };
+    return new LlmClient(cfg).askJson(USER_SETTINGS.moss.storyPrompt, this.userText(doc, !!images), images, signal, accept, USER_SETTINGS.moss.messages.storyBadJson);
+  }
+}
+
 // ===== MOSS-IMAGE DIRECTOR (PICTURE -> STORY, LAYOUT AND DIALOGUE) =====
 class MossDirector {
   static templates(doc) {
@@ -4288,7 +4341,7 @@ class MossDirector {
     if ((item?.meta?.prompt || "").trim()) lines.push(`Generation prompt of the picture: ${item.meta.prompt.trim()}`);
     const names = MossLayout.characters(doc);
     if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
-    if ((doc.story.synopsis || "").trim()) lines.push(`Theme from the user (follow it): ${doc.story.synopsis.trim()}`);
+    if ((doc.story.synopsis || "").trim()) lines.push(`Story of this page (follow it closely and split it into the panels in order): ${doc.story.synopsis.trim()}`);
     if ((m.style || "").trim()) lines.push(`Art style wanted: ${m.style.trim()}`);
     lines.push(`Colors: ${m.mono ? "black and white" : "full color"}`);
     lines.push("");
@@ -4665,6 +4718,18 @@ class MossRunner {
       this.setState("writing");
       const item = Project.mainItem(doc);
       if (item && !item.genres && (item.meta?.prompt || "").trim()) await app.sortTags([item]);
+      if (MossStoryWriter.needed(doc)) {
+        app.status(this.msg.writingStory);
+        try {
+          const story = await MossStoryWriter.write(app, this.abort.signal);
+          app.commit(() => { doc.story.synopsis = story; doc.story.aiStory = story; }, { inspector: true });
+          app.status(this.msg.storyWritten);
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          app.status(fmt(this.msg.directFailed, { err: describeError(err, "文章AI") }), true);
+          return;
+        }
+      }
       app.status(this.msg.directing);
       let plan;
       try {
@@ -4708,6 +4773,7 @@ class MossRunner {
       });
       m.current = m.images.length - 1;
       m.view = "result";
+      if (app.store.data.ui.mode === "bubble") app.store.data.ui.mode = "layout";
       if (m.useOverride) {
         m.override = MossRunner.pretty(spec.prompt);
         m.loadedAsset = asset;
@@ -5390,7 +5456,7 @@ class CanvasView {
         if (pg.lineWidth > 0) for (const p of doc.panels) body.push(`<polygon points="${this.polyStr(insets.get(p.id))}" fill="none" stroke="${colors[pg.frameColor]}" stroke-width="${pg.lineWidth}" stroke-linejoin="miter"/>`);
       }
       const drawn = MossLayout.finished(doc) && (moss.textMode || doc.moss.textMode) === "overlay";
-      const guides = !exportMode && !drawn && !!this.app.mossGuides;
+      const guides = !exportMode && !drawn && this.mode === "bubble";
       const overlay = drawn ? doc.bubbles.map((b) => Bubbles.svg(b, null)).join("") : guides ? `<g opacity="${USER_SETTINGS.moss.guideOpacity}">${doc.bubbles.map((b) => Bubbles.svg(b, null)).join("")}</g>` : "";
       return { defs: defs.join(""), body: body.join(""), bubbles: overlay, insets };
     }
@@ -5882,7 +5948,7 @@ class CanvasView {
 
   bubblesHidden() {
     const moss = MossLayout.shown(this.doc, this.app.assets);
-    if (!moss || this.app.mossGuides) return false;
+    if (!moss || this.mode === "bubble") return false;
     return !(MossLayout.finished(this.doc) && (moss.textMode || this.doc.moss.textMode) === "overlay");
   }
 
@@ -6494,6 +6560,7 @@ class InspectorView {
         h("button", { class: "mini", text: c.messages.rebuild, onclick: () => app.commit(() => { m.useOverride = false; m.override = ""; m.loadedAsset = null; }) })) : null,
       h("p", { class: "note keep", text: fmt(c.messages.tokens, { n: MossLayout.tokens(JSON.stringify(MossLayout.layout(this.doc))), max: c.tokenLimit }) }),
       h("p", { class: "note keep", text: `生成サイズ ${size.width}×${size.height}（用紙「${(USER_SETTINGS.page.presets.find((x) => x[0] === this.doc.page.preset) || [])[1] || this.doc.page.preset}」の縦横比・16の倍数）` }),
+      m.images.length ? h("p", { class: "note", text: c.messages.guideNote }) : null,
       h("div", { class: "prop" }, h("span", { class: "prop-label", text: c.messages.batchLabel }), batch),
       h("p", { class: "note", text: c.messages.batchNote }),
       h("div", { class: "row" }, h("button", {
@@ -6596,12 +6663,11 @@ class InspectorView {
     const sec = h("div", { class: "insp-sec ai-sec" },
       h("h3", { class: "insp-title", text: msg.quickTitle }),
       zone,
-      h("span", { class: "prop-label", text: "お題（任意）" }),
-      this.mossText(doc.story.synopsis, (v) => { doc.story.synopsis = v; }, { placeholder: "例: 雨の夜の修理屋で、アンドロイドが目を覚ます話。タイトル「ネジ巻きの夜」", "aria-label": "お題", "data-focus": "moss:theme" }),
+      h("span", { class: "prop-label", text: msg.storyLabel }),
+      this.mossText(doc.story.synopsis, (v) => { doc.story.synopsis = v; }, { placeholder: msg.storyPlaceholder, "aria-label": "ストーリー", "data-focus": "moss:theme" }),
       ...switches,
       h("button", { class: "run big", text: msg.quickRun, disabled: app.moss.busy || app.llmBusy, onclick: () => app.moss.quick() }),
       h("p", { class: "note", text: msg.quickNote }));
-    if ((m.synopsis || "").trim()) sec.append(h("p", { class: "note keep", text: `文章AIの考えた話: ${m.synopsis}` }));
     return sec;
   }
 
@@ -6901,10 +6967,22 @@ class LibraryView {
     this.app.status(fmt(USER_SETTINGS.messages.libMain, { name: item.name }));
   }
 
+  renderPreview(main) {
+    const img = $("lib-preview");
+    const asset = main && [main.image, main.thumb].find((id) => id && this.app.assets.has(id));
+    const url = asset ? this.app.assets.url(asset) : "";
+    if (img.getAttribute("src") !== url) { if (url) img.src = url; else img.removeAttribute("src"); }
+    img.hidden = !url;
+    $("lib-preview-name").hidden = !url;
+    $("lib-preview-name").textContent = url ? fmt(USER_SETTINGS.messages.libPreviewName, { name: main.name }) : "";
+    $("lib-drop").classList.toggle("has-image", !!url);
+  }
+
   render() {
     const grid = $("lib-grid");
     const order = Layout.readingOrder(this.doc);
     const main = Project.mainItem(this.doc);
+    this.renderPreview(main);
     grid.replaceChildren(...this.doc.library.map((item) => {
       const at = order.findIndex((p) => p.source === item.id);
       const isMain = item === main;
@@ -7736,6 +7814,7 @@ class App {
       m.loadedBubbleKey = MossLayout.bubbleKey(this.doc);
     });
     this.inspector.mossJsonOpen = true;
+    if (this.store.data.ui.mode === "bubble") this.setMode("layout");
     if (this.store.data.ui.tab !== "moss") { this.store.data.ui.tab = "moss"; this.store.save(); }
     this.inspector.render();
     this.status(fmt(msg.selected, { n: i + 1, seed: e.seed ?? "-" }));
@@ -7747,16 +7826,10 @@ class App {
     const show = !!m?.enabled && m.images.length > 0;
     strip.hidden = !show;
     if (!show) { this.mossStripKey = ""; return; }
-    const key = JSON.stringify([m.images.map((e) => e.asset), m.current, m.view, m.finish, !!this.mossGuides]);
+    const key = JSON.stringify([m.images.map((e) => e.asset), m.current, m.view, m.finish]);
     if (key === this.mossStripKey) return;
     this.mossStripKey = key;
-    const layoutBtn = h("button", { class: "moss-strip-layout", text: "レイアウト", "aria-pressed": String(m.view === "layout"), onclick: () => this.commit(() => { m.view = "layout"; }) });
-    const guides = !!this.mossGuides;
-    const bubbleBtn = h("button", {
-      class: "moss-strip-layout", text: guides ? "吹き出しを隠す" : "吹き出しを動かす", "aria-pressed": String(guides),
-      title: USER_SETTINGS.moss.messages.guideTitle, onclick: () => this.toggleMossGuides(),
-    });
-    strip.replaceChildren(layoutBtn, bubbleBtn, ...m.images.map((e, i) => {
+    strip.replaceChildren(...m.images.map((e, i) => {
       const asset = MossLayout.displayAsset(this.doc, e, this.assets);
       return h("button", {
         class: "moss-strip-item", title: `${i + 1} 枚目・シード ${e.seed ?? "-"}`, "aria-current": String(m.view === "result" && i === m.current),
@@ -7825,25 +7898,9 @@ class App {
     this.updateProgress();
   }
 
-  toggleMossGuides() {
-    this.mossGuides = !this.mossGuides;
-    if (this.mossGuides) {
-      const m = this.doc.moss;
-      if (m.view !== "result" && m.images[m.current]) m.view = "result";
-      if (this.store.data.ui.mode !== "bubble") this.setMode("bubble");
-    } else {
-      this.canvas.selectedBubble = null;
-      if (this.store.data.ui.mode === "bubble") this.setMode("layout");
-    }
-    this.canvas.render();
-    this.renderMossStrip();
-    this.inspector.render();
-  }
-
   setMode(mode) {
     const ui = this.store.data.ui;
     if (ui.mode === mode) return;
-    if (mode !== "bubble") this.mossGuides = false;
     this.canvas.stopCut();
     ui.mode = mode;
     if (mode !== "bubble") this.canvas.selectedBubble = null;
