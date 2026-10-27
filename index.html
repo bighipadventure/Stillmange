@@ -650,6 +650,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <h3><span class="no">4</span>コマの中の画像を調整する</h3>
       <ul>
         <li>画像が入ったコマを<b>ダブルクリック</b>すると調整モードになります。ドラッグで移動、四隅をつまむと反対側の角を基準に拡大・縮小します。</li>
+        <li>「コマ編集」中に吹き出しを<b>ダブルクリック</b>すると「吹き出し」モードに切り替わり、そのままセリフを編集できます。「吹き出し」モード中にコマ（吹き出しのない所）をダブルクリックすると「コマ編集」に戻ります。</li>
         <li>反転・90°回転・カラー / モノクロは、左の「③ コマの編集」から。画像が見えなくなったら「画像をコマの中央へ」。</li>
       </ul>
     </section>
@@ -6015,13 +6016,19 @@ class CanvasView {
         body.push(`<path d="M0,0 H${pg.w} V${pg.h} H0 Z ${holes}" fill="${colors[pg.pageColor]}" fill-rule="evenodd"/>`);
         if (pg.lineWidth > 0) for (const p of doc.panels) body.push(`<polygon points="${this.polyStr(insets.get(p.id))}" fill="none" stroke="${colors[pg.frameColor]}" stroke-width="${pg.lineWidth}" stroke-linejoin="miter"/>`);
       }
-      if (fade < 1) {
+      if (fade === 0) {
+        for (const p of doc.panels) {
+          const pts = this.polyStr(insets.get(p.id));
+          body.push(`<polygon points="${pts}" fill="${colors[pg.panelFill]}" stroke="${colors[pg.frameColor]}" stroke-width="${Math.max(pg.lineWidth, Math.max(pg.w, pg.h) * 0.002)}" stroke-linejoin="miter"/>`);
+        }
+      } else if (fade < 1) {
         const stroke = Math.max(2, Math.max(pg.w, pg.h) * 0.002);
         body.push(`<g class="fade-guides" fill="none" stroke="${colors[pg.pageColor === "black" ? "white" : "black"]}" stroke-opacity="0.55" stroke-width="${stroke}" stroke-dasharray="${stroke * 4} ${stroke * 3}">${doc.panels.map((p) => `<polygon points="${this.polyStr(insets.get(p.id))}"/>`).join("")}</g>`);
       }
       const drawn = MossLayout.finished(doc) && (moss.textMode || doc.moss.textMode) === "overlay";
       const guides = !exportMode && !drawn && (this.mode === "bubble" || fade < 1);
-      const overlay = drawn ? doc.bubbles.map((b) => Bubbles.svg(b, null)).join("") : guides ? `<g opacity="${USER_SETTINGS.moss.guideOpacity}">${doc.bubbles.map((b) => Bubbles.svg(b, null)).join("")}</g>` : "";
+      const all = doc.bubbles.map((b) => Bubbles.svg(b, null)).join("");
+      const overlay = drawn || (guides && fade === 0) ? all : guides ? `<g opacity="${USER_SETTINGS.moss.guideOpacity}">${all}</g>` : "";
       return { defs: defs.join(""), body: body.join(""), bubbles: overlay, insets };
     }
     for (const p of Layout.drawOrder(doc)) {
@@ -6520,12 +6527,15 @@ class CanvasView {
   onDouble(e) {
     const P = this.toPage(e);
     if (this.mode === "bubble" && this.bubblesHidden()) return;
+    const panel = this.panelAt(P);
     if (this.mode === "bubble") {
       if (this.bubbleAt(P)) { $("bubble-text")?.focus(); return; }
+      if (panel) { this.editPanel(panel); return; }
       this.app.addBubble(P);
       return;
     }
-    const panel = this.panelAt(P);
+    const bubble = this.bubblesHidden() ? null : this.bubbleAt(P);
+    if (bubble) { this.editBubble(bubble); return; }
     if (this.mode === "layout") {
       const r = (USER_SETTINGS.geometry.handlePx / this.screenScale()) * USER_SETTINGS.geometry.hitScale;
       const near = (a) => Math.hypot(a[0] - P[0], a[1] - P[1]) <= r;
@@ -6537,6 +6547,18 @@ class CanvasView {
       return;
     }
     if (panel) this.app.commit(() => { panel.view = Project.freshView(); });
+  }
+
+  editBubble(b) {
+    this.app.setMode("bubble");
+    this.selectBubble(b.id);
+    requestAnimationFrame(() => { const t = $("bubble-text"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } });
+  }
+
+  editPanel(panel) {
+    this.app.setMode("layout");
+    this.select(panel.id);
+    this.render();
   }
 
   onDragOver(e) {
@@ -6815,7 +6837,7 @@ class InspectorView {
     return h("div", { class: "insp-sec" },
       h("h3", { class: "insp-title", text: "新しい吹き出し" }),
       text,
-      h("p", { class: "note", text: "一覧の吹き出しを押すと、その吹き出しを編集できます。「吹き出し」モードでページの何もない所をダブルクリックしても追加できます。" }));
+      h("p", { class: "note", text: "一覧の吹き出しを押すと、その吹き出しを編集できます。「吹き出し」モードでコマの外（隙間・余白）をダブルクリックしても追加できます（コマの中をダブルクリックすると「コマ編集」に切り替わります）。" }));
   }
 
   bubbleForm() {
