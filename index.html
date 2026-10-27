@@ -1411,6 +1411,7 @@ If the user chose characters, they star in the page (the protagonist is the main
   },
   probeTimeoutMs: 2500,
   listTimeoutMs: 8000,
+  prefsSaveDelayMs: 600,
   loraListTimeoutMs: 120000,
   pollIntervalMs: 1000,
   historyLimit: 100,
@@ -1487,11 +1488,13 @@ Output ONLY one JSON object, with no explanation and no markdown:
 {"caption": "new page caption, or empty if unchanged", "items": {"<item number>": {"caption": "...", "text": "..."}}, "note": "Japanese, one short sentence that says what you changed"}`,
     messages: {
       title: "生成画像の修正指示",
-      note: "表示中の画像の直したいところを書くと、文章AIが MOSS に送るJSONの該当部分だけを書き換えて、もう一度生成します。同じシードを使うと、構図を保ったまま直しやすくなります。",
+      note: "表示中の画像の直したいところを書くと、文章AIが修正指示をふまえてページ全体の計画（コマの説明・字コンテ・セリフ）を作り直し、もう一度生成します。自分で書き換えた項目（生成したい内容・英語の説明・字コンテ・セリフ）はそのまま優先して使います。コマ割りは変えません。",
       placeholder: "例: 2コマ目の女の子をもっと笑顔に / タイトルの文字を大きく / 余計な文字を消して / 背景を夕方に",
       sameSeed: "同じシードで直す",
       run: "指示どおりに直して生成",
       thinking: "文章AIが修正指示をJSONに反映しています…",
+      rebuilding: "文章AIが修正指示をふまえて、ページ全体の計画（コマの説明・字コンテ・セリフ）を作り直しています…",
+      rebuilt: "修正指示「{request}」をふまえて計画を作り直しました。生成します…",
       applied: "修正しました: {note}",
       failed: "修正指示を反映できませんでした: {err}",
       badJson: "文章AIの修正結果を解釈できませんでした",
@@ -3210,6 +3213,49 @@ class Names {
       if (hit) return hit;
     }
     return value;
+  }
+}
+
+// ===== LAST-USED GENERATION SETTINGS (RESTORED ON THE NEXT VISIT) =====
+class Prefs {
+  static mossKeys = ["enabled", "model", "textEncoder", "vae", "loras", "negative", "settings", "onlyMoss", "textMode", "finish", "mono", "meta", "style", "workType", "batch", "autoCheck", "reviseSameSeed", "maskOutside"];
+  static commonKeys = ["family", "model", "vae", "loras", "negative", "settings", "use"];
+
+  static pick(src, keys) {
+    return Object.fromEntries(keys.filter((k) => src?.[k] !== undefined).map((k) => [k, clone(src[k])]));
+  }
+
+  static capture(doc) {
+    const pg = doc.page;
+    return {
+      moss: this.pick(doc.moss, this.mossKeys),
+      common: this.pick(doc.common, this.commonKeys),
+      page: { preset: pg.preset, w: pg.w, h: pg.h, single: !!pg.single, gutterMode: pg.gutterMode, pageColor: pg.pageColor },
+      lettering: clone(doc.story.lettering || null),
+    };
+  }
+
+  static apply(doc, prefs) {
+    if (!prefs) return;
+    if (prefs.moss) {
+      const { settings, ...rest } = prefs.moss;
+      Object.assign(doc.moss, clone(rest));
+      if (settings) doc.moss.settings = { ...doc.moss.settings, ...clone(settings) };
+    }
+    if (prefs.common) {
+      const { settings, ...rest } = prefs.common;
+      Object.assign(doc.common, clone(rest));
+      if (settings) doc.common.settings = { ...doc.common.settings, ...clone(settings) };
+    }
+    const pg = prefs.page;
+    if (pg && pg.w > 0 && pg.h > 0) {
+      if (pg.w !== doc.page.w || pg.h !== doc.page.h) Project.resizePage(doc, pg.w, pg.h, pg.preset);
+      else doc.page.preset = pg.preset;
+      if (pg.gutterMode) { doc.page.gutterMode = pg.gutterMode; Layout.applyGutterMode(doc); }
+      if (pg.single) Project.setSingle(doc, true);
+      else if (pg.pageColor) doc.page.pageColor = pg.pageColor;
+    }
+    if (prefs.lettering) doc.story.lettering = clone(prefs.lettering);
   }
 }
 
@@ -4986,24 +5032,27 @@ class DialogueFiller {
 class Reviser {
   static get cfg() { return USER_SETTINGS.revise; }
 
-  static layoutOf(entry) {
-    return JSON.parse(MossRunner.stripLoras(entry.prompt));
+  static layoutOf(doc) {
+    return clone(MossLayout.layout(doc));
   }
 
-  static userText(entry, request) {
-    const obj = this.layoutOf(entry);
+  static checkLine(entry) {
+    const issues = entry?.check ? ImageCheck.lines(entry.check) : [];
+    return issues.length ? `Automatic check of the image: ${issues.join(" / ")}` : "";
+  }
+
+  static userText(doc, entry, request) {
+    const obj = this.layoutOf(doc);
     const lines = [`Correction request from the user: ${request}`];
-    if (entry.check) {
-      const issues = ImageCheck.lines(entry.check);
-      if (issues.length) lines.push(`Automatic check of the image: ${issues.join(" / ")}`);
-    }
+    const check = this.checkLine(entry);
+    if (check) lines.push(check);
     lines.push("", `Page caption: ${obj.summary?.caption || ""}`, "", "Items:");
     (obj.items || []).forEach((it, k) => lines.push(`- Item ${k + 1} [${it.label}]: ${it.caption || ""}${typeof it.text === "string" ? ` | text: "${it.text}"` : ""}`));
     return lines.join("\n");
   }
 
-  static fromObject(obj, entry) {
-    const base = this.layoutOf(entry);
+  static fromObject(obj, doc) {
+    const base = this.layoutOf(doc);
     const str = (v) => (typeof v === "string" ? v.trim() : "");
     let changed = 0;
     if (str(obj.caption) && base.summary) { base.summary.caption = str(obj.caption); changed++; }
@@ -5020,8 +5069,8 @@ class Reviser {
 
   static async ask(app, entry, request, signal) {
     const cfg = app.store.data.llm;
-    const images = cfg.vision ? [(await MangaReader.image(app, entry.asset)).url] : null;
-    return new LlmClient(cfg).askJson(this.cfg.prompt, this.userText(entry, request), images, signal, (obj) => this.fromObject(obj, entry), this.cfg.messages.badJson);
+    const images = cfg.vision && entry ? [(await MangaReader.image(app, entry.asset)).url] : null;
+    return new LlmClient(cfg).askJson(this.cfg.prompt, this.userText(app.doc, entry, request), images, signal, (obj) => this.fromObject(obj, app.doc), this.cfg.messages.badJson);
   }
 }
 
@@ -5625,7 +5674,45 @@ class MossDirector {
     return USER_SETTINGS.templates.filter((t) => t.ai !== false).map((t) => ({ id: t.id, name: t.usage?.length ? `${t.name}（${t.usage.join("・")}）` : t.name, n: TemplateBuilder.quads(t.id, doc.page).length }));
   }
 
-  static userText(doc, hasImage) {
+  static markEdited(cap, field, id, value) {
+    cap.userEdited ??= { panels: {}, bubbles: {} };
+    const on = !!String(value || "").trim();
+    if (id === null) cap.userEdited[field] = on;
+    else {
+      cap.userEdited[field] ??= {};
+      if (on) cap.userEdited[field][id] = true;
+      else delete cap.userEdited[field][id];
+    }
+  }
+
+  static revisionLines(doc, revision) {
+    const m = doc.moss;
+    const cap = m.captions || {};
+    const ed = cap.userEdited || {};
+    const order = Layout.readingOrder(doc);
+    const lines = ["", "REVISION: this page was already generated once and the user wants it corrected.",
+      "Rebuild the WHOLE plan (summary, style, every panel caption and storyboard, and the dialogue) so that the next image clearly applies the correction below.",
+      "Priority: 1) the user's own items listed above and below (keep them exactly), 2) the correction request, 3) the previous plan (keep what the correction does not touch).",
+      `Correction request from the user (Japanese): ${revision.request}`];
+    if (revision.check) lines.push(`Problems found in the generated image: ${revision.check}`);
+    const fixed = [];
+    if (ed.style && cap.style) fixed.push(`- style: ${cap.style}`);
+    if (ed.summary && cap.summary) fixed.push(`- summary: ${cap.summary}`);
+    order.forEach((p, i) => {
+      if (ed.panels?.[p.id] && cap.panels?.[p.id]) fixed.push(`- panel ${i + 1} caption: ${cap.panels[p.id]}`);
+      if (Board.has(p) && !p.board._src) fixed.push(`- panel ${i + 1} ${Board.line(p)}`);
+    });
+    if (fixed.length) lines.push("", "The user rewrote these items; use them exactly as they are:", ...fixed);
+    lines.push("", "Previous plan (for reference):");
+    if (cap.style) lines.push(`- style: ${cap.style}`);
+    if (cap.summary) lines.push(`- summary: ${cap.summary}`);
+    order.forEach((p, i) => lines.push(`- panel ${i + 1}: ${cap.panels?.[p.id] || (p.instruction || "").trim() || "(empty)"}`));
+    const said = MossLayout.bubbles(doc);
+    if (said.length) lines.push(`- dialogue: ${said.map(({ b, panel }) => `[${panel < order.length ? `panel ${panel + 1}` : "outside"}] "${String(b.text).replace(/\n/g, " / ")}"`).join(" ")}`);
+    return lines;
+  }
+
+  static userText(doc, hasImage, revision = null) {
     const m = doc.moss;
     const auto = m.auto;
     const order = Layout.readingOrder(doc);
@@ -5647,7 +5734,7 @@ class MossDirector {
       lines.push("Its caption describes the main visual (characters, pose, background, composition, where the lettering sits).");
       lines.push("Put the lettering in panel 1's \"dialogue\": the main title with kind \"title\" (once), a catchphrase with kind \"copy\", other short lines with \"text\" or \"label\", and small credits with \"credit\". 2 to 6 items, short Japanese text, no speech balloons unless a character really talks.");
       lines.push("Leave \"title\" empty at the top level (the title goes in the dialogue).");
-    } else if (this.layoutFree(doc)) {
+    } else if (this.layoutFree(doc) && !revision) {
       lines.push("Choose the layout: pick one template id from this list.");
       this.templates(doc).filter((t) => t.n >= keep.minPanels).forEach((t) => lines.push(`- ${t.id}: ${t.name} (${t.n} panels)`));
       if (keep.minPanels) lines.push(`The user's instructions below use panel numbers in reading order, so keep those panels in that order.`);
@@ -5667,6 +5754,7 @@ class MossDirector {
       lines.push("", "Do NOT write dialogue: give every panel an empty \"dialogue\" list. The user's own balloons are:");
       MossLayout.bubbles(doc).forEach(({ b, panel }) => lines.push(`- ${panel < order.length ? `panel ${panel + 1}` : "outside the panels"}: "${String(b.text).replace(/\n/g, " / ")}"`));
     }
+    if (revision) lines.push(...this.revisionLines(doc, revision));
     return lines.join("\n");
   }
 
@@ -5720,7 +5808,7 @@ class MossDirector {
     };
   }
 
-  static async plan(app, signal) {
+  static async plan(app, signal, revision = null) {
     const cfg = app.store.data.llm;
     const doc = app.doc;
     const item = Project.mainItem(doc);
@@ -5729,7 +5817,7 @@ class MossDirector {
     const max = USER_SETTINGS.llm.autoRetries;
     for (let k = 0; ; k++) {
       try {
-        return await new LlmClient(cfg).askJson(Direction.wrap(USER_SETTINGS.moss.directorPrompt, ["visual", "lettering", "boardOut"]), this.userText(doc, !!images), images, signal, (obj) => this.fromObject(obj, doc), USER_SETTINGS.moss.messages.directBadJson);
+        return await new LlmClient(cfg).askJson(Direction.wrap(USER_SETTINGS.moss.directorPrompt, ["visual", "lettering", "boardOut"]), this.userText(doc, !!images, revision), images, signal, (obj) => this.fromObject(obj, doc), USER_SETTINGS.moss.messages.directBadJson);
       } catch (err) {
         if (err.name === "AbortError" || err.stalled || err.fatal || k >= max) throw err;
         await sleep(USER_SETTINGS.llm.retryWaitMs);
@@ -5737,14 +5825,15 @@ class MossDirector {
     }
   }
 
-  static apply(app, plan) {
+  static apply(app, plan, revision = null) {
     const doc = app.doc;
     const m = doc.moss;
     const auto = m.auto;
     const roles = USER_SETTINGS.moss.words.roles;
     const keep = this.kept(doc);
+    const before = m.captions || {};
     const fits = plan.template && TemplateBuilder.quads(plan.template, doc.page).length >= keep.minPanels;
-    if (this.layoutFree(doc) && fits && plan.template !== doc.page.template) Project.applyTemplate(doc, plan.template);
+    if (!revision && this.layoutFree(doc) && fits && plan.template !== doc.page.template) Project.applyTemplate(doc, plan.template);
     const order = Layout.readingOrder(doc);
     const captions = { key: "", style: plan.style, summary: plan.summary, panels: {}, panelChars: {}, bubbles: {}, cast: {}, castSrc: {} };
     CharacterSheet.filled(doc).forEach((c, i) => {
@@ -5765,7 +5854,7 @@ class MossDirector {
       }
       if (step.caption) captions.panels[p.id] = step.caption;
       if (step.characters) captions.panelChars[p.id] = step.characters;
-      if (step.board) { p.board = step.board; Board.stamp(p); }
+      if (step.board && !(Board.has(p) && !p.board._src)) { p.board = step.board; Board.stamp(p); }
       if (!auto.dialogue || keptBubbles.some((b) => b.panelId === p.id)) return;
       for (const d of step.dialogue) {
         const b = BubbleAuto.create(doc, p.id, { text: Lettering.normalize(doc, d.text), kind: d.kind, pos: d.position });
@@ -5784,6 +5873,14 @@ class MossDirector {
     }
     m.synopsis = plan.synopsis;
     m.foundCharacters = plan.characters;
+    const ed = before.userEdited;
+    if (ed) {
+      captions.userEdited = clone(ed);
+      if (ed.style && before.style) captions.style = before.style;
+      if (ed.summary && before.summary) captions.summary = before.summary;
+      for (const id of Object.keys(ed.panels || {})) if (before.panels?.[id]) captions.panels[id] = before.panels[id];
+      for (const id of Object.keys(ed.bubbles || {})) if (before.bubbles?.[id] && doc.bubbles.some((b) => b.id === id)) captions.bubbles[id] = before.bubbles[id];
+    }
     m.captions = captions;
     BubbleAuto.apply(doc);
     m.captions.key = MossLayout.key(doc);
@@ -5870,23 +5967,56 @@ class MossRunner {
     const t0 = performance.now();
     try {
       await app.freeImageVram();
-      this.setState("writing");
-      app.status(msg.thinking);
-      let result;
-      try {
-        result = await Reviser.ask(app, entry, request, this.abort.signal);
-      } catch (err) {
-        if (err.name === "AbortError") throw err;
-        app.status(fmt(msg.failed, { err: describeError(err, "文章AI") }), true);
-        return;
+      const manual = m.useOverride && m.overrideManual;
+      const doc = app.doc;
+      if (!manual) {
+        if (m.useOverride) app.commit(() => { m.useOverride = false; m.loadedAsset = null; }, { inspector: false });
+        this.setState("writing");
+        if (!(doc.story.synopsis || "").trim() && (Project.mainItem(doc) || CharacterSheet.filled(doc).length)) {
+          app.status(this.msg.writingStory);
+          try {
+            const story = await MossStoryWriter.write(app, this.abort.signal);
+            app.commit(() => { doc.story.synopsis = story; doc.story.aiStory = story; }, { inspector: true });
+          } catch (err) {
+            if (err.name === "AbortError") throw err;
+          }
+        }
+        app.status(msg.rebuilding);
+        const issues = entry.check ? ImageCheck.lines(entry.check).join(" / ") : "";
+        let plan;
+        try {
+          plan = await MossDirector.plan(app, this.abort.signal, { request, check: issues });
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          app.status(fmt(msg.failed, { err: describeError(err, "文章AI") }), true);
+          return;
+        }
+        app.commit(() => {
+          MossDirector.apply(app, plan, { request });
+          m.lastRevision = { request, note: plan.synopsis, from: m.current };
+        }, { inspector: true });
+        app.status(fmt(msg.rebuilt, { request }));
+        this.state = null;
+        await this.captions(false);
+      } else {
+        this.setState("writing");
+        app.status(msg.thinking);
+        let result;
+        try {
+          result = await Reviser.ask(app, entry, request, this.abort.signal);
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          app.status(fmt(msg.failed, { err: describeError(err, "文章AI") }), true);
+          return;
+        }
+        app.commit(() => {
+          m.override = MossLayout.format(result.layout);
+          m.useOverride = true;
+          m.loadedBubbleKey = MossLayout.bubbleKey(doc);
+          m.lastRevision = { request, note: result.note, from: m.current };
+        }, { inspector: true });
+        app.status(fmt(msg.applied, { note: result.note || request }));
       }
-      app.commit(() => {
-        m.override = MossLayout.format(result.layout);
-        m.useOverride = true;
-        m.loadedBubbleKey = MossLayout.bubbleKey(app.doc);
-        m.lastRevision = { request, note: result.note, from: m.current };
-      }, { inspector: true });
-      app.status(fmt(msg.applied, { note: result.note || request }));
       this.state = null;
       this.seedOverride = m.reviseSameSeed !== false && Number.isFinite(Number(entry.seed)) ? Number(entry.seed) : null;
       await this.executeBatch(t0);
@@ -8458,15 +8588,15 @@ class InspectorView {
       MossLayout.isManga(doc) ? h("p", { class: "note", text: USER_SETTINGS.board.messages.note }) : null,
       MossLayout.isManga(doc) ? this.boardButtons({ moss: true }) : null,
       h("span", { class: "prop-label", text: "画風（英語）" }),
-      this.mossText(cap.style, (v) => { cap.style = v; app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "画風（英語）", "data-focus": "moss:style" }),
+      this.mossText(cap.style, (v) => { cap.style = v; MossDirector.markEdited(cap, "style", null, v); app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "画風（英語）", "data-focus": "moss:style" }),
       h("span", { class: "prop-label", text: "登場人物と舞台（英語）" }),
-      this.mossText(cap.summary, (v) => { cap.summary = v; app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "登場人物と舞台（英語）", "data-focus": "moss:summary" }));
+      this.mossText(cap.summary, (v) => { cap.summary = v; MossDirector.markEdited(cap, "summary", null, v); app.moss.fieldsEdited(); }, { placeholder: "（実行時に文章AIが書きます）", "aria-label": "登場人物と舞台（英語）", "data-focus": "moss:summary" }));
     Layout.readingOrder(doc).forEach((p, i) => {
       sec.append(h("div", { class: "moss-panel" },
         h("div", { class: "g-head" }, h("span", { class: "g-name", text: MossLayout.isManga(doc) ? `コマ ${i + 1}` : "メインビジュアル" }), MossLayout.isManga(doc) ? h("span", { text: MossLayout.position(doc, p) }) : null),
         this.mossText(p.instruction, (v) => { p.instruction = v; app.moss.fieldsEdited(); }, { placeholder: "生成したい内容（日本語。空欄なら文章AIが考えます）", "aria-label": `コマ ${i + 1} で生成したい内容`, "data-focus": `minstr:${p.id}` }),
         MossLayout.isManga(doc) ? this.boardEditor(p, { moss: true }) : null,
-        this.mossText(cap.panels[p.id], (v) => { cap.panels[p.id] = v; app.moss.fieldsEdited(); }, { placeholder: "英語の説明（実行時に文章AIが書きます）", "aria-label": `コマ ${i + 1} の英語の説明`, "data-focus": `mcap:${p.id}` })));
+        this.mossText(cap.panels[p.id], (v) => { cap.panels[p.id] = v; MossDirector.markEdited(cap, "panels", p.id, v); app.moss.fieldsEdited(); }, { placeholder: "英語の説明（実行時に文章AIが書きます）", "aria-label": `コマ ${i + 1} の英語の説明`, "data-focus": `mcap:${p.id}` })));
     });
     return sec;
   }
@@ -8537,7 +8667,7 @@ class InspectorView {
     fillSelect(color, c.textColors, b.color || "");
     color.addEventListener("change", () => app.commit(() => { b.color = color.value; }));
     const role = h("input", { type: "text", value: cap.bubbles[b.id] || "", placeholder: c.words.shapes[b.shape] || "", "aria-label": "誰の・どんな文字か（英語）" });
-    role.addEventListener("input", () => { cap.bubbles[b.id] = role.value; });
+    role.addEventListener("input", () => { cap.bubbles[b.id] = role.value; MossDirector.markEdited(cap, "bubbles", b.id, role.value); });
     const del = h("button", { class: "mini danger", text: "削除", onclick: () => app.commit(() => { doc.bubbles = doc.bubbles.filter((x) => x !== b); }) });
     return h("div", { class: "moss-line" },
       text,
@@ -8685,6 +8815,7 @@ class InspectorView {
     const use = h("input", { type: "checkbox", checked: !!m.useOverride });
     ta.addEventListener("input", () => {
       m.override = ta.value;
+      m.overrideManual = true;
       if (!m.useOverride) { m.useOverride = true; use.checked = true; }
     });
     use.addEventListener("change", () => app.commit(() => {
@@ -9526,6 +9657,7 @@ class App {
     LlmClient.onProgress = (text) => this.progressNote(text);
     this.resources = { models: [], loras: [], samplers: [], schedulers: [], vaes: [], upscalers: [] };
     this.doc = Project.newDoc();
+    try { Prefs.apply(this.doc, this.store.data.prefs); } catch {}
     this.dirty = false;
     this.editSnap = null;
     this.listeners = new AbortController();
@@ -9651,7 +9783,21 @@ class App {
   }
 
   // REFRESH
+  savePrefsSoon() {
+    clearTimeout(this.prefsTimer);
+    this.prefsTimer = setTimeout(() => this.savePrefs(), USER_SETTINGS.prefsSaveDelayMs);
+  }
+
+  savePrefs() {
+    clearTimeout(this.prefsTimer);
+    try {
+      this.store.data.prefs = Prefs.capture(this.doc);
+      this.store.save();
+    } catch {}
+  }
+
   afterChange({ inspector = true } = {}) {
+    this.savePrefsSoon();
     if (this.canvas.selectedId && !this.doc.panels.some((p) => p.id === this.canvas.selectedId)) this.canvas.selectedId = null;
     for (const id of [...this.canvas.selection]) if (!this.doc.panels.some((p) => p.id === id)) this.canvas.selection.delete(id);
     if (!this.canvas.edge()) this.canvas.selectedEdge = null;
@@ -9755,6 +9901,7 @@ class App {
       m.current = i;
       m.view = "result";
       m.override = MossRunner.pretty(e.prompt);
+      m.overrideManual = false;
       m.useOverride = true;
       m.loadedAsset = e.asset;
       m.negative = e.negative || "";
@@ -10178,7 +10325,10 @@ class App {
     this.on(document, "dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
     this.on(document, "drop", (e) => this.onGlobalDrop(e));
     this.on(document, "paste", (e) => this.onPaste(e));
+    this.on(document, "visibilitychange", () => { if (document.visibilityState === "hidden") this.savePrefs(); });
+    this.on(window, "pagehide", () => this.savePrefs());
     this.on(window, "beforeunload", (e) => {
+      this.savePrefs();
       if (!this.dirty) return;
       e.preventDefault();
       e.returnValue = m.unsaved;
