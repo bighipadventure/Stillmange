@@ -344,7 +344,12 @@ body.resizing * { user-select: none; }
 .moss-panel { display: flex; flex-direction: column; gap: 3px; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface-2); }
 .moss-panel .g-head span:last-child:not(:first-child) { margin-left: auto; font-size: 11px; }
 .moss-loaded { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid var(--accent-text); border-radius: var(--radius-s); background: var(--surface-2); }
-.size-row input { width: 76px; }
+.custom-size { display: grid; gap: 8px; }
+.char-sheet { display: grid; gap: 6px; }
+.char-card { display: grid; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); }
+.char-card .g-head { display: flex; align-items: center; }
+.char-card .char-del { margin-left: auto; min-width: 26px; }
+.stage-actions { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
 .moss-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -435,9 +440,6 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
   <button class="pill" id="pill-llm" data-state="idle">文章AI: 確認中</button>
   <button class="pill" id="pill-sd" data-state="idle">画像生成: 確認中</button>
   <button class="quiet" id="open-project">開く</button>
-  <button class="quiet" id="save-project">保存（JSON）</button>
-  <button class="quiet" id="export-png">PNGで書き出す</button>
-  <button class="quiet" id="post-share" title="漫画ページを1枚目、各コマの画像を2枚目以降の差分として Prompt Reel の投稿画面に渡します">Prompt Reel に投稿</button>
   <button class="quiet" id="open-settings">設定</button>
   <label class="check help-toggle" title="オフにすると、画面の説明文を隠します（使い慣れた人向け）"><input type="checkbox" id="help-toggle" checked> 説明</label>
   <button class="help-btn" id="open-help">？ ツールの使い方</button>
@@ -465,10 +467,11 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <div class="psec-body">
           <div class="prop"><span class="prop-label">コマ</span><div class="seg" id="panel-on" role="group" aria-label="コマのありなし" title="なしにすると、ページ全体を1枚絵（ポスター・CDジャケット風など）にします"></div></div>
           <div class="prop"><span class="prop-label">用紙</span><select id="page-preset" aria-label="用紙"></select></div>
-          <div class="prop" id="custom-size"><span class="prop-label">サイズ</span><div class="row size-row">
-            <input type="number" id="page-w" aria-label="幅"><span>×</span><input type="number" id="page-h" aria-label="高さ">
-            <button id="page-swap" type="button" title="縦と横を入れ替えます">⇄</button>
-          </div></div>
+          <div class="custom-size" id="custom-size">
+            <div class="prop"><span class="prop-label">幅</span><input type="number" id="page-w" aria-label="幅"></div>
+            <div class="prop"><span class="prop-label">高さ</span><input type="number" id="page-h" aria-label="高さ"></div>
+            <div class="prop"><span class="prop-label"></span><button id="page-swap" type="button" title="縦と横を入れ替えます">⇄ 縦横を入れ替え</button></div>
+          </div>
           <div class="tpl-grid multi-only" id="tpl-grid"></div>
           <div class="prop multi-only"><span class="prop-label">配置を反転</span><div class="row">
             <button id="flip-layout-x" title="コマの配置を左右反転します（画像そのものは反転しません）">⇆ 左右</button>
@@ -577,6 +580,11 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <svg id="page-svg" xmlns="http://www.w3.org/2000/svg" aria-label="ページ"></svg>
     </div>
     <div class="moss-strip" id="moss-strip" hidden></div>
+    <div class="stage-actions">
+      <button id="save-project" title="作業中のプロジェクトを JSON ファイルに保存します（「開く」で続きから作業できます）">保存</button>
+      <button id="export-png" title="できあがったページを PNG 画像で書き出します">書き出す</button>
+      <button class="primary" id="post-share" title="漫画ページを1枚目、各コマの画像を2枚目以降の差分として Prompt Reel の投稿画面に渡します">Prompt Reel に投稿</button>
+    </div>
   </section>
   <div class="splitter" data-side="right" role="separator" aria-orientation="vertical" aria-label="右のパネルの幅（ドラッグで調整・ダブルクリックで元に戻す）" title="ドラッグで幅を調整（ダブルクリックで元に戻す）"></div>
 
@@ -650,7 +658,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     <section class="help-sec">
       <h3><span class="no">7</span>保存・書き出し・投稿</h3>
       <ul>
-        <li>「保存（JSON）」で作業中のデータを保存し、「開く」で続きから。「PNGで書き出す」で1ページの画像に。</li>
+        <li>プレビューの下の「保存」で作業中のデータを JSON に保存し、上の「開く」で続きから。「書き出す」で1ページの PNG 画像に。</li>
         <li>「Prompt Reel に投稿」で、ページを1枚目、各コマの画像を差分として投稿画面へ渡します。</li>
         <li>ショートカット: <kbd>Ctrl</kbd>+<kbd>Z</kbd> 戻る ／ <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> やり直す ／ <kbd>Delete</kbd> 削除</li>
       </ul>
@@ -660,6 +668,8 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       <ul>
         <li>左上「① ベースにする画像」には、★ベースの画像を元の縦横比のまま大きく表示し、その下に読み込んだ画像を正方形のサムネイルで並べます。</li>
         <li><b>いちばん手軽な使い方</b>: 画像を <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付ける（または「MOSS」タブの枠にドロップ）→「おまかせで作る」。文章AIが画像を見て、話・コマ割り・セリフを考え、MOSS-Image で1ページを生成します。「コマ割り」「コマの内容」「セリフ・文字」はそれぞれ、おまかせにするかをスイッチで選べます。</li>
+        <li>「キャラクター指定」（MOSS タブの「紙面と画風」、全コマ共通タブ）に、生成したい人物の名前と見た目・服装・性格などを書くと、その人物で漫画を作ります。1人目が主人公で、「＋ 登場人物を追加」で増やし、✖ で外せます。日本語でOKです。</li>
+        <li>「漫画を再現する」をオンにして★ベースに漫画のページを入れると、文章AIがコマ割り・各コマの絵・セリフ（文字と位置）を読み取り、同じページを描き直します（MOSS タブでは「おまかせで作る」、全コマ共通タブでオンにしたときは「④ 実行」）。キャラクター指定があれば、その人物に置き換えます。画像を読める文章AIが必要です。</li>
         <li>「コマ」を「なし（1枚絵）」にすると、ページ全体を1枚の絵として生成します（ポスター・CDジャケット風など）。「1枚絵の種類」でポスター・映画ポスター・雑誌の表紙・CDジャケット・小説の表紙・イラストを選ぶと、文章AIがタイトル・キャッチコピー・クレジットなどの文字も考えます。用紙は B5・A4・A3・正方形・カスタム（幅と高さを自由に）から選べます。</li>
         <li>セリフは「MOSS」タブの「セリフ・文字（コマごと）」で、コマごとに追加・編集できます。種類（吹き出し・叫び・心の声・ナレーション・効果音・枠なしテキスト・タイトル・キャッチコピー・クレジット・ラベル）、書体（筆文字も）、色、縦書き / 横書き、大きさ、位置（おまかせ・右上など・ドラッグした位置）を決められます。</li>
         <li>右の「MOSS」タブで「このページは MOSS-Image で生成する」をオンにすると、「④ 実行」がページ全体を1枚で生成するボタンになります（接続先は SD WebUI（Forge Neo）＋ MOSS-Image 拡張機能）。</li>
@@ -672,7 +682,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <li>生成ボタンを押すと、英語の説明に空欄があればその部分だけを、いま入力されている日本語の内容やストーリーから文章AIが書いてから生成します（書いてある部分はそのまま）。コマの内容を変えたいときは、そのコマの英語の欄を消して日本語を書き換えて生成します。</li>
         <li>「連続生成（枚）」を2以上にすると、シードを変えて続けて生成します。生成したページは、ページの下にサムネイルで並び、押すと切り替わります（コマ割りの表示に戻すときは、MOSS タブの「ページの表示」で「レイアウト」を選びます）。</li>
         <li>「仕上げ」で「MOSSのまま」（基本）と「アプリで仕上げる」を切り替えられます。次の白黒変換・塗りつぶし・文字の重ね描きは「アプリで仕上げる」のときだけ使います。</li>
-        <li>白黒のときは、生成した画像を Stillmange で完全なグレースケールに変換します。ベース画像のキャラクター名・作品名は、全体の説明と各コマの説明に入ります（「紙面と画風」で書き換え可）。「コマの外側をページの色で塗る」をオンにすると、生成後にコマの外を黒（または白）で塗ります。</li>
+        <li>白黒のときは、生成した画像を Stillmange で完全なグレースケールに変換します。ベース画像のキャラクター名・作品名は、全体の説明と各コマの説明に入ります。「コマの外側をページの色で塗る」をオンにすると、生成後にコマの外を黒（または白）で塗ります。</li>
         <li>生成設定は MOSS-Image のおすすめ（Euler・MOSS・50 ステップ・CFG 3・1.5MP、Base モデルはおすすめのネガティブ）が基本です。「おすすめ設定に戻す」でいつでも戻せます。</li>
       </ul>
     </section>
@@ -1113,6 +1123,7 @@ install()
     positions: [["auto", "おまかせ"], ["top-right", "右上"], ["top-center", "上"], ["top-left", "左上"], ["middle-right", "右"], ["center", "中央"], ["middle-left", "左"], ["bottom-right", "右下"], ["bottom-center", "下"], ["bottom-left", "左下"], ["fixed", "ドラッグした位置"]],
     autoPlace: { fx: { left: 0.2, center: 0.5, right: 0.8 }, fy: { top: 0.2, middle: 0.5, bottom: 0.8 }, pad: 0.04, gap: 0.03, minFont: 0.45, tail: 2.2, defaultPos: { vertical: "top-right", horizontal: "top-left" }, kindPos: { title: "top-center", copy: "bottom-center", credit: "bottom-center", label: "top-left" } },
     storyPrompt: `You are a manga writer. Write the story of ONE manga page from the user's picture (attached when available) and/or its generation prompt.
+If the user chose characters, the story stars them (the protagonist is the main character), even if the picture shows other people.
 If the input says the work type is not manga, write the concept of that design instead (what the main visual shows, the mood and the title idea), in two or three Japanese sentences.
 Use the characters in the picture (keep existing character names exactly), their look, the place and the mood. Write in Japanese, three to five sentences: a clear beginning, a development and a small punchline or emotional beat at the end, with the moments that will become the panels. Do not list panels and do not write dialogue lines.
 If the user gave notes, follow them.
@@ -1120,6 +1131,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
 {"story": "Japanese story of the page"}`,
     directorPrompt: `You are a manga storyboard writer and letterer. You plan ONE manga page that the image model MOSS-Image will draw as a single image.
 When the input says the work type is not manga (a poster, a cover, an album jacket...), follow the special instructions in the input for that design instead of making panels.
+If the user chose characters, they star in the page instead of the people in the picture (the protagonist is the main character): use their names and looks in the summary, the captions and "characters", and return "cast": {"1": "...", ...}, one English sentence per chosen character (in the given order) with the name and the fixed look from the user's details (translate Japanese).
 You receive: the user's picture (attached when available) and/or its generation prompt, an optional theme from the user (may be Japanese), the art style wanted, the page templates you may choose from (when the layout is yours to choose) or the current panels, and the user's existing panel instructions and balloons when they must be kept.
 Steps:
 1. Read the picture and prompt: who the characters are (age, hair, eyes, outfit, accessories), where they are and the mood. These characters must appear on the page looking the same.
@@ -1175,6 +1187,7 @@ Output ONLY one JSON object, with no explanation and no markdown:
       pageBlack: "The page background, the margins and the gutters outside the panels are solid black.",
       pageWhite: "The page background, the margins and the gutters outside the panels are plain white.",
       characters: "Characters: {names}",
+      castLine: "{role}: {who}",
       featuring: " ({names})",
       flat: "Flat printed artwork, no physical mockup.",
       coords: "All boxes are centered pixel coordinates in yxyx format: x={x0}..{x1}, y={y0}..{y1}.",
@@ -1215,7 +1228,8 @@ When the input has a "WRITE ONLY" list, write only those parts and leave every o
 Never translate, change or add the text that is written in the image, and do not quote the balloon text in your sentences.
 Output ONLY one JSON object, with no explanation and no markdown:
 When the work type is not manga, there is only panel 1: its caption describes the main visual of the whole design (characters, pose, background, composition and the empty space kept for the lettering).
-{"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."], "instruction": ""}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}}`,
+If the user chose characters, they star in the page (the protagonist is the main character): use their names and looks in "summary" and the panel sentences, and write "cast": for each chosen character (in the given order), one English sentence with the name and the fixed look from the user's details (translate Japanese).
+{"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."], "instruction": ""}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}, "cast": {"1": "..."}}`,
     messages: {
       tab: "MOSS",
       needForge: "MOSS-Image のページ生成は、いまは SD WebUI（Forge Neo）に接続しているときだけ使えます。「設定」→「画像生成の接続」で SD WebUI を選んでください。",
@@ -1284,8 +1298,6 @@ When the work type is not manga, there is only panel 1: its caption describes th
       stripTitle: "生成したページ（押すと切り替え）",
       finishNote: { moss: "MOSS が出力した画像を、そのまま表示・書き出し・投稿します（白黒への変換・コマの外の塗りつぶし・文字の重ね描きはしません）。", app: "MOSS の出力に、Stillmange の処理（白黒なら完全なグレースケール・「コマの外側を塗る」・「アプリで重ねる」の文字）を加えて表示・書き出し・投稿します。" },
       finishOff: "（いまは「MOSSのまま」なので、この処理は使いません）",
-      charactersNote: "ベース画像のプロンプトにあるキャラクター名・作品名を、全体の説明と各コマの説明に入れます。空欄なら画像から自動で読み取ります（{auto}）。",
-      charactersNone: "見つかりません",
       maskNote: "MOSS の描いたコマ割りが Stillmange のコマ割りとずれていると、絵が切れることがあります（「コマの位置も枠で指定する」と合わせると、ずれにくくなります）。",
       monoNote: "白黒のときは、生成した画像を Stillmange で完全なグレースケールに変換します（MOSS への指示は変えません）。",
       tokens: "プロンプトの長さ: 約 {n} トークン（MOSS の上限 {max}）",
@@ -1316,6 +1328,49 @@ When the work type is not manga, there is only panel 1: its caption describes th
   },
   geometry: { badgeHit: 0.85, eps: 2, handlePx: 6, hitScale: 1.8, scaleStep: 1.06, tiltStep: 0.04, newPanel: { w: 0.4, h: 0.25 }, minZoom: 0.3, maxZoom: 6, zoomStep: 1.1, rotateHandlePx: 30, rotateSnap: 15, rotateMagnet: 3, doubleMs: 400, doublePx: 6, minCutArea: 0.02, cutSnap: 3, rowTolerance: 0.08, collinear: 1e-3, parallel: 0.02 },
   gen: { sizeStep: 8, minSide: 256, maxAspect: 3, megapixelUnit: 1048576, seedMax: 4294967295 },
+  characters: {
+    max: 8,
+    roles: { first: "主人公", other: "登場人物 {n}" },
+    llmRoles: { first: "Protagonist", other: "Character {n}" },
+    title: "キャラクター指定",
+    note: "生成したい人物を書くと、その人物で漫画を作ります。1人目が主人公です。名前（既存のキャラクターなら作品名も）と、見た目・服装・性格などを書いてください。日本語でOKです（MOSS に送るときは文章AIが英語にします）。",
+    namePlaceholder: "名前・作品名（例: 御坂美琴（とある科学の超電磁砲））",
+    detailPlaceholder: "見た目・服装・性格など（例: 茶色のショートヘア、常盤台中学の制服、勝ち気）",
+    add: "＋ 登場人物を追加",
+    remove: "この人物を外す",
+  },
+  reproduce: {
+    imageSide: 1400,
+    longSide: 2570,
+    edgeSnap: 25,
+    template: "reproduced",
+    prompt: `You are a manga page analyst. The attached image is ONE manga page. Read it carefully so the page can be redrawn with the same layout, the same story and the same lettering.
+Coordinates: every "box" is [x0, y0, x1, y1] on a 0-1000 scale of the whole page image (x from left to right, y from top to bottom).
+Return ONLY one JSON object, no markdown:
+{"title": "", "story": "Japanese, two to four sentences: what happens on this page", "style": "English sentence: the art style (line work, screentones, shading)", "summary": "English: the characters with their fixed look, and the setting", "mono": true, "page_color": "white", "characters": ["..."], "cast": {"1": "..."}, "panels": [{"box": [0, 0, 1000, 300], "instruction": "Japanese, one short sentence", "caption": "English, one sentence: who, the action, the expression, the camera and the background", "characters": ["..."], "dialogue": [{"text": "...", "kind": "speech", "speaker": "...", "vertical": true, "box": [0, 0, 100, 100]}]}]}
+Rules:
+1. List the panels in Japanese manga reading order: the top row first, right to left inside a row.
+2. Each panel "box" follows the panel border. Panels do not overlap; keep the gutters between them. A panel that bleeds to the page edge reaches 0 or 1000.
+3. For every piece of lettering (speech balloons, thought balloons, narration boxes, sound effects, important signs) copy the text exactly as written, with \n between columns or lines. "kind" is one of: speech, shout, thought, whisper, narration, sfx, text. Its "box" covers the balloon (or the lettering when there is no balloon). Put it in the panel it belongs to. Japanese balloons are usually vertical.
+4. If a text is hard to read, give your best reading; never invent text that is not on the page.
+5. "mono" is true for a black-and-white page. "page_color" is the color of the gutters and margins: "white" or "black".
+6. "characters": existing character and series names you recognise (Danbooru style); an empty list for original characters.
+7. If the user chose characters, the redrawn page stars THEM instead of the people on the page: the protagonist replaces the main character and the next ones replace the others in order of importance. Use their names and looks in "summary", every "caption" and "characters", keep the same actions, poses, camera and story, and return "cast": one English sentence per chosen character (in the given order) with the name and the fixed look from the user's details. Without chosen characters, return "cast": {}.`,
+    messages: {
+      switchLabel: "漫画を再現する",
+      switchTitle: "★ベースの漫画のページを文章AIが読み取り、同じコマ割り・内容・セリフで描き直します",
+      note: "★ベースに漫画のページを入れてオンにすると、文章AIがコマ割り・各コマの絵・セリフ（文字と位置）を読み取り、同じページを描き直します。「キャラクター指定」があれば、その人物に置き換えます。オンのあいだは上の「おまかせ」スイッチは使いません。画像を読める文章AIが必要です。",
+      commonNote: "オンのとき「④ 実行」を押すと、まず★ベースの漫画のページを文章AIが読み取り、コマ割り・各コマの内容・セリフを写してから、各コマを生成します（一度読み取ったページは読み取り直しません。もう一度読むときは「読み取り直す」）。",
+      reread: "読み取り直す",
+      needVision: "漫画の再現には、画像を読める文章AIが必要です（「設定」→「文章AI」で画像対応のモデルを選び、「ベースの画像もAIに見せる」をオンにしてください）。",
+      needImage: "再現する漫画のページを★ベースに入れてください（貼り付け・ドロップ）。",
+      reading: "文章AIが漫画のページを読み取っています…",
+      done: "漫画のページを読み取りました（{n}コマ・セリフ {b} 個）。",
+      badJson: "文章AIの読み取り結果を解釈できませんでした",
+      failed: "漫画のページを読み取れませんでした: {err}",
+      noPanels: "コマを読み取れませんでした",
+    },
+  },
   page: {
     presets: [
       ["b5", "B5", 1820, 2570], ["a4", "A4", 2100, 2970], ["a3", "A3", 2970, 4200], ["square", "正方形", 2000, 2000],
@@ -3573,7 +3628,7 @@ class PromptWriter {
   }
 
   static key(doc, panel, base) {
-    return textHash(JSON.stringify([panel.instruction, Project.promptStyle(doc), doc.story.synopsis, base?.genres || null]));
+    return textHash(JSON.stringify([panel.instruction, Project.promptStyle(doc), doc.story.synopsis, base?.genres || null, CharacterSheet.key(doc)]));
   }
 
   static system(style) {
@@ -3586,6 +3641,8 @@ class PromptWriter {
     const n = order.indexOf(panel) + 1;
     const lines = [];
     if ((doc.story.synopsis || "").trim()) lines.push(`Page story (may be Japanese): ${doc.story.synopsis.trim()}`, "");
+    const chars = CharacterSheet.llmLines(doc);
+    if (chars.length) lines.push(...chars, "Write the appearance tags of these characters (and their name and series tags when they are existing characters) for every one who appears in the target panel, instead of the people in the base prompt.", "");
     lines.push("Panels of this manga page in reading order:");
     order.forEach((p, i) => {
       const tags = [];
@@ -3755,6 +3812,8 @@ class StoryPlanner {
     const lines = [];
     const story = (doc.story.synopsis || "").trim();
     if (story) lines.push(`Story written by the user (may be Japanese, follow it): ${story}`, "");
+    const chars = CharacterSheet.llmLines(doc);
+    if (chars.length) lines.push(...chars, "");
     lines.push("Panels in reading order:");
     Layout.readingOrder(doc).forEach((p, i) => {
       const head = `- Panel ${i + 1} (${this.shape(doc, p)})`;
@@ -3875,6 +3934,222 @@ class MaterialAnalyzer {
 }
 
 // ===== MOSS-IMAGE PAGE LAYOUT (PAGE -> LAYOUT JSON) =====
+// ===== CHARACTERS CHOSEN BY THE USER (SHARED BY MOSS AND PANEL GENERATION) =====
+class CharacterSheet {
+  static list(doc) {
+    if (!Array.isArray(doc.story.characters) || !doc.story.characters.length) doc.story.characters = [this.blank()];
+    return doc.story.characters;
+  }
+
+  static blank() {
+    return { id: uid(), name: "", detail: "" };
+  }
+
+  static filled(doc) {
+    return this.list(doc).filter((c) => (c.name || "").trim() || (c.detail || "").trim());
+  }
+
+  static label(i) {
+    const r = USER_SETTINGS.characters.roles;
+    return i === 0 ? r.first : fmt(r.other, { n: i + 1 });
+  }
+
+  static llmRole(doc, c) {
+    const r = USER_SETTINGS.characters.llmRoles;
+    const i = this.list(doc).indexOf(c);
+    return i === 0 ? r.first : fmt(r.other, { n: i + 1 });
+  }
+
+  static names(doc) {
+    return this.filled(doc).map((c) => (c.name || "").trim()).filter(Boolean);
+  }
+
+  static sourceKey(c) {
+    return textHash(`${c.name || ""}\n${c.detail || ""}`);
+  }
+
+  static key(doc) {
+    return textHash(JSON.stringify(this.filled(doc).map((c) => [c.name, c.detail])));
+  }
+
+  static llmLines(doc) {
+    const list = this.filled(doc);
+    if (!list.length) return [];
+    return [
+      "Characters chosen by the user (the page stars THESE people; draw them with this look in every panel where they appear; text may be Japanese):",
+      ...list.map((c) => `- ${this.llmRole(doc, c)}: ${[(c.name || "").trim(), (c.detail || "").trim()].filter(Boolean).join(" / ").replace(/\s*\n\s*/g, "; ")}`),
+    ];
+  }
+
+  static migrate(doc, legacy) {
+    const list = this.list(doc);
+    const old = String(legacy || "").trim();
+    if (old && !this.filled(doc).length) list[0].name = old;
+  }
+}
+
+// ===== MANGA PAGE READER (BASE MANGA PAGE -> PANELS, CONTENTS AND LETTERING) =====
+class MangaReader {
+  static get cfg() { return USER_SETTINGS.reproduce; }
+
+  static enabled(doc) {
+    return !!doc.story.reproduce;
+  }
+
+  static check(app) {
+    const msg = this.cfg.messages;
+    const item = Project.mainItem(app.doc);
+    if (!item || !app.assets.has(item.image || item.thumb)) throw new UserError(msg.needImage);
+    if (!app.store.data.llm.vision) throw new UserError(msg.needVision);
+    return item;
+  }
+
+  static fresh(doc) {
+    const item = Project.mainItem(doc);
+    return !!item && doc.story.reproducedFrom === `${item.id}|${CharacterSheet.key(doc)}`;
+  }
+
+  static async image(app, assetId) {
+    const img = await app.assets.image(assetId);
+    const side = this.cfg.imageSide;
+    const s = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = h("canvas", { width: Math.round(img.naturalWidth * s), height: Math.round(img.naturalHeight * s) });
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    return { url: canvas.toDataURL("image/jpeg", USER_SETTINGS.thumbQuality), w: img.naturalWidth, h: img.naturalHeight };
+  }
+
+  static userText(doc, size) {
+    const lines = ["The manga page to read is attached.", `Page size: ${size.w}x${size.h} pixels.`];
+    const chars = CharacterSheet.llmLines(doc);
+    if (chars.length) lines.push("", ...chars);
+    else lines.push("", "The user chose no characters: keep the people on the page.");
+    return lines.join("\n");
+  }
+
+  static box(v) {
+    if (!Array.isArray(v) || v.length < 4) return null;
+    const n = v.slice(0, 4).map(Number);
+    if (n.some((x) => !Number.isFinite(x))) return null;
+    const scale = Math.max(...n) <= 1.001 ? 1000 : 1;
+    const c = n.map((x) => Math.min(1000, Math.max(0, x * scale)));
+    const [x0, x1] = [Math.min(c[0], c[2]), Math.max(c[0], c[2])];
+    const [y0, y1] = [Math.min(c[1], c[3]), Math.max(c[1], c[3])];
+    return x1 - x0 < 5 || y1 - y0 < 5 ? null : { x0, y0, x1, y1 };
+  }
+
+  static fromObject(obj) {
+    const str = (v) => (typeof v === "string" ? v.trim() : "");
+    const kinds = USER_SETTINGS.moss.dialogueKinds.map(([id]) => id);
+    const names = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter((x) => x && x.toLowerCase() !== "original") : []);
+    const panels = (Array.isArray(obj.panels) ? obj.panels : Object.values(obj.panels || {})).map((p) => ({
+      box: this.box(p?.box ?? p?.bbox), instruction: str(p?.instruction), caption: str(p?.caption), characters: names(p?.characters),
+      dialogue: (Array.isArray(p?.dialogue) ? p.dialogue : []).map((d) => ({
+        text: str(d?.text).replace(/\\n/g, "\n"), kind: kinds.includes(str(d?.kind)) ? str(d.kind) : "speech",
+        speaker: str(d?.speaker), vertical: d?.vertical !== false, box: this.box(d?.box ?? d?.bbox),
+      })).filter((d) => d.text),
+    })).filter((p) => p.box);
+    if (!panels.length) throw new Error("no panels");
+    const cast = Array.isArray(obj.cast) ? obj.cast.map(str) : Object.values(obj.cast || {}).map(str);
+    return {
+      title: str(obj.title), story: str(obj.story), style: str(obj.style), summary: str(obj.summary),
+      mono: obj.mono !== false, pageColor: str(obj.page_color) === "black" ? "black" : "white",
+      characters: names(obj.characters), cast, panels,
+    };
+  }
+
+  static async read(app, signal) {
+    const item = this.check(app);
+    const pic = await this.image(app, app.assets.has(item.image) ? item.image : item.thumb);
+    const cfg = app.store.data.llm;
+    const plan = await new LlmClient(cfg).askJson(this.cfg.prompt, this.userText(app.doc, pic), [pic.url], signal, (obj) => this.fromObject(obj), this.cfg.messages.badJson);
+    return { ...plan, size: { w: pic.w, h: pic.h }, itemId: item.id };
+  }
+
+  static panelPts(box, page, snap) {
+    const W = page.w, H = page.h, g = page.gutter / 2;
+    const px = (v) => (v / 1000) * W, py = (v) => (v / 1000) * H;
+    const edge = (v, max) => (v <= snap ? 0 : v >= 1000 - snap ? max : null);
+    const x0 = edge(box.x0, W) ?? Math.max(0, px(box.x0) - g);
+    const x1 = edge(box.x1, W) ?? Math.min(W, px(box.x1) + g);
+    const y0 = edge(box.y0, H) ?? Math.max(0, py(box.y0) - g);
+    const y1 = edge(box.y1, H) ?? Math.min(H, py(box.y1) + g);
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  }
+
+  static bubble(doc, d, panelId) {
+    const pg = doc.page;
+    const b = BubbleAuto.create(doc, panelId, { text: d.text, kind: d.kind, pos: "fixed" });
+    b.vertical = d.vertical;
+    if (d.box) {
+      const bx = { x: (d.box.x0 / 1000) * pg.w, y: (d.box.y0 / 1000) * pg.h, w: ((d.box.x1 - d.box.x0) / 1000) * pg.w, h: ((d.box.y1 - d.box.y0) / 1000) * pg.h };
+      b.fontSize = 100;
+      Bubbles.fit(b);
+      const k = Math.min(bx.w / b.w, bx.h / b.h);
+      b.fontSize = Math.max(8, Math.round(100 * k));
+      Bubbles.fit(b);
+      b.x = bx.x + bx.w / 2;
+      b.y = bx.y + bx.h / 2;
+    } else {
+      Bubbles.fit(b);
+    }
+    b.tail = USER_SETTINGS.bubble.noTail.includes(b.shape) ? null : Bubbles.defaultTail(b);
+    return b;
+  }
+
+  static apply(app, plan) {
+    const doc = app.doc;
+    const pg = doc.page;
+    const m = doc.moss;
+    const cfg = this.cfg;
+    const roles = USER_SETTINGS.moss.words.roles;
+    const ratio = plan.size.w / (plan.size.h || 1);
+    const long = cfg.longSide;
+    const w = Math.round(ratio >= 1 ? long : long * ratio), hh = Math.round(ratio >= 1 ? long / ratio : long);
+    Object.assign(pg, { preset: USER_SETTINGS.page.custom.id, w, h: hh, margin: 0, single: false, template: cfg.template, pageColor: plan.pageColor, gutterMode: "gap", mono: plan.mono });
+    doc.panels = plan.panels.map((p) => {
+      const panel = Project.newPanel(this.panelPts(p.box, pg, cfg.edgeSnap), []);
+      Object.assign(panel, { instruction: p.instruction, aiInstruction: p.instruction });
+      return panel;
+    });
+    Layout.applyGutterMode(doc);
+    pg.reproducedPts = Layout.snapshotPts(doc);
+    const captions = { key: "", style: plan.style, summary: plan.summary, panels: {}, panelChars: {}, bubbles: {}, cast: {}, castSrc: {} };
+    doc.bubbles = [];
+    plan.panels.forEach((p, i) => {
+      const panel = doc.panels[i];
+      if (p.caption) captions.panels[panel.id] = p.caption;
+      captions.panelChars[panel.id] = p.characters;
+      for (const d of p.dialogue) {
+        const b = this.bubble(doc, d, panel.id);
+        Object.assign(b, { ai: true, aiText: b.text });
+        doc.bubbles.push(b);
+        captions.bubbles[b.id] = fmt(roles[d.kind] || roles.speech, { who: d.speaker || "the character" });
+      }
+    });
+    CharacterSheet.filled(doc).forEach((c, i) => {
+      if (!plan.cast[i]) return;
+      captions.cast[c.id] = plan.cast[i];
+      captions.castSrc[c.id] = CharacterSheet.sourceKey(c);
+    });
+    Object.assign(m, { workType: "manga", mono: plan.mono, synopsis: plan.story, foundCharacters: plan.characters, captions, useOverride: false });
+    m.meta = USER_SETTINGS.moss.workTypes[0][2].meta;
+    if (plan.story) Object.assign(doc.story, { synopsis: plan.story, aiStory: plan.story });
+    doc.story.reproducedFrom = `${plan.itemId}|${CharacterSheet.key(doc)}`;
+    m.captions.key = MossLayout.key(doc);
+    return { panels: doc.panels.length, bubbles: doc.bubbles.length };
+  }
+
+  static async run(app, signal) {
+    const msg = this.cfg.messages;
+    app.status(msg.reading);
+    const plan = await this.read(app, signal);
+    let n = null;
+    app.commit(() => { n = this.apply(app, plan); }, { inspector: true });
+    app.status(fmt(msg.done, { n: n.panels, b: n.bubbles }));
+    return plan;
+  }
+}
+
 class MossLayout {
   static get cfg() { return USER_SETTINGS.moss; }
 
@@ -3972,7 +4247,7 @@ class MossLayout {
   static key(doc) {
     const order = Layout.readingOrder(doc);
     return textHash(JSON.stringify([
-      doc.moss.style, doc.moss.mono, doc.moss.workType || "manga", doc.story.synopsis, Project.mainItem(doc)?.meta?.prompt || "", this.characters(doc),
+      doc.moss.style, doc.moss.mono, doc.moss.workType || "manga", doc.story.synopsis, CharacterSheet.key(doc), Project.mainItem(doc)?.meta?.prompt || "", this.characters(doc),
       order.map((p) => p.instruction || ""), this.bubbles(doc).map(({ b, panel }) => [b.text, panel, b.shape]),
     ]));
   }
@@ -3987,8 +4262,9 @@ class MossLayout {
 
   static characters(doc) {
     const split = (v) => (Array.isArray(v) ? v : String(v || "").split(/[,、\n]/)).map((t) => String(t).trim()).filter(Boolean);
-    const own = split(doc.moss.characters);
-    if (own.length) return own;
+    const own = CharacterSheet.names(doc);
+    const found = split(doc.moss.foundCharacters);
+    if (own.length) return own.some((n) => /[^\x00-\x7f]/.test(n)) && found.length ? found : own;
     return [...new Set([...this.autoCharacters(doc), ...split(doc.moss.foundCharacters)])];
   }
 
@@ -4003,6 +4279,15 @@ class MossLayout {
     const listed = doc.moss.captions?.panelChars?.[panel.id];
     const names = (Array.isArray(listed) ? listed : this.characters(doc)).filter((n) => !this.mentions(caption, n));
     return names.length ? `${this.clause(caption)}${fmt(this.cfg.words.featuring, { names: names.join(", ") })}` : caption;
+  }
+
+  static castLines(doc) {
+    const cap = doc.moss.captions || {};
+    return CharacterSheet.filled(doc).map((c) => {
+      const en = (cap.cast?.[c.id] || "").trim();
+      const who = en || [(c.name || "").trim(), (c.detail || "").trim()].filter(Boolean).join(", ");
+      return fmt(this.cfg.words.castLine, { role: CharacterSheet.llmRole(doc, c), who });
+    });
   }
 
   static tokens(text) {
@@ -4063,6 +4348,7 @@ class MossLayout {
       cap.style || m.style,
       cap.summary,
       this.characters(doc).length ? fmt(w.characters, { names: this.characters(doc).join(", ") }) : "",
+      ...this.castLines(doc),
       manga ? `${fmt(w.panelCount, { n: order.length, gutters, diagonal })}: ${list}` : visual,
       manga && order.length >= 5 ? w.mangaComposition : "",
       manga ? (doc.page.pageColor === "black" ? w.pageBlack : w.pageWhite) : "",
@@ -4221,11 +4507,12 @@ class MossPlanner {
       style: blank(cap.style), summary: blank(cap.summary),
       panels: order.filter((p) => blank(cap.panels?.[p.id])).map((p) => p.id),
       bubbles: MossLayout.bubbles(doc).filter(({ b }) => blank(cap.bubbles?.[b.id])).map(({ b }) => b.id),
+      cast: CharacterSheet.filled(doc).filter((c) => blank(cap.cast?.[c.id]) || cap.castSrc?.[c.id] !== CharacterSheet.sourceKey(c)).map((c) => c.id),
     };
   }
 
   static hasNeeds(need) {
-    return need.style || need.summary || need.panels.length > 0 || need.bubbles.length > 0;
+    return need.style || need.summary || need.panels.length > 0 || need.bubbles.length > 0 || (need.cast || []).length > 0;
   }
 
   static userText(doc, need = null) {
@@ -4242,6 +4529,8 @@ class MossPlanner {
     if (item?.analysis?.data?.characters) lines.push(`Characters in the reference image: ${item.analysis.data.characters}`);
     const names = MossLayout.characters(doc);
     if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
+    const chars = CharacterSheet.llmLines(doc);
+    if (chars.length) lines.push(...chars);
     lines.push("", "Panels in reading order:");
     order.forEach((p, i) => {
       const instr = (p.instruction || "").trim();
@@ -4256,7 +4545,7 @@ class MossPlanner {
       });
     }
     if (!need) {
-      lines.push("", `Write the captions for all ${order.length} panels${bubbles.length ? ` and all ${bubbles.length} balloons` : ""}.`);
+      lines.push("", `Write the captions for all ${order.length} panels${bubbles.length ? ` and all ${bubbles.length} balloons` : ""}${chars.length ? " and the cast" : ""}.`);
       return lines.join("\n");
     }
     const cap = m.captions || {};
@@ -4270,6 +4559,7 @@ class MossPlanner {
     if (need.summary) want.push("summary");
     if (need.panels.length) want.push(`panels ${need.panels.map((id) => order.findIndex((p) => p.id === id) + 1).join(", ")}`);
     if (need.bubbles.length) want.push(`balloons ${need.bubbles.map((id) => bubbles.findIndex(({ b }) => b.id === id) + 1).join(", ")}`);
+    if ((need.cast || []).length) want.push(`cast ${need.cast.map((id) => CharacterSheet.filled(doc).findIndex((c) => c.id === id) + 1).join(", ")}`);
     lines.push("", `WRITE ONLY: ${want.join("; ")}.`);
     return lines.join("\n");
   }
@@ -4295,8 +4585,15 @@ class MossPlanner {
       const text = str(v);
       if (hit && text) bubbles[hit.b.id] = text;
     }
-    const out = { style: str(obj.style), summary: str(obj.summary), panels, panelChars, bubbles, instructions };
-    if (!Object.keys(panels).length && !out.style && !out.summary && !Object.keys(bubbles).length) throw new Error("no captions");
+    const cast = {};
+    const people = CharacterSheet.filled(doc);
+    for (const [n, v] of entries(obj.cast)) {
+      const c = people[Number(String(n).replace(/\D/g, "")) - 1];
+      const text = str(v);
+      if (c && text) cast[c.id] = text;
+    }
+    const out = { style: str(obj.style), summary: str(obj.summary), panels, panelChars, bubbles, instructions, cast };
+    if (!Object.keys(panels).length && !out.style && !out.summary && !Object.keys(bubbles).length && !Object.keys(cast).length) throw new Error("no captions");
     return out;
   }
 
@@ -4425,6 +4722,7 @@ class MossStoryWriter {
     if ((item?.meta?.prompt || "").trim()) lines.push(`Generation prompt of the picture: ${item.meta.prompt.trim()}`);
     const names = MossLayout.characters(doc);
     if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
+    lines.push(...CharacterSheet.llmLines(doc));
     if ((m.style || "").trim()) lines.push(`Art style wanted: ${m.style.trim()}`);
     const notes = Layout.readingOrder(doc).map((p) => MossDirector.userInstruction(p)).filter(Boolean);
     if (notes.length) lines.push(`Notes from the user for some panels: ${notes.join(" / ")}`);
@@ -4462,6 +4760,7 @@ class MossDirector {
     if ((item?.meta?.prompt || "").trim()) lines.push(`Generation prompt of the picture: ${item.meta.prompt.trim()}`);
     const names = MossLayout.characters(doc);
     if (names.length) lines.push(`Character names (existing characters, keep these exact names): ${names.join(", ")}`);
+    lines.push(...CharacterSheet.llmLines(doc));
     if ((doc.story.synopsis || "").trim()) lines.push(`Story of this page (follow it closely and split it into the panels in order): ${doc.story.synopsis.trim()}`);
     if ((m.style || "").trim()) lines.push(`Art style wanted: ${m.style.trim()}`);
     lines.push(`Colors: ${m.mono ? "black and white" : "full color"}`);
@@ -4541,6 +4840,7 @@ class MossDirector {
     return {
       template: ids.includes(template) ? template : "", synopsis: str(obj.synopsis), style: str(obj.style), summary: str(obj.summary),
       title: str(obj.title), panels,
+      cast: Array.isArray(obj.cast) ? obj.cast.map(str) : Object.values(obj.cast || {}).map(str),
       characters: Array.isArray(obj.characters) ? obj.characters.map((x) => String(x).trim()).filter((x) => x && x.toLowerCase() !== "original") : [],
     };
   }
@@ -4571,7 +4871,12 @@ class MossDirector {
     const fits = plan.template && TemplateBuilder.quads(plan.template, doc.page).length >= keep.minPanels;
     if (this.layoutFree(doc) && fits && plan.template !== doc.page.template) Project.applyTemplate(doc, plan.template);
     const order = Layout.readingOrder(doc);
-    const captions = { key: "", style: plan.style, summary: plan.summary, panels: {}, panelChars: {}, bubbles: {} };
+    const captions = { key: "", style: plan.style, summary: plan.summary, panels: {}, panelChars: {}, bubbles: {}, cast: {}, castSrc: {} };
+    CharacterSheet.filled(doc).forEach((c, i) => {
+      if (!plan.cast?.[i]) return;
+      captions.cast[c.id] = plan.cast[i];
+      captions.castSrc[c.id] = CharacterSheet.sourceKey(c);
+    });
     const keptBubbles = auto.dialogue ? doc.bubbles.filter((b) => this.userBubble(b)) : doc.bubbles;
     for (const b of keptBubbles) if (m.captions.bubbles?.[b.id]) captions.bubbles[b.id] = m.captions.bubbles[b.id];
     doc.bubbles = keptBubbles;
@@ -4758,6 +5063,14 @@ class MossRunner {
           }
           for (const id of need.bubbles) if (plan.bubbles[id]) cap.bubbles[id] = plan.bubbles[id];
         }
+        const capNow = m.captions;
+        capNow.cast ??= {};
+        capNow.castSrc ??= {};
+        for (const c of CharacterSheet.filled(doc)) {
+          if (!plan.cast?.[c.id] || (need && !(need.cast || []).includes(c.id))) continue;
+          capNow.cast[c.id] = plan.cast[c.id];
+          capNow.castSrc[c.id] = CharacterSheet.sourceKey(c);
+        }
         for (const p of order) {
           const text = plan.instructions?.[p.id];
           if (text && !(p.instruction || "").trim() && (!need || need.panels.includes(p.id))) { p.instruction = text; p.aiInstruction = text; }
@@ -4781,6 +5094,7 @@ class MossRunner {
     if (need.summary) parts.push("登場人物と舞台");
     if (need.panels.length) parts.push(`コマ ${need.panels.map((id) => order.findIndex((p) => p.id === id) + 1).join("・")}`);
     if (need.bubbles.length) parts.push(`吹き出し ${need.bubbles.length} 個の説明`);
+    if ((need.cast || []).length) parts.push("キャラクター指定の英訳");
     return parts.join("、");
   }
 
@@ -4878,7 +5192,7 @@ class MossRunner {
     const m = doc.moss;
     if (app.store.data.backend !== "a1111") { app.status(this.msg.needForge, true); return; }
     if (!app.store.data.llm.model) { app.status(this.msg.quickNeedLlm, true); return; }
-    if (!Project.mainItem(doc) && !(doc.story.synopsis || "").trim()) { app.status(this.msg.quickNothing, true); return; }
+    if (!Project.mainItem(doc) && !(doc.story.synopsis || "").trim()) { app.status(MangaReader.enabled(doc) ? USER_SETTINGS.reproduce.messages.needImage : this.msg.quickNothing, true); return; }
     this.autoPick();
     if (!m.model) { app.status(this.msg.needModel, true); return; }
     app.commit(() => { m.enabled = true; m.useOverride = false; m.loadedAsset = null; });
@@ -4889,6 +5203,19 @@ class MossRunner {
       await app.freeImageVram();
       this.setState("writing");
       const item = Project.mainItem(doc);
+      if (MangaReader.enabled(doc)) {
+        try {
+          MangaReader.check(app);
+          await MangaReader.run(app, this.abort.signal);
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          app.status(fmt(USER_SETTINGS.reproduce.messages.failed, { err: describeError(err, "文章AI") }), true);
+          return;
+        }
+        this.state = null;
+        await this.executeBatch(t0);
+        return;
+      }
       if (item && !item.genres && (item.meta?.prompt || "").trim()) await app.sortTags([item]);
       if (MossStoryWriter.needed(doc)) {
         app.status(this.msg.writingStory);
@@ -5094,7 +5421,7 @@ class Project {
     const [preset, , w, hgt] = USER_SETTINGS.page.presets.find((p) => p[0] === USER_SETTINGS.page.defaultPreset);
     const page = { preset, w, h: hgt, ...clone(USER_SETTINGS.page.defaults) };
     const doc = {
-      version: USER_SETTINGS.projectVersion, page, panels: [], library: [], bubbles: [], story: { synopsis: "", style: "tags" }, moss: clone(USER_SETTINGS.moss.defaults),
+      version: USER_SETTINGS.projectVersion, page, panels: [], library: [], bubbles: [], story: { synopsis: "", style: "tags", characters: [CharacterSheet.blank()], reproduce: false }, moss: clone(USER_SETTINGS.moss.defaults),
       common: { family: USER_SETTINGS.defaultFamily, prompt: clone(USER_SETTINGS.defaultCommon.prompt), negative: USER_SETTINGS.defaultCommon.negative, model: "", vae: "", loras: [], settings: clone(USER_SETTINGS.defaultSettings), use: {} },
     };
     this.applyTemplate(doc, page.template);
@@ -5115,6 +5442,9 @@ class Project {
     const moss = doc.moss || {};
     out.moss = { ...base.moss, ...moss, settings: { ...base.moss.settings, ...(moss.settings || {}) }, captions: { ...base.moss.captions, ...(moss.captions || {}) }, auto: { ...base.moss.auto, ...(moss.auto || {}) } };
     out.panels = (doc.panels || []).map((p) => ({ ...this.newPanel(p.pts, p.gaps), ...p }));
+    if (!Array.isArray(doc.story?.characters)) out.story.characters = [CharacterSheet.blank()];
+    CharacterSheet.migrate(out, moss.characters);
+    out.moss.characters = "";
     return out;
   }
 
@@ -6270,7 +6600,7 @@ class InspectorView {
     const focusKey = active?.dataset?.focus;
     const caret = focusKey ? [active.selectionStart, active.selectionEnd] : null;
     const panel = this.app.canvas.selected();
-    if (tab === "common") this.box.replaceChildren(this.modelSection("common", this.doc.common), this.storySection(), ...this.form("common", this.doc.common));
+    if (tab === "common") this.box.replaceChildren(this.modelSection("common", this.doc.common), this.storySection(), this.commonCharacterSection(), ...this.form("common", this.doc.common));
     else if (tab === "bubble") this.box.replaceChildren(...this.bubbleForm());
     else if (tab === "moss") this.box.replaceChildren(...this.mossForm());
     else if (panel) this.box.replaceChildren(...this.form("panel", panel));
@@ -6429,6 +6759,18 @@ class InspectorView {
         text: `指示のある全コマのプロンプトを作る（${withInstruction}）`, disabled: !withInstruction || this.app.llmBusy,
         onclick: () => this.app.writePrompts(Layout.readingOrder(this.doc).filter((p) => (p.instruction || "").trim()).map((p) => p.id), true),
       })));
+  }
+
+  commonCharacterSection() {
+    const msg = USER_SETTINGS.reproduce.messages;
+    const parts = this.reproduceSwitch(msg.commonNote);
+    if (this.doc.story.reproduce && MangaReader.fresh(this.doc)) {
+      parts.push(h("div", { class: "row" }, h("button", { type: "button", text: msg.reread, disabled: this.app.llmBusy, onclick: () => this.app.reproducePage() })));
+    }
+    return h("div", { class: "insp-sec" },
+      h("h3", { class: "insp-title", text: "キャラクター・漫画の再現" }),
+      this.characterBlock(),
+      ...parts);
   }
 
   bubbleLabel(x, i) {
@@ -6808,8 +7150,6 @@ class InspectorView {
     const doc = this.doc;
     const meta = h("input", { type: "text", value: m.meta || "", "aria-label": "meta（カンマ区切り）" });
     meta.addEventListener("input", () => { m.meta = meta.value; });
-    const chars = h("input", { type: "text", value: m.characters || "", placeholder: MossLayout.autoCharacters(doc).join(", "), "aria-label": "キャラクター名・作品名" });
-    chars.addEventListener("input", () => { m.characters = chars.value; });
     const manga = MossLayout.isManga(doc);
     const work = h("select", { "aria-label": "1枚絵の種類" });
     fillSelect(work, c.workTypes.filter(([id]) => id !== "manga").map(([id, label]) => [id, label]), MossLayout.workType(doc)[0]);
@@ -6831,9 +7171,41 @@ class InspectorView {
       manga ? this.mossCheck("コマの位置も枠（bbox）で指定する（実験的）", m.panelItems, (v) => app.commit(() => { m.panelItems = v; }), "オフのときは、コマ割りを全体の説明文で伝えます（実績のある方法）") : null,
       manga ? this.mossCheck(`コマの外側をページの色（${doc.page.pageColor === "black" ? "黒" : "白"}）で塗る（生成後に Stillmange で塗る）`, m.maskOutside, (v) => app.commit(() => { m.maskOutside = v; })) : null,
       manga ? h("p", { class: "note", text: c.messages.maskNote + (m.maskOutside && m.finish !== "app" ? c.messages.finishOff : "") }) : null,
-      h("span", { class: "prop-label", text: "キャラクター名・作品名（カンマ区切り）" }),
-      chars,
-      h("p", { class: "note", text: fmt(c.messages.charactersNote, { auto: MossLayout.autoCharacters(doc).join(", ") || c.messages.charactersNone }) }));
+      this.characterBlock({ moss: true }));
+  }
+
+  characterBlock({ moss = false } = {}) {
+    const app = this.app;
+    const doc = this.doc;
+    const cfg = USER_SETTINGS.characters;
+    const list = CharacterSheet.list(doc);
+    const touched = () => { if (moss) app.moss.fieldsEdited(); };
+    const cards = list.map((c, i) => {
+      const head = h("div", { class: "g-head" }, h("span", { class: "g-name", text: CharacterSheet.label(i) }));
+      if (i > 0) head.append(h("button", { class: "mini char-del", type: "button", text: "✖", title: cfg.remove, "aria-label": `${CharacterSheet.label(i)}を外す`, onclick: () => app.commit(() => { doc.story.characters = list.filter((x) => x !== c); }, { inspector: true }) }));
+      return h("div", { class: "char-card" }, head,
+        this.mossText(c.name, (v) => { c.name = v; touched(); }, { placeholder: cfg.namePlaceholder, "aria-label": `${CharacterSheet.label(i)}の名前`, "data-focus": `cname:${c.id}` }),
+        this.mossText(c.detail, (v) => { c.detail = v; touched(); }, { rows: 2, placeholder: cfg.detailPlaceholder, "aria-label": `${CharacterSheet.label(i)}の特徴`, "data-focus": `cdetail:${c.id}` }));
+    });
+    const auto = moss ? MossLayout.autoCharacters(doc).join(", ") : "";
+    const add = h("button", { type: "button", text: cfg.add, disabled: list.length >= cfg.max, onclick: () => app.commit(() => { list.push(CharacterSheet.blank()); }, { inspector: true }) });
+    return h("div", { class: "char-sheet" },
+      h("span", { class: "prop-label", text: cfg.title }),
+      ...cards,
+      h("div", { class: "row" }, add),
+      h("p", { class: "note", text: cfg.note + (moss && !CharacterSheet.names(doc).length && auto ? `（いまはベース画像から読み取った名前を使います: ${auto}）` : "") }));
+  }
+
+  reproduceSwitch(note) {
+    const app = this.app;
+    const doc = this.doc;
+    const msg = USER_SETTINGS.reproduce.messages;
+    const parts = [this.mossCheck(msg.switchLabel, doc.story.reproduce, (v) => app.commit(() => { doc.story.reproduce = v; }, { inspector: true }), msg.switchTitle)];
+    if (doc.story.reproduce) {
+      parts.push(h("p", { class: "note", text: note }));
+      if (!app.store.data.llm.vision) parts.push(h("p", { class: "msg err", text: msg.needVision }));
+    }
+    return parts;
   }
 
   mossPanelsSection() {
@@ -6882,12 +7254,14 @@ class InspectorView {
       e.stopPropagation();
       take(e.dataTransfer.files);
     });
-    const switches = USER_SETTINGS.moss.autoSwitches.map(([key, label, title]) => this.mossCheck(label, m.auto[key], (v) => app.commit(() => { m.auto[key] = v; }), title));
+    const reproducing = MangaReader.enabled(doc);
+    const switches = reproducing ? [] : USER_SETTINGS.moss.autoSwitches.map(([key, label, title]) => this.mossCheck(label, m.auto[key], (v) => app.commit(() => { m.auto[key] = v; }), title));
     const sec = h("div", { class: "insp-sec ai-sec" },
       h("h3", { class: "insp-title", text: msg.quickTitle }),
       zone,
       h("span", { class: "prop-label", text: msg.storyLabel }),
       this.mossText(doc.story.synopsis, (v) => { doc.story.synopsis = v; }, { placeholder: msg.storyPlaceholder, "aria-label": "ストーリー", "data-focus": "moss:theme" }),
+      ...this.reproduceSwitch(USER_SETTINGS.reproduce.messages.note),
       ...switches,
       h("button", { class: "run big", text: msg.quickRun, disabled: app.moss.busy || app.llmBusy, onclick: () => app.moss.quick() }),
       h("p", { class: "note", text: msg.quickNote }));
@@ -8641,6 +9015,12 @@ class App {
   }
 
   resetLayout() {
+    const pg = this.doc.page;
+    if (pg.template === USER_SETTINGS.reproduce.template && Array.isArray(pg.reproducedPts) && pg.reproducedPts.length === this.doc.panels.length) {
+      this.commit(() => { Layout.restorePts(this.doc, pg.reproducedPts); Layout.applyGutterMode(this.doc); });
+      this.canvas.select(null);
+      return;
+    }
     const tpl = TemplateBuilder.find(this.doc.page.template);
     this.commit(() => Project.applyTemplate(this.doc, tpl.id));
     this.canvas.select(null);
@@ -8769,6 +9149,11 @@ class App {
       await this.moss.run();
       return;
     }
+    if (MangaReader.enabled(this.doc) && !MangaReader.fresh(this.doc)) {
+      if (!(await this.reproducePage())) return;
+      await this.runPanels(Layout.readingOrder(this.doc));
+      return;
+    }
     if (!this.doc.panels.length) { this.status(m.noPanels, true); return; }
     const order = Layout.readingOrder(this.doc);
     if (ui.runTarget === "selected") {
@@ -8780,6 +9165,28 @@ class App {
     const panels = order.filter((p) => !(ui.skipFilled && p.images.length) && !StoryPlanner.showsMaterial(p));
     if (!panels.length) { this.status(order.every((p) => StoryPlanner.showsMaterial(p)) ? m.allMaterials : m.allFilled, true); return; }
     await this.runPanels(panels, { cast: true });
+  }
+
+  async reproducePage() {
+    if (this.llmBusy) return false;
+    const msg = USER_SETTINGS.reproduce.messages;
+    this.llmBusy = true;
+    this.updateRunUi();
+    this.llmAbort = new AbortController();
+    try {
+      MangaReader.check(this);
+      await this.freeImageVram();
+      await MangaReader.run(this, this.llmAbort.signal);
+      return true;
+    } catch (err) {
+      if (err.name !== "AbortError") this.status(fmt(msg.failed, { err: describeError(err, "文章AI") }), true);
+      return false;
+    } finally {
+      this.llmBusy = false;
+      this.llmAbort = null;
+      this.updateRunUi();
+      this.afterRuntime({ inspector: true });
+    }
   }
 
   async freeImageVram() {
