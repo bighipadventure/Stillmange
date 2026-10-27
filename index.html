@@ -383,6 +383,16 @@ body.resizing * { user-select: none; }
 .lint-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .lint-no { flex: none; min-width: 20px; height: 20px; border-radius: 10px; background: var(--surface-2); text-align: center; line-height: 20px; font-size: 11px; }
 .lint-text { flex: 1 1 auto; min-width: 0; }
+.lora-picker { display: grid; gap: 6px; margin-top: 6px; }
+.lora-picker .g-head { display: flex; align-items: center; gap: 6px; }
+.lora-picker .g-head button { margin-left: auto; }
+.lora-pick-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); }
+.lora-pick { padding: 4px 8px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.lora-pick:last-child { border-bottom: none; }
+.lora-pick.on { background: var(--accent-dim, rgba(30, 110, 230, 0.08)); }
+.lora-pick-name { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; cursor: pointer; }
+.lora-pick-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lora-pick-weight { padding-left: 22px; }
 .stage-actions { flex: none; min-width: 0; overflow: hidden; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
@@ -8258,21 +8268,49 @@ class InspectorView {
         h("span", { class: "prop-label", text: "VAE" }), vae),
       h("p", { class: "note", text: c.messages.modulesNote }));
     if (filtered(res.models, c.modelPattern) || filtered(res.loras, c.modelPattern)) sec.append(h("p", { class: "note", text: c.messages.onlyMossNote }));
-    const loras = runner.candidates(res.loras, c.modelPattern);
-    sec.append(h("span", { class: "prop-label", text: "LoRA（MOSS 用）" }));
-    m.loras.forEach((l, i) => {
-      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う" });
-      on.addEventListener("change", () => { l.on = on.checked; });
-      const name = this.choice(loras, l.name, null, (v) => { l.name = v; });
-      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, "aria-label": "強さ", "data-slider-min": -1, "data-slider-max": 2 });
-      weight.addEventListener("input", () => { l.weight = Number(weight.value); });
-      const del = h("button", { text: "×", title: "外す", onclick: () => app.commit(() => m.loras.splice(i, 1)) });
-      sec.append(h("div", { class: "lora-row" }, on, name, weight, del));
-    });
-    sec.append(h("div", { class: "row" },
-      h("button", { class: "mini", text: "＋ LoRA を追加", onclick: () => app.commit(() => m.loras.push({ name: loras[0] || "", weight: 1, on: true })) }),
-      h("button", { class: "mini", text: "一覧を読み直す", onclick: () => app.loadResources() })));
+    sec.append(this.mossLoraPicker());
     return sec;
+  }
+
+  mossLoraPicker() {
+    const app = this.app;
+    const m = this.doc.moss;
+    const c = USER_SETTINGS.moss;
+    const all = app.moss.candidates(app.resources.loras, c.modelPattern);
+    const picked = new Map(m.loras.map((l) => [l.name, l]));
+    const names = [...m.loras.map((l) => l.name).filter(Boolean), ...all.filter((n) => !picked.has(n))];
+    const query = h("input", { type: "search", placeholder: "LoRA を名前で絞り込む", "aria-label": "LoRA を名前で絞り込む", value: this.mossLoraQuery || "" });
+    const rows = names.map((name) => {
+      const l = picked.get(name);
+      const missing = !all.includes(name);
+      const cb = h("input", { type: "checkbox", checked: !!l && l.on !== false, "aria-label": `${name} を使う` });
+      cb.addEventListener("change", () => app.commit(() => {
+        const hit = m.loras.find((x) => x.name === name);
+        if (cb.checked) { if (hit) hit.on = true; else m.loras.push({ name, weight: 1, on: true }); }
+        else m.loras = m.loras.filter((x) => x.name !== name);
+      }, { inspector: true }));
+      const label = h("label", { class: "lora-pick-name", title: name }, cb, h("span", { text: Infotext.displayName(name) + (missing ? "（一覧にありません）" : "") }));
+      const row = h("div", { class: `lora-pick${l ? " on" : ""}`, "data-name": name.toLowerCase() }, label);
+      if (l) {
+        const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, "aria-label": `${name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
+        weight.addEventListener("input", () => { l.weight = Number(weight.value); });
+        row.append(h("div", { class: "lora-pick-weight" }, weight));
+      }
+      return row;
+    });
+    const list = h("div", { class: "lora-pick-list" }, rows.length ? rows : h("p", { class: "note keep", text: "LoRA が見つかりません。Forge の models/Lora に入れて「一覧を読み直す」を押してください。" }));
+    const apply = () => {
+      const q = query.value.trim().toLowerCase();
+      this.mossLoraQuery = query.value;
+      rows.forEach((r) => { r.hidden = !!q && !r.classList.contains("on") && !r.dataset.name.includes(q); });
+    };
+    query.addEventListener("input", apply);
+    apply();
+    return h("div", { class: "lora-picker" },
+      h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `LoRA（MOSS 用・${m.loras.length} 個選択中）` }),
+        h("button", { class: "mini", type: "button", text: "一覧を読み直す", onclick: () => app.loadResources() })),
+      query, list,
+      h("p", { class: "note", text: "使う LoRA にチェックを入れると、強さを決められます。チェックした LoRA は一覧の上に並びます。" }));
   }
 
   mossSettingsSection() {
