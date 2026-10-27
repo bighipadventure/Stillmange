@@ -311,7 +311,7 @@ body.resizing * { user-select: none; }
 .tabs-h { flex: none; display: flex; background: var(--head); border-bottom: 1px solid var(--line); }
 .tabs-h button { flex: 1; border: none; border-radius: 0; background: transparent; min-height: 32px; border-bottom: 2px solid transparent; }
 .tabs-h button[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--accent-text); font-weight: 700; }
-.insp-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.insp-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; overflow-anchor: none; }
 .insp-sec { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .insp-title { margin: 0; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .insp-title .lock { margin-left: auto; font-weight: 500; }
@@ -7365,20 +7365,41 @@ class InspectorView {
   render() {
     const tab = this.app.store.data.ui.tab;
     document.querySelectorAll(".tabs-h button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
-    const scrollTop = this.box.scrollTop;
+    const sameTab = this.lastTab === tab;
+    this.lastTab = tab;
+    const scrollTop = sameTab ? this.box.scrollTop : 0;
     const active = this.box.contains(document.activeElement) ? document.activeElement : null;
-    const focusKey = active?.dataset?.focus;
-    const caret = focusKey ? [active.selectionStart, active.selectionEnd] : null;
+    const focusKey = active ? this.focusKeyOf(active) : null;
+    const caret = focusKey && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd] : null;
     const panel = this.app.canvas.selected();
     if (tab === "common") this.box.replaceChildren(this.modelSection("common", this.doc.common), this.storySection(), this.commonCharacterSection(), this.commonBoardSection(), this.reviewSection(), ...this.form("common", this.doc.common));
     else if (tab === "bubble") this.box.replaceChildren(...this.bubbleForm());
     else if (tab === "moss") this.box.replaceChildren(...this.mossForm());
     else if (panel) this.box.replaceChildren(...this.form("panel", panel));
     else this.box.replaceChildren(this.panelList());
-    this.box.scrollTop = scrollTop;
     this.box.querySelectorAll("textarea.autogrow").forEach(autoGrow);
-    const again = focusKey ? this.box.querySelector(`[data-focus="${CSS.escape(focusKey)}"]`) : null;
-    if (again) { again.focus({ preventScroll: true }); if (caret) again.setSelectionRange(caret[0], caret[1]); }
+    this.box.scrollTop = scrollTop;
+    const again = focusKey ? this.findFocus(focusKey) : null;
+    if (again) {
+      again.focus({ preventScroll: true });
+      if (caret && typeof again.setSelectionRange === "function") { try { again.setSelectionRange(caret[0], caret[1]); } catch {} }
+    }
+    this.box.scrollTop = scrollTop;
+  }
+
+  focusKeyOf(el) {
+    if (el.dataset?.focus) return `f:${el.dataset.focus}`;
+    const label = el.getAttribute("aria-label");
+    if (!label) return null;
+    const same = [...this.box.querySelectorAll(`[aria-label="${CSS.escape(label)}"]`)];
+    return `a:${label}:${same.indexOf(el)}`;
+  }
+
+  findFocus(key) {
+    if (key.startsWith("f:")) return this.box.querySelector(`[data-focus="${CSS.escape(key.slice(2))}"]`);
+    const at = key.lastIndexOf(":");
+    const label = key.slice(2, at);
+    return [...this.box.querySelectorAll(`[aria-label="${CSS.escape(label)}"]`)][Number(key.slice(at + 1))] || null;
   }
 
   panelList() {
@@ -7644,7 +7665,9 @@ class InspectorView {
         h("span", { class: "prop-label", text: "アングル" }), sel(cfg.angles, "angle", "アングル"),
         ...fields));
     det.open = open || this.boardOpen.has(panel.id);
-    det.addEventListener("toggle", () => { if (det.open) this.boardOpen.add(panel.id); else this.boardOpen.delete(panel.id); });
+    det.addEventListener("toggle", () => {
+      if (det.open) { this.boardOpen.add(panel.id); det.querySelectorAll("textarea.autogrow").forEach(autoGrow); } else this.boardOpen.delete(panel.id);
+    });
     return det;
   }
 
