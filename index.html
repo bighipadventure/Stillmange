@@ -1376,6 +1376,10 @@ If the user chose characters, they star in the page (the protagonist is the main
       outside: "コマの外",
       addLine: "＋ セリフを追加",
       emptyLine: "セリフ",
+      fillingLines: "文章AIが空欄のセリフ（{n} 個）を考えています…",
+      linesFilled: "空欄のセリフを {n} 個書きました。",
+      linesFailed: "空欄のセリフを書けませんでした: {err}",
+      storyFilledRun: "ストーリーが空欄だったので、文章AIが書きました。",
       quickRun: "おまかせで作る",
       workTypeNote: "「コマ: なし」にすると、ページ全体を1枚絵（ポスター・CDジャケット風など）として生成します。文字は「セリフ・文字」の欄で置きます。大きさは左の「用紙」で選び、「カスタム」なら縦横を自由に決められます。",
       workTypeChanged: "1枚絵の種類を「{name}」にしました（meta と色もおすすめに合わせました）。",
@@ -1471,6 +1475,36 @@ Output ONLY one JSON object, with no explanation and no markdown:
       none: "（字コンテなし）",
     },
   },
+  revise: {
+    prompt: `You revise the JSON layout prompt of the image model MOSS-Image so that the next image fixes what the user asks.
+You receive the user's correction request (Japanese), optionally the generated image and an automatic check of it, the page-level caption and the numbered items of the layout (label, English caption and, for text items, the exact text).
+Rules:
+- Change ONLY what the request asks for. Keep every other sentence, item and text exactly as it is.
+- Write captions in English. Make the requested change explicit and concrete (for example "smiling broadly with closed eyes", "much larger bold title lettering", "no extra text anywhere").
+- Change a text item's "text" only when the user asks to change those words; never translate it.
+- If the request is about the whole page (style, mood, colors, extra or broken text, anatomy), rewrite the page caption.
+Output ONLY one JSON object, with no explanation and no markdown:
+{"caption": "new page caption, or empty if unchanged", "items": {"<item number>": {"caption": "...", "text": "..."}}, "note": "Japanese, one short sentence that says what you changed"}`,
+    messages: {
+      title: "生成画像の修正指示",
+      note: "表示中の画像の直したいところを書くと、文章AIが MOSS に送るJSONの該当部分だけを書き換えて、もう一度生成します。同じシードを使うと、構図を保ったまま直しやすくなります。",
+      placeholder: "例: 2コマ目の女の子をもっと笑顔に / タイトルの文字を大きく / 余計な文字を消して / 背景を夕方に",
+      sameSeed: "同じシードで直す",
+      run: "指示どおりに直して生成",
+      thinking: "文章AIが修正指示をJSONに反映しています…",
+      applied: "修正しました: {note}",
+      failed: "修正指示を反映できませんでした: {err}",
+      badJson: "文章AIの修正結果を解釈できませんでした",
+      empty: "修正したい内容を書いてください。",
+      noImage: "先に画像を生成するか、下のサムネイルから直したい画像を選んでください。",
+      noLlm: "修正指示には文章AIが必要です（「設定」→「文章AI」）。",
+    },
+  },
+  linePrompt: `You are a manga letterer. Write short Japanese lines for the EMPTY balloons of ONE manga page.
+You receive the page story, the characters, the panels in reading order (what each panel shows) and the balloons in reading order (their panel, kind and current text; EMPTY balloons need a line).
+For every EMPTY balloon write one natural Japanese line that fits the story, the panel and the kind (speech, shout, thought, whisper, narration, sfx, text). At most 14 characters per line; use \\n for a second line only if needed. Keep the lines consistent with the balloons that already have text.
+Output ONLY one JSON object, with no explanation and no markdown:
+{"lines": {"<balloon number>": "text", ...}}`,
   review: {
     aspects: [["story", "物語"], ["immersion", "没入感"], ["cinema", "画角・空間"], ["readability", "読みやすさ"], ["consistency", "キャラの一貫性"], ["terminology", "用語"]],
     severities: { 3: "重大", 2: "要修正", 1: "軽微" },
@@ -4888,6 +4922,109 @@ class Lettering {
   }
 }
 
+// ===== FILL EMPTY BALLOON TEXT WITH THE TEXT AI =====
+class DialogueFiller {
+  static empty(b) {
+    const t = String(b.text || "").trim();
+    return !t || t === USER_SETTINGS.moss.messages.emptyLine;
+  }
+
+  static targets(doc) {
+    return doc.bubbles.filter((b) => this.empty(b));
+  }
+
+  static userText(doc, targets) {
+    const order = Layout.readingOrder(doc);
+    const lines = [];
+    if ((doc.story.synopsis || "").trim()) lines.push(`Page story: ${doc.story.synopsis.trim()}`);
+    lines.push(...CharacterSheet.llmLines(doc));
+    lines.push("", "Panels in reading order:");
+    order.forEach((p, i) => lines.push(`- Panel ${i + 1}: ${(p.instruction || "").trim() || doc.moss?.captions?.panels?.[p.id] || "(no description)"}${Board.has(p) ? `; ${Board.line(p)}` : ""}`));
+    const all = this.ordered(doc);
+    lines.push("", "Balloons in reading order:");
+    all.forEach(({ b, panel }, k) => lines.push(`- Balloon ${k + 1} (${panel < order.length ? `panel ${panel + 1}` : "outside"}, ${b.kind || b.shape}): ${targets.includes(b) ? "EMPTY" : `"${String(b.text).replace(/\n/g, " / ")}"`}`));
+    return lines.join("\n");
+  }
+
+  static ordered(doc) {
+    const order = Layout.readingOrder(doc);
+    const idx = (b) => { const i = order.findIndex((p) => p.id === b.panelId); return i < 0 ? order.length : i; };
+    return doc.bubbles.map((b) => ({ b, panel: idx(b) })).sort((a, c) => a.panel - c.panel || a.b.y - c.b.y || c.b.x - a.b.x);
+  }
+
+  static fromObject(obj, doc, targets) {
+    const all = this.ordered(doc);
+    const out = new Map();
+    for (const [n, v] of Object.entries(obj.lines || {})) {
+      const hit = all[Number(String(n).replace(/\D/g, "")) - 1];
+      const text = typeof v === "string" ? v.trim().replace(/\\n/g, "\n") : "";
+      if (hit && text && targets.includes(hit.b)) out.set(hit.b.id, text);
+    }
+    if (!out.size) throw new Error("no lines");
+    return out;
+  }
+
+  static async fill(app, signal) {
+    const doc = app.doc;
+    const targets = this.targets(doc);
+    if (!targets.length) return 0;
+    const got = await new LlmClient(app.store.data.llm).askJson(Direction.wrap(USER_SETTINGS.linePrompt, ["lettering"]), this.userText(doc, targets), null, signal, (obj) => this.fromObject(obj, doc, targets), USER_SETTINGS.moss.messages.directBadJson);
+    app.commit(() => {
+      for (const b of doc.bubbles) {
+        const text = got.get(b.id);
+        if (!text) continue;
+        b.text = Lettering.normalize(doc, text);
+        Object.assign(b, { ai: true, aiText: b.text });
+        if (b.autoSize !== false) Bubbles.fit(b);
+      }
+    }, { inspector: true });
+    return got.size;
+  }
+}
+
+// ===== REVISE A GENERATED MOSS IMAGE FROM A CORRECTION REQUEST =====
+class Reviser {
+  static get cfg() { return USER_SETTINGS.revise; }
+
+  static layoutOf(entry) {
+    return JSON.parse(MossRunner.stripLoras(entry.prompt));
+  }
+
+  static userText(entry, request) {
+    const obj = this.layoutOf(entry);
+    const lines = [`Correction request from the user: ${request}`];
+    if (entry.check) {
+      const issues = ImageCheck.lines(entry.check);
+      if (issues.length) lines.push(`Automatic check of the image: ${issues.join(" / ")}`);
+    }
+    lines.push("", `Page caption: ${obj.summary?.caption || ""}`, "", "Items:");
+    (obj.items || []).forEach((it, k) => lines.push(`- Item ${k + 1} [${it.label}]: ${it.caption || ""}${typeof it.text === "string" ? ` | text: "${it.text}"` : ""}`));
+    return lines.join("\n");
+  }
+
+  static fromObject(obj, entry) {
+    const base = this.layoutOf(entry);
+    const str = (v) => (typeof v === "string" ? v.trim() : "");
+    let changed = 0;
+    if (str(obj.caption) && base.summary) { base.summary.caption = str(obj.caption); changed++; }
+    const items = base.items || [];
+    for (const [n, v] of Object.entries(obj.items || {})) {
+      const it = items[Number(String(n).replace(/\D/g, "")) - 1];
+      if (!it || !v || typeof v !== "object") continue;
+      if (str(v.caption)) { it.caption = str(v.caption); changed++; }
+      if (typeof it.text === "string" && str(v.text)) { it.text = str(v.text).replace(/\\n/g, "\n"); changed++; }
+    }
+    if (!changed) throw new Error("no change");
+    return { layout: base, note: str(obj.note) };
+  }
+
+  static async ask(app, entry, request, signal) {
+    const cfg = app.store.data.llm;
+    const images = cfg.vision ? [(await MangaReader.image(app, entry.asset)).url] : null;
+    return new LlmClient(cfg).askJson(this.cfg.prompt, this.userText(entry, request), images, signal, (obj) => this.fromObject(obj, entry), this.cfg.messages.badJson);
+  }
+}
+
 class MossLayout {
   static get cfg() { return USER_SETTINGS.moss; }
 
@@ -5666,7 +5803,20 @@ class MossRunner {
   get msg() { return USER_SETTINGS.moss.messages; }
 
   static pretty(prompt) {
-    try { return MossLayout.format(JSON.parse(prompt)); } catch { return String(prompt || ""); }
+    const body = this.stripLoras(prompt);
+    try { return MossLayout.format(JSON.parse(body)); } catch { return body; }
+  }
+
+  static stripLoras(prompt) {
+    return String(prompt || "").replace(/^(\s*<lora:[^>]+>)+\s*/i, "");
+  }
+
+  static loraTags(loras) {
+    return (loras || []).map((l) => `<lora:${l.name}:${l.weight}>`).join(" ");
+  }
+
+  static sentPrompt(spec) {
+    return [this.loraTags(spec.loras), spec.prompt].filter(Boolean).join(" ");
   }
 
   pagePoly() {
@@ -5704,6 +5854,47 @@ class MossRunner {
     if (m.autoCheck && fresh.length && llm.model && llm.vision) {
       this.setState("writing");
       await ImageCheck.run(this.app, fresh, this.abort.signal);
+    }
+  }
+
+  async revise() {
+    const app = this.app;
+    const m = app.doc.moss;
+    const msg = USER_SETTINGS.revise.messages;
+    const entry = m.images[m.current];
+    const request = String(m.reviseText || "").trim();
+    if (!entry) { app.status(msg.noImage, true); return; }
+    if (!request) { app.status(msg.empty, true); return; }
+    if (!app.store.data.llm.model) { app.status(msg.noLlm, true); return; }
+    if (!this.begin()) return;
+    const t0 = performance.now();
+    try {
+      await app.freeImageVram();
+      this.setState("writing");
+      app.status(msg.thinking);
+      let result;
+      try {
+        result = await Reviser.ask(app, entry, request, this.abort.signal);
+      } catch (err) {
+        if (err.name === "AbortError") throw err;
+        app.status(fmt(msg.failed, { err: describeError(err, "文章AI") }), true);
+        return;
+      }
+      app.commit(() => {
+        m.override = MossLayout.format(result.layout);
+        m.useOverride = true;
+        m.loadedBubbleKey = MossLayout.bubbleKey(app.doc);
+        m.lastRevision = { request, note: result.note, from: m.current };
+      }, { inspector: true });
+      app.status(fmt(msg.applied, { note: result.note || request }));
+      this.state = null;
+      this.seedOverride = m.reviseSameSeed !== false && Number.isFinite(Number(entry.seed)) ? Number(entry.seed) : null;
+      await this.executeBatch(t0);
+    } catch (err) {
+      this.report(err);
+    } finally {
+      this.seedOverride = null;
+      await this.finish();
     }
   }
 
@@ -5750,7 +5941,7 @@ class MossRunner {
     };
     const s = m.settings;
     const defaults = USER_SETTINGS.moss.defaults.settings;
-    const seed = Number(s.seed);
+    const seed = this.seedOverride ?? Number(s.seed);
     return {
       prompt: MossLayout.prompt(doc), negative: this.negative(), model: Names.match(m.model, res.models), vae: "",
       modules: files, loraFirst: true,
@@ -5946,12 +6137,57 @@ class MossRunner {
     if (!app.doc.moss.model) { app.status(this.msg.needModel, true); return; }
     if (!this.begin()) return;
     try {
+      await this.fillBlanks();
       await this.executeBatch(performance.now());
     } catch (err) {
       this.report(err);
     } finally {
       await this.finish();
     }
+  }
+
+  async fillBlanks() {
+    const app = this.app;
+    const doc = app.doc;
+    const m = doc.moss;
+    const llm = app.store.data.llm;
+    if (m.useOverride || !llm.model || !app.store.data.ui.useLlm) return;
+    const needStory = !(doc.story.synopsis || "").trim() && (Project.mainItem(doc) || CharacterSheet.filled(doc).length || doc.panels.some((p) => (p.instruction || "").trim()));
+    const lines = DialogueFiller.targets(doc).length;
+    if (!needStory && !lines) return;
+    await app.freeImageVram();
+    this.setState("writing");
+    if (needStory) {
+      app.status(this.msg.writingStory);
+      try {
+        const story = await MossStoryWriter.write(app, this.abort.signal);
+        app.commit(() => { doc.story.synopsis = story; doc.story.aiStory = story; }, { inspector: true });
+        app.status(this.msg.storyFilledRun);
+      } catch (err) {
+        if (err.name === "AbortError") throw err;
+        app.status(fmt(this.msg.directFailed, { err: describeError(err, "文章AI") }), true);
+      }
+    }
+    if (lines && MossLayout.isManga(doc) && Layout.readingOrder(doc).some((p) => Board.stale(p))) {
+      app.status(USER_SETTINGS.board.messages.writing);
+      try {
+        await StoryboardWriter.write(app, this.abort.signal);
+      } catch (err) {
+        if (err.name === "AbortError") throw err;
+        app.status(fmt(USER_SETTINGS.board.messages.failed, { err: describeError(err, "文章AI") }), true);
+      }
+    }
+    if (lines) {
+      app.status(fmt(this.msg.fillingLines, { n: lines }));
+      try {
+        const n = await DialogueFiller.fill(app, this.abort.signal);
+        app.status(fmt(this.msg.linesFilled, { n }));
+      } catch (err) {
+        if (err.name === "AbortError") throw err;
+        app.status(fmt(this.msg.linesFailed, { err: describeError(err, "文章AI") }), true);
+      }
+    }
+    this.state = null;
   }
 
   report(err) {
@@ -6039,7 +6275,7 @@ class MossRunner {
     const img = await app.assets.image(asset);
     app.commit(() => {
       m.images.push({
-        asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, info: result.info || "", prompt: spec.prompt, negative: spec.negative,
+        asset, w: img.naturalWidth, h: img.naturalHeight, seed: result.seed, info: result.info || "", prompt: MossRunner.sentPrompt(spec), negative: spec.negative,
         model: spec.model, loras: spec.loras, textEncoder: m.textEncoder, vae: m.vae, settings: spec.settings, textMode: m.textMode, mono, gray, at: new Date().toISOString(),
         bubbles: clone(app.doc.bubbles), bubbleCaptions: clone(m.captions.bubbles || {}), captions: clone(m.captions),
         instructions: Object.fromEntries(app.doc.panels.map((p) => [p.id, [p.instruction || "", p.aiInstruction || ""]])),
@@ -7423,8 +7659,10 @@ class InspectorView {
     const tab = this.app.store.data.ui.tab;
     document.querySelectorAll(".tabs-h button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     const sameTab = this.lastTab === tab;
+    this.scrollByTab ??= {};
+    if (this.lastTab) this.scrollByTab[this.lastTab] = this.box.scrollTop;
     this.lastTab = tab;
-    const scrollTop = sameTab ? this.box.scrollTop : 0;
+    const scrollTop = sameTab ? this.box.scrollTop : this.scrollByTab[tab] || 0;
     const active = this.box.contains(document.activeElement) ? document.activeElement : null;
     const focusKey = active ? this.focusKeyOf(active) : null;
     const caret = focusKey && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd] : null;
@@ -7798,6 +8036,20 @@ class InspectorView {
     return sec;
   }
 
+  mossReviseSection() {
+    const app = this.app;
+    const m = this.doc.moss;
+    const msg = USER_SETTINGS.revise.messages;
+    const last = m.lastRevision;
+    return h("div", { class: "insp-sec" },
+      h("h3", { class: "insp-title", text: `${msg.title}（${m.current + 1} 枚目）` }),
+      this.mossText(m.reviseText, (v) => { m.reviseText = v; }, { rows: 2, placeholder: msg.placeholder, "aria-label": msg.title, "data-focus": "moss:revise" }),
+      this.mossCheck(msg.sameSeed, m.reviseSameSeed !== false, (v) => { m.reviseSameSeed = v; }),
+      h("button", { class: "run", type: "button", text: msg.run, disabled: app.moss.busy || app.llmBusy || !m.images[m.current], onclick: () => app.moss.revise() }),
+      last ? h("p", { class: "note keep", text: `前回の修正（${last.from + 1} 枚目から）: ${last.note || last.request}` }) : null,
+      h("p", { class: "note", text: msg.note }));
+  }
+
   bubbleFormBase() {
     const b = this.app.canvas.bubble();
     const cfg = USER_SETTINGS.bubble;
@@ -8052,7 +8304,7 @@ class InspectorView {
 
   // MOSS-IMAGE TAB
   mossForm() {
-    const check = this.doc.moss.images.length ? [this.mossCheckSection()] : [];
+    const check = this.doc.moss.images.length ? [this.mossCheckSection(), this.mossReviseSection()] : [];
     return [this.mossModeSection(), ...check, this.mossQuickSection(), this.mossPageSection(), this.mossPanelsSection(), this.mossDialogueSection(), this.reviewSection(), this.mossModelSection(), this.mossSettingsSection(), this.mossJsonSection()];
   }
 
@@ -8439,8 +8691,10 @@ class InspectorView {
       m.useOverride = use.checked;
       if (use.checked && !String(m.override || "").trim()) m.override = ta.value;
     }));
+    const tags = MossRunner.loraTags((m.loras || []).filter((l) => l.name && l.on !== false).map((l) => ({ name: Names.match(l.name, app.resources.loras), weight: Number(l.weight ?? 1) })));
     const details = h("details", { open: !!this.mossJsonOpen }, h("summary", { text: "MOSS に送るJSONを確認・手直し" }),
       h("label", { class: "check" }, use, "手で直したJSONで生成する"),
+      h("p", { class: tags ? "note keep lora-sent" : "note keep", text: tags ? `LoRA: 送るときは JSON の前に ${tags} を付けます（Forge が読み取って適用し、生成情報にも残ります）。` : "LoRA: 選んでいません。" }),
       h("p", { class: "note", text: msg.overrideNote }),
       h("span", { class: "prop-label", text: "読みやすく表示（送る内容と同じ。表示だけ）" }),
       readable,
@@ -9613,8 +9867,13 @@ class App {
     this.canvas.stopCut();
     ui.mode = mode;
     if (mode !== "bubble") this.canvas.selectedBubble = null;
-    if (mode === "bubble") ui.tab = "bubble";
-    else if (ui.tab === "bubble") ui.tab = "panel";
+    if (mode === "bubble") {
+      if (ui.tab !== "bubble") this.bubbleReturnTab = ui.tab;
+      ui.tab = "bubble";
+    } else if (ui.tab === "bubble") {
+      ui.tab = this.bubbleReturnTab || "panel";
+      this.bubbleReturnTab = null;
+    }
     this.store.save();
     this.updateLeft();
     this.updateTools();
