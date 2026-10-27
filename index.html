@@ -391,10 +391,11 @@ body.resizing * { user-select: none; }
 .lora-pick:last-child { border-bottom: none; }
 .lora-pick.on { background: var(--accent-dim, rgba(30, 110, 230, 0.08)); }
 .lora-pick-name { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; cursor: pointer; }
-.lora-pick-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lora-pick-name span { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lora-pick-weight { padding-left: 22px; }
 .lora-typed { display: flex; gap: 6px; }
-.lora-typed input { flex: 1 1 auto; min-width: 0; }
+.lora-typed { flex-wrap: nowrap; }
+.lora-typed input { flex: 1 1 auto; min-width: 0; width: auto; }
 .stage-actions { flex: none; min-width: 0; overflow: hidden; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
@@ -1310,7 +1311,7 @@ If the user chose characters, they star in the page (the protagonist is the main
       noSync: "Forge から設定を読み取れませんでした。",
       enabledNote: "オンのあいだは、左下の「④ 実行」でページ全体を MOSS-Image で1枚生成します。コマの形・吹き出し・各コマの「生成したい内容」がそのままプロンプトになります。",
       modelNote: "ここで選ぶモデル・LoRA は MOSS のページ生成だけに使います（コマごとの生成に使う「全コマ共通」の Checkpoint・LoRA とは別です）。",
-      onlyMossNote: "名前に moss を含むものだけ表示しています。",
+      onlyMossNote: "Checkpoint は名前に moss を含むものだけ表示しています（LoRA はすべて表示します）。",
       modulesNote: "空欄のときは、Forge の画面で選んでいるものをそのまま使います。",
       overlayNote: "「アプリで重ねる」は、MOSS には吹き出しの場所を空けておくよう伝え、生成後に Stillmange の吹き出しを上に重ねます。",
       captionNote: "文章AIが書いた英語の説明です。直接直せます。英語の欄を空にして生成すると、その部分だけ、いま入力されている日本語の内容やストーリーから文章AIが書き直します（日本語の欄も空なら、そのコマの内容から考えます）。",
@@ -8293,13 +8294,13 @@ class InspectorView {
       h("h3", { class: "insp-title" }, "モデル（MOSS 専用）",
         h("button", { class: "mini title-action", text: "Forge の設定を読み込む", onclick: () => runner.syncFromForge() })),
       h("p", { class: "note", text: c.messages.modelNote }),
-      this.mossCheck("MOSS 用のものだけ表示する", m.onlyMoss, (v) => app.commit(() => { m.onlyMoss = v; })),
+      this.mossCheck("Checkpoint は MOSS 用のものだけ表示する", m.onlyMoss, (v) => app.commit(() => { m.onlyMoss = v; })),
       h("div", { class: "set-grid" },
         h("span", { class: "prop-label", text: "Checkpoint" }), model,
         h("span", { class: "prop-label", text: "Text Encoder" }), te,
         h("span", { class: "prop-label", text: "VAE" }), vae),
       h("p", { class: "note", text: c.messages.modulesNote }));
-    if (filtered(res.models, c.modelPattern) || filtered(res.loras, c.modelPattern)) sec.append(h("p", { class: "note", text: c.messages.onlyMossNote }));
+    if (filtered(res.models, c.modelPattern)) sec.append(h("p", { class: "note", text: c.messages.onlyMossNote }));
     sec.append(this.mossLoraPicker());
     return sec;
   }
@@ -8307,51 +8308,43 @@ class InspectorView {
   mossLoraPicker() {
     const app = this.app;
     const m = this.doc.moss;
-    const c = USER_SETTINGS.moss;
-    const all = app.moss.candidates(app.resources.loras, c.modelPattern);
-    const picked = new Map(m.loras.map((l) => [l.name, l]));
-    const names = [...m.loras.map((l) => l.name).filter(Boolean), ...all.filter((n) => !picked.has(n))];
-    const query = h("input", { type: "search", placeholder: "LoRA を名前で絞り込む", "aria-label": "LoRA を名前で絞り込む", value: this.mossLoraQuery || "" });
-    const rows = names.map((name) => {
-      const l = picked.get(name);
-      const missing = !all.includes(name);
-      const cb = h("input", { type: "checkbox", checked: !!l && l.on !== false, "aria-label": `${name} を使う` });
-      cb.addEventListener("change", () => app.commit(() => {
-        const hit = m.loras.find((x) => x.name === name);
-        if (cb.checked) { if (hit) hit.on = true; else m.loras.push({ name, weight: 1, on: true }); }
-        else m.loras = m.loras.filter((x) => x.name !== name);
-      }, { inspector: true }));
-      const label = h("label", { class: "lora-pick-name", title: name }, cb, h("span", { text: Infotext.displayName(name) + (missing ? "（一覧にありません）" : "") }));
-      const row = h("div", { class: `lora-pick${l ? " on" : ""}`, "data-name": name.toLowerCase() }, label);
-      if (l) {
-        const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, "aria-label": `${name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
-        weight.addEventListener("input", () => { l.weight = Number(weight.value); });
-        row.append(h("div", { class: "lora-pick-weight" }, weight));
-      }
-      return row;
+    const all = [...(app.resources.loras || [])];
+    const rows = m.loras.map((l, i) => {
+      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う", "aria-label": `${l.name} を使う` });
+      on.addEventListener("change", () => { l.on = on.checked; });
+      const missing = all.length && !all.includes(l.name);
+      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, "aria-label": `${l.name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
+      weight.addEventListener("input", () => { l.weight = Number(weight.value); });
+      const del = h("button", { class: "mini", type: "button", text: "×", title: "外す", "aria-label": `${l.name} を外す`, onclick: () => app.commit(() => m.loras.splice(i, 1), { inspector: true }) });
+      return h("div", { class: "lora-pick on" },
+        h("div", { class: "lora-pick-name", title: l.name }, on, h("span", { text: Infotext.displayName(l.name) + (missing ? "（一覧にありません）" : "") }), del),
+        h("div", { class: "lora-pick-weight" }, weight));
     });
-    const list = h("div", { class: "lora-pick-list" }, rows.length ? rows : h("p", { class: "note keep", text: m.onlyMoss ? "名前に moss を含む LoRA が見つかりません。「MOSS 用のものだけ表示する」をオフにするか、「一覧を読み直す」を押してください。" : "LoRA が見つかりません。Forge の models/Lora に入れて「一覧を読み直す」を押してください。" }));
-    const typed = h("input", { type: "text", placeholder: "一覧にない LoRA の名前（例: xipa202601-mid03_moss_v01）", "aria-label": "LoRA の名前を入力" });
+    const add = h("select", { "aria-label": "LoRA を追加" });
+    const rest = all.filter((n) => !m.loras.some((l) => l.name === n));
+    fillSelect(add, [["", all.length ? `（LoRA を選んで追加・${rest.length} 個）` : "（LoRA が読み込まれていません）"], ...rest.map((n) => [n, Infotext.displayName(n)])], "");
+    add.disabled = !rest.length;
+    add.addEventListener("change", () => {
+      if (!add.value) return;
+      const name = add.value;
+      app.commit(() => m.loras.push({ name, weight: 1, on: true }), { inspector: true });
+    });
+    const typed = h("input", { type: "text", placeholder: "一覧にない LoRA の名前", "aria-label": "LoRA の名前を入力" });
     const addTyped = () => {
       const name = typed.value.trim().replace(/^<lora:|>$/g, "").replace(/:[-\d.]+$/, "").replace(/\.safetensors$/i, "");
       if (!name || m.loras.some((x) => x.name === name)) return;
       app.commit(() => m.loras.push({ name, weight: 1, on: true }), { inspector: true });
     };
     typed.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } });
-    const manual = h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped }));
-    const apply = () => {
-      const q = query.value.trim().toLowerCase();
-      this.mossLoraQuery = query.value;
-      rows.forEach((r) => { r.hidden = !!q && !r.classList.contains("on") && !r.dataset.name.includes(q); });
-    };
-    query.addEventListener("input", apply);
-    apply();
     return h("div", { class: "lora-picker" },
       h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `LoRA（MOSS 用・${m.loras.length} 個選択中）` }),
         h("button", { class: "mini", type: "button", text: "一覧を読み直す", title: "Forge に LoRA のフォルダを読み直させてから一覧を取り直します", onclick: () => app.loadResources({ refresh: true }) })),
-      query, list, manual,
-      h("p", { class: "note", text: "使う LoRA にチェックを入れると、強さを決められます。チェックした LoRA は一覧の上に並びます。" }));
+      rows.length ? h("div", { class: "lora-pick-list" }, rows) : null,
+      add,
+      h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped })),
+      h("p", { class: "note", text: "Forge に入っている LoRA をすべて一覧に出しています（MOSS 用かどうかは見分けられないので、使うものを選んでください）。選んだ LoRA は上に並び、強さを決められます。" }));
   }
+
 
   mossSettingsSection() {
     const app = this.app;
