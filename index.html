@@ -349,7 +349,13 @@ body.resizing * { user-select: none; }
 .char-card { display: grid; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); }
 .char-card .g-head { display: flex; align-items: center; }
 .char-card .char-del { margin-left: auto; min-width: 26px; }
-.stage-actions { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
+.img-fade { display: flex; align-items: center; gap: 8px; margin-right: auto; flex: none; }
+.stage-out { display: flex; gap: 8px; margin-left: auto; flex: none; }
+.stage-out button, .img-fade button { white-space: nowrap; }
+.img-fade-range { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.img-fade-range .numctl { width: 200px; }
+.img-fade button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.stage-actions { flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
 .moss-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -581,9 +587,15 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     </div>
     <div class="moss-strip" id="moss-strip" hidden></div>
     <div class="stage-actions">
-      <button id="save-project" title="作業中のプロジェクトを JSON ファイルに保存します（「開く」で続きから作業できます）">保存</button>
-      <button id="export-png" title="できあがったページを PNG 画像で書き出します">書き出す</button>
+      <div class="img-fade" id="img-fade" hidden>
+        <button class="mini" id="img-hide" type="button" aria-pressed="false" title="生成した画像を隠して、コマ割りと吹き出しだけを表示します（書き出し・投稿には影響しません）">画像を隠す</button>
+        <label class="img-fade-range" title="生成した画像を薄くして、コマ割りと吹き出しを調整しやすくします（書き出し・投稿には影響しません）"><span>画像の濃さ（%）</span><input type="range" id="img-opacity" min="0" max="100" step="5" aria-label="生成した画像の濃さ"></label>
+      </div>
+      <div class="stage-out">
+      <button id="save-project" title="作業中のプロジェクトを JSON ファイルに保存します（「開く」で続きから作業できます）">作業データを保存（JSON）</button>
+      <button id="export-png" title="できあがったページを PNG 画像で書き出します">ページを画像で書き出す（PNG）</button>
       <button class="primary" id="post-share" title="漫画ページを1枚目、各コマの画像を2枚目以降の差分として Prompt Reel の投稿画面に渡します">Prompt Reel に投稿</button>
+      </div>
     </div>
   </section>
   <div class="splitter" data-side="right" role="separator" aria-orientation="vertical" aria-label="右のパネルの幅（ドラッグで調整・ダブルクリックで元に戻す）" title="ドラッグで幅を調整（ダブルクリックで元に戻す）"></div>
@@ -658,7 +670,8 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     <section class="help-sec">
       <h3><span class="no">7</span>保存・書き出し・投稿</h3>
       <ul>
-        <li>プレビューの下の「保存」で作業中のデータを JSON に保存し、上の「開く」で続きから。「書き出す」で1ページの PNG 画像に。</li>
+        <li>プレビューの下の「作業データを保存（JSON）」で作業中のデータを保存し、上の「開く」で続きから。「ページを画像で書き出す（PNG）」で1ページの画像に。</li>
+        <li>生成後に微調整するときは、プレビューの下の「画像の濃さ」で生成した画像を薄くするか、「画像を隠す」で隠すと、コマの枠と吹き出しが見やすくなります（書き出し・投稿には影響しません）。</li>
         <li>「Prompt Reel に投稿」で、ページを1枚目、各コマの画像を差分として投稿画面へ渡します。</li>
         <li>ショートカット: <kbd>Ctrl</kbd>+<kbd>Z</kbd> 戻る ／ <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> やり直す ／ <kbd>Delete</kbd> 削除</li>
       </ul>
@@ -5990,18 +6003,24 @@ class CanvasView {
     const insets = new Map(doc.panels.map((p) => [p.id, Layout.insetPts(doc, p)]));
     const defs = [`<filter id="f-mono" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/></filter>`], body = [];
     body.push(`<rect width="${pg.w}" height="${pg.h}" fill="${colors[pg.pageColor]}"/>`);
+    const fade = exportMode ? 1 : this.app.imageFade();
+    const fadeAttr = fade < 1 ? ` opacity="${fade}"` : "";
     const moss = MossLayout.shown(doc, this.app.assets);
     if (moss) {
       const shownAsset = MossLayout.displayAsset(doc, moss, this.app.assets);
       const href = exportMode ? this.app.assets.dataUrl(shownAsset) : this.app.assets.url(shownAsset);
-      body.push(`<image href="${href}" x="0" y="0" width="${pg.w}" height="${pg.h}" preserveAspectRatio="xMidYMid slice"/>`);
+      if (fade > 0) body.push(`<image href="${href}" x="0" y="0" width="${pg.w}" height="${pg.h}" preserveAspectRatio="xMidYMid slice"${fadeAttr}/>`);
       if (MossLayout.finished(doc) && doc.moss.maskOutside) {
         const holes = doc.panels.map((p) => `M${this.polyStr(insets.get(p.id)).replace(/ /g, " L")}Z`).join(" ");
         body.push(`<path d="M0,0 H${pg.w} V${pg.h} H0 Z ${holes}" fill="${colors[pg.pageColor]}" fill-rule="evenodd"/>`);
         if (pg.lineWidth > 0) for (const p of doc.panels) body.push(`<polygon points="${this.polyStr(insets.get(p.id))}" fill="none" stroke="${colors[pg.frameColor]}" stroke-width="${pg.lineWidth}" stroke-linejoin="miter"/>`);
       }
+      if (fade < 1) {
+        const stroke = Math.max(2, Math.max(pg.w, pg.h) * 0.002);
+        body.push(`<g class="fade-guides" fill="none" stroke="${colors[pg.pageColor === "black" ? "white" : "black"]}" stroke-opacity="0.55" stroke-width="${stroke}" stroke-dasharray="${stroke * 4} ${stroke * 3}">${doc.panels.map((p) => `<polygon points="${this.polyStr(insets.get(p.id))}"/>`).join("")}</g>`);
+      }
       const drawn = MossLayout.finished(doc) && (moss.textMode || doc.moss.textMode) === "overlay";
-      const guides = !exportMode && !drawn && this.mode === "bubble";
+      const guides = !exportMode && !drawn && (this.mode === "bubble" || fade < 1);
       const overlay = drawn ? doc.bubbles.map((b) => Bubbles.svg(b, null)).join("") : guides ? `<g opacity="${USER_SETTINGS.moss.guideOpacity}">${doc.bubbles.map((b) => Bubbles.svg(b, null)).join("")}</g>` : "";
       return { defs: defs.join(""), body: body.join(""), bubbles: overlay, insets };
     }
@@ -6011,11 +6030,11 @@ class CanvasView {
       defs.push(`<clipPath id="clip-${p.id}"><polygon points="${pts}"/></clipPath>`);
       let image = "";
       const entry = Project.currentImage(p);
-      if (entry && this.app.assets.has(entry.asset)) {
+      if (entry && this.app.assets.has(entry.asset) && fade > 0) {
         const pl = Project.placement(Geo.bbox(inset), entry, p.view);
         const href = exportMode ? this.app.assets.dataUrl(entry.asset) : this.app.assets.url(entry.asset);
         const tf = Project.imageTransform(pl, p.view);
-        image = `<image href="${href}" x="${pl.x}" y="${pl.y}" width="${pl.w}" height="${pl.h}" preserveAspectRatio="none"${tf ? ` transform="${tf}"` : ""}${Project.isMono(doc, p) ? ` filter="url(#f-mono)"` : ""}/>`;
+        image = `<image href="${href}" x="${pl.x}" y="${pl.y}" width="${pl.w}" height="${pl.h}" preserveAspectRatio="none"${tf ? ` transform="${tf}"` : ""}${Project.isMono(doc, p) ? ` filter="url(#f-mono)"` : ""}${fadeAttr}/>`;
       }
       body.push(`<g clip-path="url(#clip-${p.id})"><polygon points="${pts}" fill="${colors[pg.panelFill]}"/>${image}</g>`);
       if (pg.lineWidth > 0) body.push(`<polygon points="${pts}" fill="none" stroke="${colors[pg.frameColor]}" stroke-width="${pg.lineWidth}" stroke-linejoin="miter"/>`);
@@ -6070,6 +6089,7 @@ class CanvasView {
     const r = USER_SETTINGS.geometry.handlePx / scale;
     this.svg.setAttribute("viewBox", `0 0 ${pg.w} ${pg.h}`);
     this.svg.classList.toggle("mode-image", this.mode === "image");
+    this.app.updateImageFade();
     const c = this.compose(false);
     this.insets = c.insets;
     const over = [];
@@ -6493,7 +6513,7 @@ class CanvasView {
 
   bubblesHidden() {
     const moss = MossLayout.shown(this.doc, this.app.assets);
-    if (!moss || this.mode === "bubble") return false;
+    if (!moss || this.mode === "bubble" || this.app.imageFade() < 1) return false;
     return !(MossLayout.finished(this.doc) && (moss.textMode || this.doc.moss.textMode) === "overlay");
   }
 
@@ -8408,6 +8428,29 @@ class App {
     return name;
   }
 
+  imageFade() {
+    const ui = this.store.data.ui;
+    if (ui.imageHidden) return 0;
+    const v = Number(ui.imageOpacity ?? 100);
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v / 100)) : 1;
+  }
+
+  hasGeneratedImage() {
+    const doc = this.doc;
+    if (!doc) return false;
+    return !!MossLayout.shown(doc, this.assets) || doc.panels.some((p) => Project.currentImage(p));
+  }
+
+  updateImageFade() {
+    const ui = this.store.data.ui;
+    const v = Math.round(Number(ui.imageOpacity ?? 100));
+    $("img-fade").hidden = !this.hasGeneratedImage();
+    $("img-hide").setAttribute("aria-pressed", String(!!ui.imageHidden));
+    $("img-hide").textContent = ui.imageHidden ? "画像を表示" : "画像を隠す";
+    $("img-opacity").value = v;
+    $("img-opacity").disabled = !!ui.imageHidden;
+  }
+
   setMossWorkType(id) {
     if (id === "manga") { this.setSingle(false); return; }
     let name = null;
@@ -8650,6 +8693,19 @@ class App {
         this.commit(() => Project.resizePage(this.doc, w, hgt, pcfg.custom.id));
       });
     }
+    this.on($("img-hide"), "click", () => {
+      const ui = this.store.data.ui;
+      ui.imageHidden = !ui.imageHidden;
+      this.store.save();
+      this.canvas.render();
+    });
+    this.on($("img-opacity"), "input", (e) => {
+      const ui = this.store.data.ui;
+      ui.imageOpacity = Number(e.target.value);
+      ui.imageHidden = false;
+      this.store.save();
+      this.canvas.render();
+    });
     this.on($("page-swap"), "click", () => {
       const pg = this.doc.page;
       this.commit(() => Project.resizePage(this.doc, pg.h, pg.w, pcfg.custom.id));
