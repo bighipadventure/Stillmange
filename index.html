@@ -775,7 +775,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
         <ol class="steps">
           <li>ZIP を WebUI の <code>extensions</code> フォルダに展開し、<code>extensions\web-app-cors\scripts\web_app_cors.py</code> となるようにします（<code>web-app-cors</code> フォルダが二重にならないよう注意）。<br>Stability Matrix の場合: <code>Data\Packages\（パッケージ名。例: forge-neo）\extensions</code></li>
           <li>起動オプション（Stability Matrix なら「Extra Launch Arguments」、それ以外は webui-user.bat の COMMANDLINE_ARGS）には、何も書く必要はありません。</li>
-          <li>WebUI を停止 → 起動し直します。ログに <code>[web-app-cors] v1 allowed origins: …</code> と出れば読み込まれています。</li>
+          <li>WebUI を停止 → 起動し直します。ログに <code>[web-app-cors] v2 allowed origins: …</code> と出れば読み込まれています（v1 と出る場合は古い版なので、ダウンロードし直して入れ替えてください。LoRA の一覧が出ない原因になります）。</li>
           <li>ブラウザで <code id="cors-ext-a1111-ping"></code> を開き、<code>{"ok":true, …, "api":true}</code> と出れば準備完了です。</li>
         </ol>
         <p class="note">ログに <code>could not enable API</code> と出た場合は、起動オプションに <code>--api</code> を足してください。ログに <code>Exception in thread … (webui_worker)</code> が出ている場合は、起動途中で止まっているため拡張機能が読み込まれません。エラーに名前が出ている拡張機能（例: sd-webui-ar）を外してください。</p>
@@ -881,7 +881,7 @@ A1111 / Forge / Forge Neo に、次のWebアプリ（__ORIGINS_TEXT__）と、�
    （Stability Matrix の場合: Data\\Packages\\（パッケージ名。例: forge-neo）\\extensions）
 2. 起動オプションには、何も書く必要はありません。
 3. WebUI を停止して、起動し直します。
-4. ログに「[web-app-cors] v1 allowed origins: ...」と出れば読み込まれています。
+4. ログに「[web-app-cors] v2 allowed origins: ...」と出れば読み込まれています（v1 が出るときは古い版です。入れ替えてください）。
 5. ブラウザで http://127.0.0.1:7860/web-app-cors/ping を開き、{"ok": true, ..., "api": true} と出れば準備完了です。
 
 ログに「could not enable API」と出た場合は、起動オプションに --api を足してください。
@@ -909,9 +909,11 @@ ALLOW_ALL = False
 ENABLE_API = True
 
 NAME = "web-app-cors"
-VERSION = "1"
+VERSION = "2"
 PING_PATH = f"/{NAME}/ping"
 API_CHECK_PATH = "/sdapi/v1/txt2img"
+LORA_PATH = "/sdapi/v1/loras"
+LORA_LIST_PATH = f"/{NAME}/loras"
 ALLOWED_METHODS = b"GET, POST, PUT, DELETE, OPTIONS"
 PREFLIGHT_MAX_AGE = b"600"
 PATTERNS = [re.compile(p, re.IGNORECASE) for p in ALLOWED_ORIGIN_PATTERNS]
@@ -982,12 +984,42 @@ def enable_api(app):
     print(f"[{NAME}] API enabled without --api")
 
 
+def lora_module():
+    import sys
+    mod = sys.modules.get("networks")
+    if mod is None or not hasattr(mod, "available_networks"):
+        import networks as mod
+    return mod
+
+
+def lora_names():
+    nets = lora_module()
+    return [{"name": n.name, "alias": getattr(n, "alias", n.name), "path": getattr(n, "filename", "")} for n in nets.available_networks.values()]
+
+
+def lora_refresh():
+    lora_module().list_available_networks()
+    return {"ok": True}
+
+
+def has_route(app, path):
+    return any(getattr(route, "path", "") == path for route in app.routes)
+
+
+def enable_lora_api(app):
+    app.add_api_route(LORA_LIST_PATH, lora_names, methods=["GET"])
+    if not has_route(app, LORA_PATH):
+        app.add_api_route(LORA_PATH, lora_names, methods=["GET"])
+        app.add_api_route("/sdapi/v1/refresh-loras", lora_refresh, methods=["POST"])
+        print(f"[{NAME}] LoRA list API enabled without --api")
+
+
 def ping_for(app):
     def ping():
         return {
             "ok": True, "extension": NAME, "server": "webui", "version": VERSION,
             "allowed_origins": sorted(ALLOWED_ORIGINS), "allowed_origin_patterns": ALLOWED_ORIGIN_PATTERNS, "allow_all": ALLOW_ALL,
-            "api": api_registered(app),
+            "api": api_registered(app), "loras": has_route(app, LORA_LIST_PATH),
         }
     return ping
 
@@ -1001,6 +1033,10 @@ def on_app_started(demo, app):
         enable_api(app)
     except Exception as exc:
         print(f"[{NAME}] could not enable API: {exc}  (起動オプションに --api を付けてください)")
+    try:
+        enable_lora_api(app)
+    except Exception as exc:
+        print(f"[{NAME}] could not enable LoRA list: {exc}")
     build = app.build_middleware_stack
     app.build_middleware_stack = lambda: WebAppCORS(build())
     app.middleware_stack = None
@@ -1956,6 +1992,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     layoutReset: "コマの形をテンプレート「{name}」に戻しました（内容は読む順に引き継いでいます）。",
     refreshingLists: "Forge のモデル・LoRA の一覧を読み直しています…",
     refreshedLists: "一覧を読み直しました（Checkpoint {models} 個・LoRA {loras} 個）。",
+    loraApiMissing: "Forge に LoRA 一覧の窓口がありません。「設定」から拡張機能 web-app-cors の最新版（v2）をダウンロードして入れ替え、Forge を起動し直してください（または起動オプションに --api を付けます）",
     loraListFailed: " LoRA の一覧を受け取れませんでした（{err}）。Forge の画面の LoRA タブで更新ボタンを押してから、もう一度「一覧を読み直す」を押してください。",
     needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
     llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
@@ -3236,7 +3273,13 @@ class A1111Client {
   }
 
   async loraList() {
+    const quick = await fetch(this.base + "/web-app-cors/loras", { signal: AbortSignal.timeout(USER_SETTINGS.listTimeoutMs) }).catch(() => null);
+    if (quick?.ok) {
+      const list = await quick.json().catch(() => null);
+      if (Array.isArray(list)) return list.map((l) => l?.name).filter(Boolean);
+    }
     const res = await fetch(this.base + "/sdapi/v1/loras", { signal: AbortSignal.timeout(USER_SETTINGS.loraListTimeoutMs) });
+    if (res.status === 404) throw new Error(USER_SETTINGS.messages.loraApiMissing);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     const data = JSON.parse(text.replace(/(?<=[:\[,]\s*)-?(?:NaN|Infinity)(?=\s*[,\]}])/g, "null"));
@@ -7958,22 +8001,7 @@ class InspectorView {
     const sec = h("div", { class: "insp-sec" }, this.title("LoRA", kind, "loras"));
     if (locked) sec.append(h("p", { class: "note keep", text: USER_SETTINGS.messages.lockedNote }));
     else if (kind === "panel") sec.append(h("p", { class: "note", text: USER_SETTINGS.messages.loraInherit }));
-    list.forEach((l, i) => {
-      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う", disabled: !!locked });
-      on.addEventListener("change", () => { l.on = on.checked; });
-      const name = this.choice(this.app.resources.loras, l.name, null, (v) => { l.name = v; });
-      name.disabled = !!locked;
-      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, disabled: !!locked, "aria-label": "強さ", "data-slider-min": -1, "data-slider-max": 2 });
-      weight.addEventListener("input", () => { l.weight = Number(weight.value); });
-      const del = h("button", { text: "×", title: "外す", disabled: !!locked, onclick: () => this.app.commit(() => list.splice(i, 1)) });
-      sec.append(h("div", { class: "lora-row" }, on, name, weight, del));
-    });
-    if (!locked) {
-      sec.append(h("div", { class: "row" }, h("button", {
-        class: "mini", text: "＋ LoRA を追加",
-        onclick: () => this.app.commit(() => list.push({ name: this.app.resources.loras?.[0] || "", weight: 1, on: true })),
-      })));
-    }
+    sec.append(this.loraPicker(list, { title: kind === "common" ? "LoRA（全コマ共通）" : "LoRA（このコマ）", disabled: !!locked }));
     return sec;
   }
 
@@ -8319,45 +8347,47 @@ class InspectorView {
   }
 
   mossLoraPicker() {
+    return this.loraPicker(this.doc.moss.loras, { title: "LoRA（MOSS 用）", note: "Forge に入っている LoRA をすべて一覧に出しています（MOSS 用かどうかは見分けられないので、使うものを選んでください）。選んだ LoRA は上に並び、強さを決められます。" });
+  }
+
+  loraPicker(list, { title = "LoRA", note = "", disabled = false } = {}) {
     const app = this.app;
-    const m = this.doc.moss;
     const all = [...(app.resources.loras || [])];
-    const rows = m.loras.map((l, i) => {
-      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う", "aria-label": `${l.name} を使う` });
+    const rows = list.map((l, i) => {
+      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う", disabled, "aria-label": `${l.name} を使う` });
       on.addEventListener("change", () => { l.on = on.checked; });
       const missing = all.length && !all.includes(l.name);
-      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, "aria-label": `${l.name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
+      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, disabled, "aria-label": `${l.name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
       weight.addEventListener("input", () => { l.weight = Number(weight.value); });
-      const del = h("button", { class: "mini", type: "button", text: "×", title: "外す", "aria-label": `${l.name} を外す`, onclick: () => app.commit(() => m.loras.splice(i, 1), { inspector: true }) });
+      const del = h("button", { class: "mini", type: "button", text: "×", title: "外す", disabled, "aria-label": `${l.name} を外す`, onclick: () => app.commit(() => list.splice(i, 1), { inspector: true }) });
       return h("div", { class: "lora-pick on" },
-        h("div", { class: "lora-pick-name", title: l.name }, on, h("span", { text: Infotext.displayName(l.name) + (missing ? "（一覧にありません）" : "") }), del),
+        h("div", { class: "lora-pick-name", title: l.name }, on, h("span", { text: Infotext.displayName(l.name || "（未選択）") + (missing ? "（一覧にありません）" : "") }), del),
         h("div", { class: "lora-pick-weight" }, weight));
     });
-    const add = h("select", { "aria-label": "LoRA を追加" });
-    const rest = all.filter((n) => !m.loras.some((l) => l.name === n));
-    fillSelect(add, [["", all.length ? `（LoRA を選んで追加・${rest.length} 個）` : "（LoRA が読み込まれていません）"], ...rest.map((n) => [n, Infotext.displayName(n)])], "");
-    add.disabled = !rest.length;
-    add.addEventListener("change", () => {
-      if (!add.value) return;
-      const name = add.value;
-      app.commit(() => m.loras.push({ name, weight: 1, on: true }), { inspector: true });
-    });
-    const typed = h("input", { type: "text", placeholder: "一覧にない LoRA の名前", "aria-label": "LoRA の名前を入力" });
-    const addTyped = () => {
-      const name = typed.value.trim().replace(/^<lora:|>$/g, "").replace(/:[-\d.]+$/, "").replace(/\.safetensors$/i, "");
-      if (!name || m.loras.some((x) => x.name === name)) return;
-      app.commit(() => m.loras.push({ name, weight: 1, on: true }), { inspector: true });
-    };
-    typed.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } });
-    return h("div", { class: "lora-picker" },
-      h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `LoRA（MOSS 用・${m.loras.length} 個選択中）` }),
+    const out = h("div", { class: "lora-picker" },
+      h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `${title}・${list.length} 個選択中` }),
         h("button", { class: "mini", type: "button", text: "一覧を読み直す", title: "Forge に LoRA のフォルダを読み直させてから一覧を取り直します", onclick: () => app.loadResources({ refresh: true }) })),
-      rows.length ? h("div", { class: "lora-pick-list" }, rows) : null,
-      add,
-      h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped })),
-      app.resources.loraError ? h("p", { class: "msg err", text: fmt(USER_SETTINGS.messages.loraListFailed, { err: app.resources.loraError }).trim() }) : null,
-      h("p", { class: "note", text: "Forge に入っている LoRA をすべて一覧に出しています（MOSS 用かどうかは見分けられないので、使うものを選んでください）。選んだ LoRA は上に並び、強さを決められます。" }));
+      rows.length ? h("div", { class: "lora-pick-list" }, rows) : null);
+    if (!disabled) {
+      const add = h("select", { "aria-label": "LoRA を追加" });
+      const rest = all.filter((n) => !list.some((l) => l.name === n));
+      fillSelect(add, [["", all.length ? `（LoRA を選んで追加・${rest.length} 個）` : "（LoRA が読み込まれていません）"], ...rest.map((n) => [n, Infotext.displayName(n)])], "");
+      add.disabled = !rest.length;
+      add.addEventListener("change", () => { if (add.value) { const name = add.value; app.commit(() => list.push({ name, weight: 1, on: true }), { inspector: true }); } });
+      const typed = h("input", { type: "text", placeholder: "一覧にない LoRA の名前", "aria-label": "LoRA の名前を入力" });
+      const addTyped = () => {
+        const name = typed.value.trim().replace(/^<lora:|>$/g, "").replace(/:[-\d.]+$/, "").replace(/\.safetensors$/i, "");
+        if (!name || list.some((x) => x.name === name)) return;
+        app.commit(() => list.push({ name, weight: 1, on: true }), { inspector: true });
+      };
+      typed.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } });
+      out.append(add, h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped })));
+    }
+    if (app.resources.loraError) out.append(h("p", { class: "msg err", text: fmt(USER_SETTINGS.messages.loraListFailed, { err: app.resources.loraError }).trim() }));
+    if (note) out.append(h("p", { class: "note", text: note }));
+    return out;
   }
+
 
 
   mossSettingsSection() {
