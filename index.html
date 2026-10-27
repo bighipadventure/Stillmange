@@ -1371,6 +1371,7 @@ If the user chose characters, they star in the page (the protagonist is the main
   },
   probeTimeoutMs: 2500,
   listTimeoutMs: 8000,
+  loraListTimeoutMs: 120000,
   pollIntervalMs: 1000,
   historyLimit: 100,
   wheelCommitMs: 600,
@@ -1955,6 +1956,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     layoutReset: "コマの形をテンプレート「{name}」に戻しました（内容は読む順に引き継いでいます）。",
     refreshingLists: "Forge のモデル・LoRA の一覧を読み直しています…",
     refreshedLists: "一覧を読み直しました（Checkpoint {models} 個・LoRA {loras} 個）。",
+    loraListFailed: " LoRA の一覧を受け取れませんでした（{err}）。Forge の画面の LoRA タブで更新ボタンを押してから、もう一度「一覧を読み直す」を押してください。",
     needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
     llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
     llmTruncated: "返事が途中で切れています（最大トークン数に達しました）。「設定」→「文章AI」の最大トークン数を増やしてください（考える過程を出すモデルは 8192 以上が目安）。",
@@ -3233,11 +3235,22 @@ class A1111Client {
     await Promise.all([post("/sdapi/v1/refresh-loras"), post("/sdapi/v1/refresh-checkpoints"), post("/sdapi/v1/refresh-vae")]);
   }
 
+  async loraList() {
+    const res = await fetch(this.base + "/sdapi/v1/loras", { signal: AbortSignal.timeout(USER_SETTINGS.loraListTimeoutMs) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const data = JSON.parse(text.replace(/(?<=[:\[,]\s*)-?(?:NaN|Infinity)(?=\s*[,\]}])/g, "null"));
+    if (!Array.isArray(data)) throw new Error("not a list");
+    return data.map((l) => l?.name).filter(Boolean);
+  }
+
   async resources() {
     const safe = (path, map) => this.get(path).then(map).catch(() => []);
+    let loraError = "";
+    const loraTask = this.loraList().catch((err) => { loraError = err.name === "TimeoutError" ? "時間切れ" : err.message; return []; });
     const [models, loras, samplers, schedulers, vaeList, upscalers, latent, options, moduleList] = await Promise.all([
       safe("/sdapi/v1/sd-models", (d) => d.map((m) => m.title)),
-      safe("/sdapi/v1/loras", (d) => d.map((l) => l.name)),
+      loraTask,
       safe("/sdapi/v1/samplers", (d) => d.map((s) => s.name)),
       safe("/sdapi/v1/schedulers", (d) => d.map((s) => s.label || s.name)),
       safe("/sdapi/v1/sd-vae", (d) => d.map((v) => ({ name: v.model_name, file: v.filename }))),
@@ -3249,7 +3262,7 @@ class A1111Client {
     const vaes = vaeList.map((v) => v.name);
     const modules = moduleList.length ? moduleList : vaeList;
     return {
-      models, loras, samplers, schedulers, vaes: vaes.length ? ["Automatic", "None", ...vaes] : [],
+      models, loras, loraError, samplers, schedulers, vaes: vaes.length ? ["Automatic", "None", ...vaes] : [],
       upscalers: [...latent, ...upscalers.filter((u) => u !== "None")],
       vaeFiles: Object.fromEntries(vaeList.map((v) => [v.name, v.file])),
       forgeNeo: Array.isArray(options.forge_additional_modules),
@@ -8342,6 +8355,7 @@ class InspectorView {
       rows.length ? h("div", { class: "lora-pick-list" }, rows) : null,
       add,
       h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped })),
+      app.resources.loraError ? h("p", { class: "msg err", text: fmt(USER_SETTINGS.messages.loraListFailed, { err: app.resources.loraError }).trim() }) : null,
       h("p", { class: "note", text: "Forge に入っている LoRA をすべて一覧に出しています（MOSS 用かどうかは見分けられないので、使うものを選んでください）。選んだ LoRA は上に並び、強さを決められます。" }));
   }
 
@@ -10586,7 +10600,7 @@ class App {
         await client.refreshLists();
       }
       this.resources = await client.resources();
-      if (refresh) this.status(fmt(USER_SETTINGS.messages.refreshedLists, { models: this.resources.models.length, loras: (this.resources.loras || []).length }));
+      if (refresh) this.status(fmt(USER_SETTINGS.messages.refreshedLists, { models: this.resources.models.length, loras: (this.resources.loras || []).length }) + (this.resources.loraError ? fmt(USER_SETTINGS.messages.loraListFailed, { err: this.resources.loraError }) : ""), !!this.resources.loraError);
       this.inspector.render();
       return this.resources.models.length + this.resources.samplers.length > 0;
     } catch {
