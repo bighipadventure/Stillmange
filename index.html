@@ -393,6 +393,8 @@ body.resizing * { user-select: none; }
 .lora-pick-name { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; cursor: pointer; }
 .lora-pick-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lora-pick-weight { padding-left: 22px; }
+.lora-typed { display: flex; gap: 6px; }
+.lora-typed input { flex: 1 1 auto; min-width: 0; }
 .stage-actions { flex: none; min-width: 0; overflow: hidden; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; background: var(--surface); border-top: 1px solid var(--line); }
 .moss-strip-item { position: relative; flex: 0 0 auto; width: 68px; height: 96px; padding: 0; overflow: hidden; background: var(--stage); }
@@ -1950,6 +1952,8 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     needBubble: "先に吹き出しを選んでください。",
     bubbleAdded: "吹き出しを追加しました。右の「吹き出し」でセリフと形を変えられます。",
     layoutReset: "コマの形をテンプレート「{name}」に戻しました（内容は読む順に引き継いでいます）。",
+    refreshingLists: "Forge のモデル・LoRA の一覧を読み直しています…",
+    refreshedLists: "一覧を読み直しました（Checkpoint {models} 個・LoRA {loras} 個）。",
     needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
     llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
     llmTruncated: "返事が途中で切れています（最大トークン数に達しました）。「設定」→「文章AI」の最大トークン数を増やしてください（考える過程を出すモデルは 8192 以上が目安）。",
@@ -3221,6 +3225,11 @@ class A1111Client {
     const res = await fetch(this.base + path, { signal: AbortSignal.timeout(USER_SETTINGS.listTimeoutMs) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+  }
+
+  async refreshLists() {
+    const post = (path) => fetch(this.base + path, { method: "POST", signal: AbortSignal.timeout(USER_SETTINGS.listTimeoutMs) }).catch(() => null);
+    await Promise.all([post("/sdapi/v1/refresh-loras"), post("/sdapi/v1/refresh-checkpoints"), post("/sdapi/v1/refresh-vae")]);
   }
 
   async resources() {
@@ -8298,7 +8307,15 @@ class InspectorView {
       }
       return row;
     });
-    const list = h("div", { class: "lora-pick-list" }, rows.length ? rows : h("p", { class: "note keep", text: "LoRA が見つかりません。Forge の models/Lora に入れて「一覧を読み直す」を押してください。" }));
+    const list = h("div", { class: "lora-pick-list" }, rows.length ? rows : h("p", { class: "note keep", text: m.onlyMoss ? "名前に moss を含む LoRA が見つかりません。「MOSS 用のものだけ表示する」をオフにするか、「一覧を読み直す」を押してください。" : "LoRA が見つかりません。Forge の models/Lora に入れて「一覧を読み直す」を押してください。" }));
+    const typed = h("input", { type: "text", placeholder: "一覧にない LoRA の名前（例: xipa202601-mid03_moss_v01）", "aria-label": "LoRA の名前を入力" });
+    const addTyped = () => {
+      const name = typed.value.trim().replace(/^<lora:|>$/g, "").replace(/:[-\d.]+$/, "").replace(/\.safetensors$/i, "");
+      if (!name || m.loras.some((x) => x.name === name)) return;
+      app.commit(() => m.loras.push({ name, weight: 1, on: true }), { inspector: true });
+    };
+    typed.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } });
+    const manual = h("div", { class: "row lora-typed" }, typed, h("button", { class: "mini", type: "button", text: "名前で追加", onclick: addTyped }));
     const apply = () => {
       const q = query.value.trim().toLowerCase();
       this.mossLoraQuery = query.value;
@@ -8308,8 +8325,8 @@ class InspectorView {
     apply();
     return h("div", { class: "lora-picker" },
       h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `LoRA（MOSS 用・${m.loras.length} 個選択中）` }),
-        h("button", { class: "mini", type: "button", text: "一覧を読み直す", onclick: () => app.loadResources() })),
-      query, list,
+        h("button", { class: "mini", type: "button", text: "一覧を読み直す", title: "Forge に LoRA のフォルダを読み直させてから一覧を取り直します", onclick: () => app.loadResources({ refresh: true }) })),
+      query, list, manual,
       h("p", { class: "note", text: "使う LoRA にチェックを入れると、強さを決められます。チェックした LoRA は一覧の上に並びます。" }));
   }
 
@@ -10545,9 +10562,15 @@ class App {
     pill.title = `${cfg.url}\n${key === "noModel" ? USER_SETTINGS.messages.needLlmModel : Net.message(state, "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`;
   }
 
-  async loadResources() {
+  async loadResources({ refresh = false } = {}) {
     try {
-      this.resources = await this.client().resources();
+      const client = this.client();
+      if (refresh && client.refreshLists) {
+        this.status(USER_SETTINGS.messages.refreshingLists);
+        await client.refreshLists();
+      }
+      this.resources = await client.resources();
+      if (refresh) this.status(fmt(USER_SETTINGS.messages.refreshedLists, { models: this.resources.models.length, loras: (this.resources.loras || []).length }));
       this.inspector.render();
       return this.resources.models.length + this.resources.samplers.length > 0;
     } catch {
