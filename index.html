@@ -165,6 +165,7 @@ details > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: v
 .pill[data-state="ok"]::before { background: var(--ok); }
 .pill[data-state="warn"]::before { background: var(--lamp); }
 .pill[data-state="down"]::before { background: var(--danger); }
+.pill-select { width: auto; max-width: 220px; min-height: 24px; height: 24px; border-radius: 999px; padding: 0 8px; font-size: 12px; border-color: var(--line); }
 .layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--left-w, 300px) 6px minmax(0, 1fr) 6px var(--right-w, 360px); background: var(--line); }
 .splitter { cursor: col-resize; background: var(--line); position: relative; touch-action: none; }
 .splitter::after { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 36px; margin-top: -18px; border-radius: 1px; background: var(--line-strong); }
@@ -487,6 +488,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
   <h1>Stillmange</h1>
   <span class="spacer"></span>
   <button class="pill" id="pill-llm" data-state="idle">文章AI: 確認中</button>
+  <select class="pill-select" id="llm-switch" hidden aria-label="使う文章AI（起動中のものから選ぶ）" title="起動中の文章AIを切り替えます"></select>
   <button class="pill" id="pill-sd" data-state="idle">画像生成: 確認中</button>
   <button class="quiet" id="open-project">開く</button>
   <button class="quiet" id="open-settings">設定</button>
@@ -812,9 +814,10 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     </section>
     <section class="pane" data-pane="llm" hidden>
       <h3>文章AI（LLM）</h3>
-      <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・Ollama・llama.cpp など）が使えます。変えるとすぐに保存されます。</p>
+      <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・KoboldCpp・Ollama・llama.cpp など）が使えます。複数起動しているときは、起動中のものから切り替えられます。変えるとすぐに保存されます。</p>
       <div class="card">
-        <div class="row"><button class="primary" id="llm-detect">🔍 自動で探す</button><span class="note" style="margin:0">サーバーを起動してから押します</span></div>
+        <div class="row"><button class="primary" id="llm-detect">🔍 自動で探す</button><span class="note" style="margin:0">ページを開いたときと、このページに戻ってきたときにも自動で探します</span></div>
+        <label class="field" id="llm-server-field" hidden>使う文章AI（起動中のもの）<select id="llm-server"></select></label>
         <label class="field">サーバーURL<input type="url" id="llm-url"></label>
         <label class="field">モデル<select id="llm-model"></select></label>
         <div class="row"><button id="llm-fetch">モデルの一覧を更新</button></div>
@@ -827,7 +830,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
       </div>
       <div class="card">
         <h4 class="card-title">CORS（このページからの接続）を許可する</h4>
-        <p class="note">LM Studio / Bionic: サーバーを起動し「Enable CORS」（Bionic は「CORS」）をオン。Ollama: 環境変数 OLLAMA_ORIGINS にこのページのURL（<code id="llm-origin"></code>）を設定して起動し直します。</p>
+        <p class="note">LM Studio / Bionic: サーバーを起動し「Enable CORS」（Bionic は「CORS」）をオン。Ollama: 環境変数 OLLAMA_ORIGINS にこのページのURL（<code id="llm-origin"></code>）を設定して起動し直します。KoboldCpp: 設定は不要です（最初から許可されています）。画像を読ませるときは、起動時に mmproj ファイルを指定します。</p>
       </div>
     </section>
     <section class="pane" data-pane="dict" hidden>
@@ -1706,7 +1709,8 @@ Rules:
   numberControl: { repeatDelayMs: 400, repeatMs: 70 },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
   llm: {
-    defaults: { url: "http://localhost:1234/v1", model: "", apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192, freeVram: true },
+    defaults: { url: "http://localhost:1234/v1", model: "", modelByUrl: {}, apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192, freeVram: true },
+    redetectMs: 15000, // このページに戻ってきたとき、前回からこの時間がたっていれば文章AIを探し直す
     legacyMaxTokens: 2048,
     servers: [
       { name: "LM Studio / Bionic", url: "http://localhost:1234/v1" }, { name: "Ollama", url: "http://localhost:11434/v1" },
@@ -2073,6 +2077,11 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     llmNoInstruction: "「指示」が入ったコマがありません。コマを選んで、右の「指示」に大まかな内容を書いてください。",
     llmNotFound: "文章AIのサーバーが見つかりません。サーバーを起動し、CORS を有効にしてから、もう一度押してください。",
     llmFound: "{name}（{url}）が見つかりました。モデル {n} 件。",
+    llmFoundMany: "{name}（{url}）を使います。モデル {n} 件。ほかに {others} 件起動しています（「使う文章AI」で切り替えられます）。",
+    llmSwitched: "文章AIを {name}（{url}）に切り替えました。モデル: {model}",
+    llmSwitchBusy: "生成中は文章AIを切り替えられません。終わってから切り替えてください。",
+    llmServerOption: "{name}（{host}）・モデル {n} 件",
+    llmServerCurrent: "いまの設定（{host}）・つながりません",
     modelsFetched: "モデル {n} 件を取得しました。",
     dictExported: "辞書を書き出しました（{n} 件）。",
     dictImported: "辞書を読み込みました（{n} 件。同じタグは読み込んだ内容で上書きしました）。",
@@ -3629,18 +3638,27 @@ class LlmClient {
   }
 
   async listModels() {
-    const res = await fetch(`${this.base}/models`, { headers: this.headers(), signal: AbortSignal.timeout(USER_SETTINGS.probeTimeoutMs) });
+    // GET に Content-Type を付けると事前確認（OPTIONS）が要るため付けない（サーバーによって一覧を読めなくなるのを防ぐ）
+    const headers = this.cfg.apiKey ? { Authorization: `Bearer ${this.cfg.apiKey}` } : {};
+    const res = await fetch(`${this.base}/models`, { headers, signal: AbortSignal.timeout(USER_SETTINGS.probeTimeoutMs) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return ((await res.json()).data || []).map((m) => m.id);
   }
 
-  static async detect() {
-    for (const server of USER_SETTINGS.llm.servers) {
+  static norm(url) { return String(url || "").trim().replace(/\/+$/, ""); }
+
+  // 知っている文章AIのサーバー（と、いま設定しているURL）を同時に調べ、起動しているものを返す
+  static async detect(cfg = {}) {
+    const servers = USER_SETTINGS.llm.servers.map((s) => ({ ...s, url: LlmClient.norm(s.url) }));
+    const current = LlmClient.norm(cfg.url);
+    if (current && !servers.some((s) => s.url === current)) servers.push({ name: "手入力のURL", url: current, custom: true });
+    const results = await Promise.all(servers.map(async (server) => {
       const state = await Net.probe(`${server.url}/models`);
-      if (state === "ok") return { ...server, state, models: await new LlmClient({ url: server.url }).listModels().catch(() => []) };
-      if (state === "cors") return { ...server, state, models: [] };
-    }
-    return null;
+      if (state !== "ok" && state !== "cors") return null;
+      const models = state === "ok" ? await new LlmClient({ ...cfg, url: server.url }).listModels().catch(() => []) : [];
+      return { ...server, state, models };
+    }));
+    return results.filter(Boolean);
   }
 
   async chat(system, userText, images, signal, { followUps = [], noThink = false } = {}) {
@@ -9278,8 +9296,9 @@ class SettingsView {
     on($("dict-import"), "change", (e) => { if (e.target.files[0]) this.importDict(e.target.files[0]); e.target.value = ""; });
     const llm = () => this.app.store.data.llm;
     const saveLlm = () => { this.app.store.save(); this.app.inspector.render(); this.app.refreshLlm(); };
-    on($("llm-url"), "change", () => { llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); });
-    on($("llm-model"), "change", () => { llm().model = $("llm-model").value; saveLlm(); });
+    on($("llm-url"), "change", () => { this.app.rememberLlmModel(); llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); });
+    on($("llm-model"), "change", () => { llm().model = $("llm-model").value; this.app.rememberLlmModel(); saveLlm(); });
+    on($("llm-server"), "change", (e) => this.app.switchLlm(e.target.value));
     on($("llm-vision"), "change", (e) => { llm().vision = e.target.checked; saveLlm(); });
     on($("llm-free-vram"), "change", (e) => { llm().freeVram = e.target.checked; saveLlm(); });
     on($("llm-temp"), "change", (e) => { llm().temperature = Number(e.target.value); saveLlm(); });
@@ -9291,6 +9310,11 @@ class SettingsView {
 
   setModelList(models) {
     const cfg = this.app.store.data.llm;
+    const saved = cfg.modelByUrl?.[LlmClient.norm(cfg.url)];
+    if (models.length && !models.includes(cfg.model) && models.includes(saved)) {
+      cfg.model = saved;
+      this.app.store.save();
+    }
     if (!cfg.model && models[0]) {
       cfg.model = models[0];
       this.app.store.save();
@@ -9317,16 +9341,24 @@ class SettingsView {
   async detectLlm() {
     const m = USER_SETTINGS.messages;
     setMsg($("llm-msg"), "探しています…");
-    const found = await LlmClient.detect();
-    if (!found) { setMsg($("llm-msg"), m.llmNotFound, "err"); return; }
-    if (found.state === "cors") { setMsg($("llm-msg"), `${found.name}（${found.url}）: ${Net.message("cors", "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`, "err"); return; }
-    this.app.store.data.llm.url = found.url;
-    $("llm-url").value = found.url;
-    this.setModelList(found.models);
-    this.app.store.save();
-    this.app.inspector.render();
-    this.app.refreshLlm();
-    setMsg($("llm-msg"), fmt(m.llmFound, { name: found.name, url: found.url, n: found.models.length }), "ok");
+    const found = await this.app.detectLlm();
+    const ok = found.filter((f) => f.state === "ok");
+    const cfg = this.app.store.data.llm;
+    const here = ok.find((f) => f.url === LlmClient.norm(cfg.url));
+    if (here) {
+      $("llm-url").value = cfg.url;
+      this.setModelList(here.models);
+      setMsg($("llm-msg"), fmt(ok.length > 1 ? m.llmFoundMany : m.llmFound, { name: here.name, url: here.url, n: here.models.length, others: ok.length - 1 }), "ok");
+    } else if (found.length) setMsg($("llm-msg"), `${found[0].name}（${found[0].url}）: ${Net.message("cors", "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`, "err");
+    else setMsg($("llm-msg"), m.llmNotFound, "err");
+  }
+
+  // 起動中の文章AIの一覧（設定の画面）
+  fillServers() {
+    const field = $("llm-server-field");
+    const list = this.app.llmServerEntries();
+    field.hidden = !list.length;
+    if (list.length) fillSelect($("llm-server"), list, LlmClient.norm(this.app.store.data.llm.url));
   }
 
   exportDict() {
@@ -9370,7 +9402,7 @@ class SettingsView {
     this.app.store.data.ui.settingsPane = name;
     this.app.store.save();
     if (name === "dict") this.renderDict();
-    if (name === "llm") this.fetchModels(true);
+    if (name === "llm") { this.fetchModels(true); this.fillServers(); }
   }
 
   fill() {
@@ -9560,6 +9592,7 @@ class App {
     this.refreshAll();
     this.refreshConnection();
     this.refreshLlm();
+    this.detectLlm({ quiet: true });
     if (this.store.fresh) {
       this.store.save();
       this.settings.open("guide");
@@ -10165,6 +10198,10 @@ class App {
     this.on($("help-close"), "click", () => $("help").close());
     this.on($("pill-sd"), "click", () => this.settings.open("conn"));
     this.on($("pill-llm"), "click", () => this.settings.open("llm"));
+    this.on($("llm-switch"), "change", (e) => this.switchLlm(e.target.value));
+    this.on(window, "focus", () => {
+      if (Date.now() - (this.llmDetectedAt || 0) > USER_SETTINGS.llm.redetectMs) this.detectLlm({ quiet: true });
+    });
     this.on($("save-project"), "click", () => this.saveProject());
     this.on($("open-project"), "click", () => $("project-input").click());
     this.on($("project-input"), "change", (e) => { if (e.target.files[0]) this.loadProjectFile(e.target.files[0]); e.target.value = ""; });
@@ -10928,6 +10965,82 @@ class App {
       await this.syncFromWebui("empty");
       await this.moss.autoSync();
     }
+  }
+
+  get llmLocked() { return !!(this.llmBusy || this.moss.busy || this.generator.busy); }
+
+  // 起動中の文章AIを探す。いまの接続先が動いていればそのまま使い、止まっていて別のものが動いていれば切り替える
+  async detectLlm({ quiet = false } = {}) {
+    if (this.llmDetecting) return this.llmFound || [];
+    this.llmDetecting = true;
+    this.llmDetectedAt = Date.now();
+    try {
+      const cfg = this.store.data.llm;
+      const found = await LlmClient.detect(cfg);
+      this.llmFound = found;
+      const ok = found.filter((f) => f.state === "ok");
+      const here = ok.find((f) => f.url === LlmClient.norm(cfg.url));
+      if (!here && ok.length && !this.llmLocked) this.applyLlmServer(ok[0], quiet);
+      else if (here && !cfg.model && here.models[0]) { cfg.model = here.models[0]; this.rememberLlmModel(); this.store.save(); this.inspector.render(); }
+      this.fillLlmSwitch();
+      this.refreshLlm();
+      return found;
+    } finally {
+      this.llmDetecting = false;
+    }
+  }
+
+  llmServerEntries() {
+    const ok = (this.llmFound || []).filter((f) => f.state === "ok");
+    if (!ok.length) return [];
+    const m = USER_SETTINGS.messages;
+    const host = (url) => url.replace(/^https?:\/\//, "");
+    const current = LlmClient.norm(this.store.data.llm.url);
+    const entries = ok.map((f) => [f.url, fmt(m.llmServerOption, { name: f.name, host: host(f.url), n: f.models.length })]);
+    if (!ok.some((f) => f.url === current)) entries.unshift([current, fmt(m.llmServerCurrent, { host: host(current) })]);
+    return entries;
+  }
+
+  fillLlmSwitch() {
+    const entries = this.llmServerEntries();
+    const sel = $("llm-switch");
+    const running = (this.llmFound || []).filter((f) => f.state === "ok").length;
+    sel.hidden = running < 2 && entries.length < 2;
+    const short = entries.map(([url, label]) => [url, (this.llmFound || []).find((f) => f.url === url && f.state === "ok")?.name || label]);
+    if (short.length) fillSelect(sel, short, LlmClient.norm(this.store.data.llm.url));
+    if (this.settings.dialog.open) this.settings.fillServers();
+  }
+
+  rememberLlmModel() {
+    const cfg = this.store.data.llm;
+    const url = LlmClient.norm(cfg.url);
+    if (url && cfg.model) (cfg.modelByUrl ||= {})[url] = cfg.model;
+  }
+
+  // そのサーバーで前に使っていたモデル → いまのモデル → 一覧の最初、の順で選ぶ
+  applyLlmServer(server, quiet = false) {
+    const cfg = this.store.data.llm;
+    this.rememberLlmModel();
+    cfg.url = server.url;
+    const saved = cfg.modelByUrl?.[server.url];
+    cfg.model = server.models.includes(saved) ? saved : server.models.includes(cfg.model) ? cfg.model : (server.models[0] || cfg.model);
+    this.rememberLlmModel();
+    this.store.save();
+    this.inspector.render();
+    if (this.settings.dialog.open) {
+      $("llm-url").value = cfg.url;
+      this.settings.setModelList(server.models);
+    }
+    this.status(fmt(USER_SETTINGS.messages.llmSwitched, { name: server.name, url: server.url, model: cfg.model || "未選択" }));
+  }
+
+  switchLlm(url) {
+    const server = (this.llmFound || []).find((f) => f.url === url && f.state === "ok");
+    if (this.llmLocked) { this.status(USER_SETTINGS.messages.llmSwitchBusy, true); this.fillLlmSwitch(); return; }
+    if (!server) { this.fillLlmSwitch(); return; }
+    this.applyLlmServer(server);
+    this.fillLlmSwitch();
+    this.refreshLlm();
   }
 
   async refreshLlm() {
