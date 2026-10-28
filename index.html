@@ -165,7 +165,15 @@ details > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: v
 .pill[data-state="ok"]::before { background: var(--ok); }
 .pill[data-state="warn"]::before { background: var(--lamp); }
 .pill[data-state="down"]::before { background: var(--danger); }
-.pill-select { width: auto; max-width: 220px; min-height: 24px; height: 24px; border-radius: 999px; padding: 0 8px; font-size: 12px; border-color: var(--line); }
+.pill-label { font-weight: 700; }
+.pill-app { color: var(--muted); }
+.llm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+button.llm-chip { border-radius: 999px; min-height: 24px; padding: 1px 10px; font-size: 12px; }
+button.llm-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+button.llm-chip[aria-pressed="true"]::before { content: "✓"; }
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.chip-dot[data-state="ok"] { background: var(--ok); }
+button.llm-chip[aria-pressed="true"] .chip-dot { box-shadow: 0 0 0 1.5px var(--on-accent); }
 .layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--left-w, 300px) 6px minmax(0, 1fr) 6px var(--right-w, 360px); background: var(--line); }
 .splitter { cursor: col-resize; background: var(--line); position: relative; touch-action: none; }
 .splitter::after { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 36px; margin-top: -18px; border-radius: 1px; background: var(--line-strong); }
@@ -487,9 +495,9 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
 <header class="topbar">
   <h1>Stillmange</h1>
   <span class="spacer"></span>
-  <button class="pill" id="pill-llm" data-state="idle">文章AI: 確認中</button>
-  <select class="pill-select" id="llm-switch" hidden aria-label="使う文章AI（起動中のものから選ぶ）" title="起動中の文章AIを切り替えます"></select>
-  <button class="pill" id="pill-sd" data-state="idle">画像生成: 確認中</button>
+  <button class="pill" id="pill-llm" data-state="idle"><span class="pill-label">文章AI</span><span class="pill-app">確認中</span></button>
+  <button class="pill" id="pill-sd" data-state="idle"><span class="pill-label">画像AI</span><span class="pill-app">確認中</span></button>
+  <button class="quiet" id="refresh-conn" title="起動中の文章AIを探し直し、文章AI・画像AIの接続状態を最新にします（あとからAIを起動したときに押します）">更新</button>
   <button class="quiet" id="open-project">開く</button>
   <button class="quiet" id="open-settings">設定</button>
   <label class="check help-toggle" title="オフにすると、画面の説明文を隠します（使い慣れた人向け）"><input type="checkbox" id="help-toggle" checked> 説明</label>
@@ -814,11 +822,11 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
     </section>
     <section class="pane" data-pane="llm" hidden>
       <h3>文章AI（LLM）</h3>
-      <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・KoboldCpp・Ollama・llama.cpp など）が使えます。複数起動しているときは、起動中のものから切り替えられます。変えるとすぐに保存されます。</p>
+      <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・KoboldCpp・Ollama・llama.cpp など）が使えます。サーバーURLの下の候補を押すと切り替わります（緑の点は起動中）。ページを開いたとき・このページに戻ってきたとき・上部の「更新」を押したときに起動中のものを探します。変えるとすぐに保存されます。</p>
       <div class="card">
-        <div class="row"><button class="primary" id="llm-detect">🔍 自動で探す</button><span class="note" style="margin:0">ページを開いたときと、このページに戻ってきたときにも自動で探します</span></div>
-        <label class="field" id="llm-server-field" hidden>使う文章AI（起動中のもの）<select id="llm-server"></select></label>
-        <label class="field">サーバーURL<input type="url" id="llm-url"></label>
+        <div class="row"><button class="primary" id="llm-detect">🔍 自動で探す</button><span class="note" style="margin:0">文章AIのサーバーを起動してから押します</span></div>
+        <label class="field" style="margin-bottom:0">サーバーURL<input type="url" id="llm-url"></label>
+        <div class="llm-chips" id="llm-chips" role="group" aria-label="接続先（押すと切り替わります）"></div>
         <label class="field">モデル<select id="llm-model"></select></label>
         <div class="row"><button id="llm-fetch">モデルの一覧を更新</button></div>
         <label class="check"><input type="checkbox" id="llm-vision"> ベースの画像もAIに見せる（画像対応モデルのみ）</label>
@@ -1954,7 +1962,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     probeOk: "接続OK",
     probeCors: "起動していますが、このページ（{origin}）からの接続が許可されていません（CORS）。「設定」→「はじめに」から web-app-cors（WebUI 用／ComfyUI 用）をダウンロードして入れ、停止→起動し直してください（ComfyUI は起動オプションの --enable-cors-header を外します）。",
     probeCorsFile: "このページをファイルから直接開いている（file://）ため、接続が許可されません。GitHub Pages など https:// の URL で開くか、起動オプションを「{line}」にして停止→起動し直してください。",
-    llmPill: { ok: "文章AI: {model}", noModel: "文章AI: モデル未選択", cors: "文章AI: 接続が許可されていません", down: "文章AI: 接続できません", error: "文章AI: エラー" },
+    llmPill: { ok: "{app}", noModel: "{app}（モデル未選択）", cors: "{app}（接続が許可されていません）", down: "{app}（接続できません）", error: "{app}（エラー）" },
     probeError: "接続はできましたが、エラー（{status}）が返りました。WebUI のログに「[web-app-cors] … could not enable API」と出ていたら起動オプションに --api を足してください。ほかのエラーが出ていないかも確認してください。",
     probeDown: "接続できません。起動しているか、URLが正しいか確認してください。ブラウザの「ローカル ネットワーク アクセス」の許可も確認してください。",
     swapped: "コマ {a} とコマ {b} の内容を入れ替えました。画像はコマの形に合わせて収め直しています（形が大きく違うときは再生成するときれいに収まります）。",
@@ -2077,11 +2085,11 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     llmNoInstruction: "「指示」が入ったコマがありません。コマを選んで、右の「指示」に大まかな内容を書いてください。",
     llmNotFound: "文章AIのサーバーが見つかりません。サーバーを起動し、CORS を有効にしてから、もう一度押してください。",
     llmFound: "{name}（{url}）が見つかりました。モデル {n} 件。",
-    llmFoundMany: "{name}（{url}）を使います。モデル {n} 件。ほかに {others} 件起動しています（「使う文章AI」で切り替えられます）。",
+    llmFoundMany: "{name}（{url}）を使います。モデル {n} 件。ほかに {others} 件起動しています（サーバーURLの下の候補を押すと切り替わります）。",
     llmSwitched: "文章AIを {name}（{url}）に切り替えました。モデル: {model}",
     llmSwitchBusy: "生成中は文章AIを切り替えられません。終わってから切り替えてください。",
-    llmServerOption: "{name}（{host}）・モデル {n} 件",
-    llmServerCurrent: "いまの設定（{host}）・つながりません",
+    llmManual: "サーバーURLを書き換えると、その接続先を使います（書き換えたURLも候補に並びます）。",
+    llmSwitchedDown: "{name}（{url}）に切り替えました。いまはつながらないので、サーバーを起動してから「自動で探す」か上部の「更新」を押してください。",
     modelsFetched: "モデル {n} 件を取得しました。",
     dictExported: "辞書を書き出しました（{n} 件）。",
     dictImported: "辞書を読み込みました（{n} 件。同じタグは読み込んだ内容で上書きしました）。",
@@ -2126,6 +2134,11 @@ function h(tag, props = {}, ...kids) {
   }
   el.append(...kids.flat().filter((x) => x !== null && x !== undefined && x !== false));
   return el;
+}
+
+// 上部の接続表示: 左に種類（文章AI・画像AI）、右に接続先のアプリ名
+function setPill(pill, label, app) {
+  pill.replaceChildren(h("span", { class: "pill-label", text: label }), h("span", { class: "pill-app", text: app }));
 }
 
 function formatDuration(ms) {
@@ -3646,6 +3659,12 @@ class LlmClient {
   }
 
   static norm(url) { return String(url || "").trim().replace(/\/+$/, ""); }
+
+  // URL から、つないでいるアプリの名前を出す（知らないURLならホスト名とポート）
+  static appName(url) {
+    const hit = USER_SETTINGS.llm.servers.find((s) => LlmClient.norm(s.url) === LlmClient.norm(url));
+    return hit ? hit.name : LlmClient.norm(url).replace(/^https?:\/\//, "").replace(/\/v1$/, "");
+  }
 
   // 知っている文章AIのサーバー（と、いま設定しているURL）を同時に調べ、起動しているものを返す
   static async detect(cfg = {}) {
@@ -9296,9 +9315,14 @@ class SettingsView {
     on($("dict-import"), "change", (e) => { if (e.target.files[0]) this.importDict(e.target.files[0]); e.target.value = ""; });
     const llm = () => this.app.store.data.llm;
     const saveLlm = () => { this.app.store.save(); this.app.inspector.render(); this.app.refreshLlm(); };
-    on($("llm-url"), "change", () => { this.app.rememberLlmModel(); llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); });
+    on($("llm-url"), "change", () => { this.app.rememberLlmModel(); llm().url = $("llm-url").value.trim() || USER_SETTINGS.llm.defaults.url; saveLlm(); this.fetchModels(true); this.fillServers(); });
     on($("llm-model"), "change", () => { llm().model = $("llm-model").value; this.app.rememberLlmModel(); saveLlm(); });
-    on($("llm-server"), "change", (e) => this.app.switchLlm(e.target.value));
+    on($("llm-chips"), "click", (e) => {
+      const chip = e.target.closest("button");
+      if (!chip) return;
+      if (chip.id === "llm-add") { const input = $("llm-url"); input.focus(); input.select(); setMsg($("llm-msg"), USER_SETTINGS.messages.llmManual); }
+      else if (chip.dataset.llmUrl) this.app.switchLlm(chip.dataset.llmUrl);
+    });
     on($("llm-vision"), "change", (e) => { llm().vision = e.target.checked; saveLlm(); });
     on($("llm-free-vram"), "change", (e) => { llm().freeVram = e.target.checked; saveLlm(); });
     on($("llm-temp"), "change", (e) => { llm().temperature = Number(e.target.value); saveLlm(); });
@@ -9354,11 +9378,26 @@ class SettingsView {
   }
 
   // 起動中の文章AIの一覧（設定の画面）
+  // 接続先の候補（いまの接続先・前に使った接続先・起動中のサーバー）。押すと切り替わる
   fillServers() {
-    const field = $("llm-server-field");
-    const list = this.app.llmServerEntries();
-    field.hidden = !list.length;
-    if (list.length) fillSelect($("llm-server"), list, LlmClient.norm(this.app.store.data.llm.url));
+    const list = this.app.llmCandidates();
+    const known = !!this.app.llmFound;
+    const chips = list.map((c) => {
+      const b = h("button", { type: "button", class: "llm-chip", title: `${c.url}${c.model ? `\nモデル: ${c.model}` : ""}${known ? `\n${c.on ? "起動中" : "つながりません"}` : ""}` });
+      b.dataset.llmUrl = c.url;
+      b.setAttribute("aria-pressed", String(c.current));
+      if (known) {
+        const dot = h("span", { class: "chip-dot" });
+        if (c.on) dot.dataset.state = "ok";
+        b.append(dot);
+      }
+      b.append(c.name);
+      return b;
+    });
+    const add = h("button", { type: "button", class: "llm-chip", text: "＋ 手入力で追加", title: "一覧にないサーバーのURLを入れて使います" });
+    add.id = "llm-add";
+    add.setAttribute("aria-pressed", "false");
+    $("llm-chips").replaceChildren(...chips, add);
   }
 
   exportDict() {
@@ -10198,7 +10237,7 @@ class App {
     this.on($("help-close"), "click", () => $("help").close());
     this.on($("pill-sd"), "click", () => this.settings.open("conn"));
     this.on($("pill-llm"), "click", () => this.settings.open("llm"));
-    this.on($("llm-switch"), "change", (e) => this.switchLlm(e.target.value));
+    this.on($("refresh-conn"), "click", () => this.refreshAll());
     this.on(window, "focus", () => {
       if (Date.now() - (this.llmDetectedAt || 0) > USER_SETTINGS.llm.redetectMs) this.detectLlm({ quiet: true });
     });
@@ -10951,8 +10990,8 @@ class App {
     const pill = $("pill-sd");
     const name = USER_SETTINGS.backends[this.store.data.backend].short;
     pill.dataset.state = state === "ok" ? "ok" : state === "cors" ? "warn" : "down";
-    pill.textContent = `${name}: ${{ ok: "接続OK", cors: "接続が許可されていません", error: `エラー（${Net.lastStatus}）` }[state] || "接続できません"}`;
-    pill.title = Net.message(state, Net.corsLine(this.store.data.backend));
+    setPill(pill, "画像AI", state === "ok" ? name : `${name}（${{ cors: "接続が許可されていません", error: `エラー ${Net.lastStatus}` }[state] || "接続できません"}）`);
+    pill.title = `${this.client().base || ""}\n${Net.message(state, Net.corsLine(this.store.data.backend))}`;
     return true;
   }
 
@@ -10964,6 +11003,20 @@ class App {
       await this.loadResources({ refresh: true, quiet: true });
       await this.syncFromWebui("empty");
       await this.moss.autoSync();
+    }
+  }
+
+  // 「更新」ボタン: 起動中の文章AIを探し直し、すべてのAIの接続状態を最新にする
+  async refreshAll() {
+    const btn = $("refresh-conn");
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "更新中…";
+    try {
+      await Promise.all([this.detectLlm(), this.refreshConnection()]);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "更新";
     }
   }
 
@@ -10990,24 +11043,21 @@ class App {
     }
   }
 
-  llmServerEntries() {
-    const ok = (this.llmFound || []).filter((f) => f.state === "ok");
-    if (!ok.length) return [];
-    const m = USER_SETTINGS.messages;
-    const host = (url) => url.replace(/^https?:\/\//, "");
-    const current = LlmClient.norm(this.store.data.llm.url);
-    const entries = ok.map((f) => [f.url, fmt(m.llmServerOption, { name: f.name, host: host(f.url), n: f.models.length })]);
-    if (!ok.some((f) => f.url === current)) entries.unshift([current, fmt(m.llmServerCurrent, { host: host(current) })]);
-    return entries;
+  llmCandidates() {
+    const cfg = this.store.data.llm;
+    const current = LlmClient.norm(cfg.url);
+    const running = new Map((this.llmFound || []).filter((f) => f.state === "ok").map((f) => [f.url, f]));
+    const urls = [];
+    const add = (u) => { const url = LlmClient.norm(u); if (url && !urls.includes(url)) urls.push(url); };
+    add(current);
+    Object.keys(cfg.modelByUrl || {}).forEach(add);
+    running.forEach((f) => add(f.url));
+    const order = (u) => { const i = USER_SETTINGS.llm.servers.findIndex((x) => LlmClient.norm(x.url) === u); return i < 0 ? 99 : i; };
+    urls.sort((a, b) => order(a) - order(b));
+    return urls.map((url) => ({ url, name: running.get(url)?.name || LlmClient.appName(url), on: running.has(url), current: url === current, model: url === current ? cfg.model : cfg.modelByUrl?.[url] }));
   }
 
   fillLlmSwitch() {
-    const entries = this.llmServerEntries();
-    const sel = $("llm-switch");
-    const running = (this.llmFound || []).filter((f) => f.state === "ok").length;
-    sel.hidden = running < 2 && entries.length < 2;
-    const short = entries.map(([url, label]) => [url, (this.llmFound || []).find((f) => f.url === url && f.state === "ok")?.name || label]);
-    if (short.length) fillSelect(sel, short, LlmClient.norm(this.store.data.llm.url));
     if (this.settings.dialog.open) this.settings.fillServers();
   }
 
@@ -11035,10 +11085,26 @@ class App {
   }
 
   switchLlm(url) {
+    const m = USER_SETTINGS.messages;
+    if (this.llmLocked) { this.status(m.llmSwitchBusy, true); this.fillLlmSwitch(); return; }
     const server = (this.llmFound || []).find((f) => f.url === url && f.state === "ok");
-    if (this.llmLocked) { this.status(USER_SETTINGS.messages.llmSwitchBusy, true); this.fillLlmSwitch(); return; }
-    if (!server) { this.fillLlmSwitch(); return; }
-    this.applyLlmServer(server);
+    if (server) {
+      this.applyLlmServer(server);
+      if (this.settings.dialog.open) setMsg($("llm-msg"), fmt(m.llmSwitched, { name: server.name, url: server.url, model: this.store.data.llm.model || "未選択" }), "ok");
+    } else {
+      // 止まっている接続先: URL と前に使ったモデルだけ切り替える
+      const cfg = this.store.data.llm;
+      this.rememberLlmModel();
+      cfg.url = url;
+      if (cfg.modelByUrl?.[url]) cfg.model = cfg.modelByUrl[url];
+      this.store.save();
+      this.inspector.render();
+      if (this.settings.dialog.open) {
+        $("llm-url").value = cfg.url;
+        this.settings.setModelList([]);
+        setMsg($("llm-msg"), fmt(m.llmSwitchedDown, { name: LlmClient.appName(url), url }), "err");
+      }
+    }
     this.fillLlmSwitch();
     this.refreshLlm();
   }
@@ -11050,8 +11116,8 @@ class App {
     const state = await Net.probe(`${new LlmClient(cfg).base}/models`);
     const key = state === "ok" ? (cfg.model ? "ok" : "noModel") : state;
     pill.dataset.state = key === "ok" ? "ok" : key === "down" ? "down" : "warn";
-    pill.textContent = fmt(m[key], { model: cfg.model });
-    pill.title = `${cfg.url}\n${key === "noModel" ? USER_SETTINGS.messages.needLlmModel : Net.message(state, "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`;
+    setPill(pill, "文章AI", fmt(m[key], { app: LlmClient.appName(cfg.url) }));
+    pill.title = `${cfg.url}${cfg.model ? `\nモデル: ${cfg.model}` : ""}\n${key === "noModel" ? USER_SETTINGS.messages.needLlmModel : Net.message(state, "OLLAMA_ORIGINS=*（LM Studio / Bionic は CORS をオン）")}`;
   }
 
   async loadResources({ refresh = false, quiet = false } = {}) {
