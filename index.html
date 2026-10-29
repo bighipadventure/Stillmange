@@ -834,7 +834,7 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
         <ol class="steps">
           <li>ZIP を WebUI の <code>extensions</code> フォルダに展開し、<code>extensions\web-app-cors\scripts\web_app_cors.py</code> となるようにします（<code>web-app-cors</code> フォルダが二重にならないよう注意）。<br>Stability Matrix の場合: <code>Data\Packages\（パッケージ名。例: forge-neo）\extensions</code></li>
           <li>起動オプション（Stability Matrix なら「Extra Launch Arguments」、それ以外は webui-user.bat の COMMANDLINE_ARGS）には、何も書く必要はありません。</li>
-          <li>WebUI を停止 → 起動し直します。ログに <code>[web-app-cors] v3 allowed origins: …</code> と出れば読み込まれています（v1・v2 と出る場合は古い版なので、ダウンロードし直して入れ替えてください。v1 は LoRA の一覧が出ない原因になります）。</li>
+          <li>WebUI を停止 → 起動し直します。ログに <code>[web-app-cors] v4 allowed origins: …</code> と出れば読み込まれています（v1〜v3 と出る場合は古い版なので、ダウンロードし直して入れ替えてください。v1 は LoRA の一覧が出ない原因に、v3 の ComfyUI 用は生成の進み具合が出ない原因になります）。</li>
           <li>ブラウザで <code id="cors-ext-a1111-ping"></code> を開き、<code>{"ok":true, …, "api":true}</code> と出れば準備完了です。</li>
         </ol>
         <p class="note">ログに <code>could not enable API</code> と出た場合は、起動オプションに <code>--api</code> を足してください。ログに <code>Exception in thread … (webui_worker)</code> が出ている場合は、起動途中で止まっているため拡張機能が読み込まれません。エラーに名前が出ている拡張機能（例: sd-webui-ar）を外してください。</p>
@@ -846,7 +846,7 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
         <ol class="steps">
           <li>ZIP を ComfyUI の <code>custom_nodes</code> フォルダに展開し、<code>custom_nodes\web-app-cors\__init__.py</code> となるようにします（<code>web-app-cors</code> フォルダが二重にならないよう注意）。<br>Stability Matrix の場合: <code>Data\Packages\ComfyUI\custom_nodes</code></li>
           <li>起動オプションに <code>--enable-cors-header</code> が入っていたら外します（付けたままだと、ほかのサイトからも接続できてしまいます）。起動オプションは空のままで使えます。</li>
-          <li>ComfyUI を停止 → 起動し直します。ログに <code>[web-app-cors] v3 allowed origins: …</code> と出れば読み込まれています（v1 と出る場合は古い版です）。</li>
+          <li>ComfyUI を停止 → 起動し直します。ログに <code>[web-app-cors] v4 allowed origins: …</code> と出れば読み込まれています（v1〜v3 と出る場合は古い版です）。</li>
           <li>ブラウザで <code id="cors-ext-comfy-ping"></code> を開き、<code>{"ok":true, …}</code> と出れば準備完了です。</li>
         </ol>
       </div>
@@ -944,7 +944,7 @@ A1111 / Forge / Forge Neo に、次のWebアプリ（__ORIGINS_TEXT__）から�
 2. 前の版の stillmange-cors を入れていた場合は、extensions\\stillmange-cors フォルダを削除します。
 3. 起動オプションには、何も書く必要はありません。
 4. WebUI を停止して、起動し直します。
-5. ログに「[web-app-cors] v3 allowed origins: ...」と出れば読み込まれています（v1・v2 と出るときは古い版です。入れ替えてください）。
+5. ログに「[web-app-cors] v4 allowed origins: ...」と出れば読み込まれています（v1〜v3 と出るときは古い版です。入れ替えてください）。
 6. ブラウザで http://127.0.0.1:7860/web-app-cors/ping を開き、{"ok": true, ..., "api": true} と出れば準備完了です。
 
 ログに「could not enable API」と出た場合は、起動オプションに --api を足してください。
@@ -1003,7 +1003,7 @@ ALLOWED_PATHS = {
 }
 
 NAME = "web-app-cors"
-VERSION = "3"
+VERSION = "4"
 PING_PATH = f"/{NAME}/ping"
 API_CHECK_PATH = "/sdapi/v1/txt2img"
 LORA_PATH = "/sdapi/v1/loras"
@@ -1199,7 +1199,7 @@ ComfyUI に、次のWebアプリ（__ORIGINS_TEXT__）からの接続を許可�
 2. 起動オプションに --enable-cors-header が入っていたら外します（起動オプションは空のままで使えます）。
    付けたままだと、ほかのサイトからも接続できてしまいます。
 3. ComfyUI を停止して、起動し直します。
-4. ログに「[web-app-cors] v3 allowed origins: ...」と出れば読み込まれています（v1 と出るときは古い版です。入れ替えてください）。
+4. ログに「[web-app-cors] v4 allowed origins: ...」と出れば読み込まれています（v1〜v3 と出るときは古い版です。入れ替えてください）。
 5. ブラウザで http://127.0.0.1:8188/web-app-cors/ping を開き、{"ok": true, ...} と出れば準備完了です。
 
 自分のPCで動かしているページ（http://localhost など）から使いたいとき:
@@ -1228,11 +1228,12 @@ LOCALHOST_PATTERN = r"^https?://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?$"
 ALLOW_ALL = False
 
 # ===== 許可したサイトから使える窓口 =====
-# Stillmange / Stillmotion が使うものだけを並べています（先頭に /api が付いた形も同じ扱い）。
+# Stillmange / Stillmotion が使うものだけを並べています（先頭に /api が付いた形も同じ扱い。/ws は生成の進み具合の受け取り）。
 # ここに無い窓口（ComfyUI Manager によるカスタムノードの追加、設定やユーザーデータの書き換えなど）は、
 # 許可したサイトからでも 403 で断ります。ComfyUI 自身の画面（同じアドレスから開いたページ）には影響しません。
 ALLOWED_PATHS = {
     "/web-app-cors/ping",
+    "/ws",
     "/prompt",
     "/queue",
     "/interrupt",
@@ -1249,7 +1250,7 @@ ALLOWED_PATHS = {
 ALLOWED_PATH_PREFIXES = ("/history/", "/object_info/", "/models/")
 
 NAME = "web-app-cors"
-VERSION = "3"
+VERSION = "4"
 PING_PATH = f"/{NAME}/ping"
 ALLOWED_METHODS = "GET, POST, OPTIONS"
 PREFLIGHT_MAX_AGE = "600"
@@ -2233,7 +2234,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     layoutReset: "コマの形をテンプレート「{name}」に戻しました（内容は読む順に引き継いでいます）。",
     refreshingLists: "Forge のモデル・LoRA の一覧を読み直しています…",
     refreshedLists: "一覧を読み直しました（Checkpoint {models} 個・LoRA {loras} 個）。",
-    loraApiMissing: "Forge に LoRA 一覧の窓口がありません。「設定」から拡張機能 web-app-cors の最新版（v3）をダウンロードして入れ替え、Forge を起動し直してください（または起動オプションに --api を付けます）",
+    loraApiMissing: "Forge に LoRA 一覧の窓口がありません。「設定」から拡張機能 web-app-cors の最新版（v4）をダウンロードして入れ替え、Forge を起動し直してください（または起動オプションに --api を付けます）",
     loraListFailed: " LoRA の一覧を受け取れませんでした（{err}）。Forge の画面の LoRA タブで更新ボタンを押してから、「設定」の「モデル・LoRA の一覧を読み直す」を押してください。",
     needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
     llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
