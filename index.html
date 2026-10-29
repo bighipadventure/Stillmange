@@ -443,6 +443,24 @@ dialog.pick::backdrop { background: rgba(0, 0, 0, .45); }
 .pick-text { font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pick-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
 dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px); }
+dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860px, 100dvh - 24px); }
+.easy-step { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.easy-step h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.easy-step h3 .no { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 12px; }
+.easy-conn { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.easy-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.easy-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.easy-state[data-state="ok"]::before { background: var(--ok); }
+.easy-state[data-state="warn"]::before { background: var(--lamp); }
+.easy-state[data-state="down"]::before { background: var(--danger); }
+.easy-drop { display: grid; place-items: center; min-height: 96px; padding: 12px; border: 2px dashed var(--line-strong); border-radius: var(--radius-l); color: var(--muted); text-align: center; cursor: pointer; }
+.easy-drop.over { border-color: var(--accent-text); color: var(--accent-text); }
+.easy-thumbs { display: flex; flex-wrap: wrap; gap: 6px; }
+.easy-thumbs figure { margin: 0; position: relative; }
+.easy-thumbs img { width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-s); border: 1px solid var(--line); }
+.easy-thumbs figcaption { position: absolute; left: 2px; top: 0; color: #ffd400; text-shadow: 0 0 2px #000; font-size: 14px; }
+.easy-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.easy-foot .run { min-width: 200px; min-height: 40px; font-size: 15px; }
 .help-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; font-size: 14px; line-height: 1.75; }
 .help-sec h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 16px; }
 .help-sec .no { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; display: grid; place-items: center; }
@@ -501,6 +519,7 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
   <button class="quiet" id="open-project">開く</button>
   <button class="quiet" id="open-settings">設定</button>
   <label class="check help-toggle" title="オフにすると、画面の説明文を隠します（使い慣れた人向け）"><input type="checkbox" id="help-toggle" checked> 説明</label>
+  <button class="help-btn" id="open-easy">★ かんたん作成</button>
   <button class="help-btn" id="open-help">？ ツールの使い方</button>
   <input type="file" id="project-input" accept=".json,application/json" hidden>
 </header>
@@ -673,11 +692,39 @@ dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px)
   <div class="dlg-body" id="lib-dlg-body"></div>
 </dialog>
 
+<dialog class="big easy" id="easy" aria-labelledby="easy-title">
+  <div class="dlg-head"><h2 id="easy-title"></h2><button class="close" id="easy-close">閉じる</button></div>
+  <div class="dlg-body">
+    <p class="note" id="easy-lead"></p>
+    <section class="easy-step">
+      <h3><span class="no">1</span><span id="easy-conn-title"></span></h3>
+      <div class="easy-conn"><span class="easy-state" id="easy-llm"></span><span class="easy-state" id="easy-sd"></span><button type="button" id="easy-settings"></button></div>
+      <p class="note" id="easy-conn-note"></p>
+    </section>
+    <section class="easy-step">
+      <h3><span class="no">2</span><span id="easy-image-title"></span></h3>
+      <label class="easy-drop" id="easy-drop"><input type="file" id="easy-input" accept="image/*" multiple hidden><span id="easy-drop-text"></span></label>
+      <div class="easy-thumbs" id="easy-thumbs"></div>
+    </section>
+    <section class="easy-step">
+      <h3><span class="no">3</span><span id="easy-count-title"></span></h3>
+      <div class="seg" id="easy-count"></div>
+      <p class="note" id="easy-count-note"></p>
+    </section>
+    <div class="easy-foot">
+      <label class="check"><input type="checkbox" id="easy-auto"> <span id="easy-auto-label"></span></label>
+      <button class="run big" id="easy-run"></button>
+    </div>
+    <p class="msg" id="easy-msg"></p>
+  </div>
+</dialog>
+
 <dialog class="big help" id="help" aria-labelledby="help-title">
   <div class="dlg-head"><h2 id="help-title">ツールの使い方</h2><button class="close" id="help-close">閉じる</button></div>
   <div class="help-body">
     <section class="help-sec">
       <h3><span class="no">1</span>基本の流れ（3ステップで1ページ完成）</h3>
+      <p class="note">いちばん手軽なのは、画面右上の <b>★ かんたん作成</b> です。画像を入れてコマの数を選び、「この内容で作る」を押すだけで1ページできます。左の①〜④でも同じことができます。</p>
       <ol class="help-steps">
         <li><b>ベースにする画像を入れる</b> … 左上「① ベースにする画像」に、生成済みの画像をドロップします（複数可）。最初に入れた画像が <b>★ ベース（ストーリーの主軸）</b> になります。☆ を押すとベースを変えられ、✕ で外せます。同じ画像は二重に入りません。</li>
         <li><b>コマ割りを選ぶ</b> … 「② コマ割りテンプレート」から好きな形を選びます。</li>
@@ -1551,8 +1598,26 @@ If the user chose characters, they star in the page (the protagonist is the main
   loraListTimeoutMs: 120000,
   pollIntervalMs: 1000,
   historyLimit: 100,
-  // 使われなくなった画像をメモリから外す間隔と、外すまでの最低時間（生成直後の画像を誤って消さないため）
   assetPrune: { intervalMs: 60000, minAgeMs: 600000 },
+  easy: {
+    title: "かんたん作成（画像を入れて押すだけ）",
+    lead: "3つの手順でマンガを1ページ作ります。ストーリー・コマの割り当て・足りないコマの絵は、文章AIと画像AIが考えます。細かく作りたいときは、この画面を閉じて左の①〜④を使います。",
+    connTitle: "AIがつながっているか確認",
+    connOk: "どちらもつながっています。",
+    connNg: "つながっていないAIがあります。「設定を開く」の「はじめに」で、最初の1回だけの準備をしてください。",
+    openSettings: "設定を開く",
+    imageTitle: "マンガにしたい画像を入れる",
+    dropText: "ここに画像をドロップ（クリックでも選べます・複数可）\n最初の1枚（★）がストーリーの主役になります",
+    countTitle: "コマの数を選ぶ",
+    counts: [["auto", "おまかせ"], ["3", "3コマ"], ["4", "4コマ"], ["5", "5コマ"], ["6", "6コマ"]],
+    countNote: "「おまかせ」は、入れた画像の数に合わせて決めます。",
+    autoCount: { add: 2, min: 4, max: 6 },
+    autoLabel: "起動したときにこの画面を出す",
+    run: "この内容で作る",
+    needImage: "画像を1枚以上入れてください。",
+    busy: "いま生成中です。終わってから押してください。",
+    started: "作り始めました。進み具合は画面の下に出ます。",
+  },
   wheelCommitMs: 600,
   thumbSide: 256,
   thumbQuality: 0.85,
@@ -6584,8 +6649,6 @@ class AssetStore {
     return id;
   }
 
-  // 使われなくなった画像を捨てる（生成を続けるとメモリが増え続けるのを防ぐ）。
-  // isUsed(id) が false で、追加から minAgeMs 以上たったものだけを消す（生成直後でまだページに入っていない画像は残す）。
   prune(isUsed, minAgeMs) {
     const now = Date.now();
     let removed = 0;
@@ -9756,6 +9819,140 @@ class NumberControl {
   }
 }
 
+// ===== EASY START =====
+class EasyStart {
+  constructor(app) {
+    this.app = app;
+    this.dialog = $("easy");
+    this.count = "auto";
+    this.listeners = new AbortController();
+    this.observer = new MutationObserver(() => this.renderConn());
+    this.observer.observe($("pill-llm"), { attributes: true, childList: true, subtree: true, characterData: true });
+    this.observer.observe($("pill-sd"), { attributes: true, childList: true, subtree: true, characterData: true });
+    this.fillTexts();
+    this.bind();
+  }
+
+  get cfg() { return USER_SETTINGS.easy; }
+
+  on(el, type, fn) {
+    el.addEventListener(type, fn, { signal: this.listeners.signal });
+  }
+
+  fillTexts() {
+    const c = this.cfg;
+    $("easy-title").textContent = c.title;
+    $("easy-lead").textContent = c.lead;
+    $("easy-conn-title").textContent = c.connTitle;
+    $("easy-settings").textContent = c.openSettings;
+    $("easy-image-title").textContent = c.imageTitle;
+    $("easy-drop-text").textContent = c.dropText;
+    $("easy-drop-text").style.whiteSpace = "pre-line";
+    $("easy-count-title").textContent = c.countTitle;
+    $("easy-count-note").textContent = c.countNote;
+    $("easy-auto-label").textContent = c.autoLabel;
+    $("easy-run").textContent = c.run;
+    $("easy-count").replaceChildren(...c.counts.map(([value, label]) => {
+      const b = h("button", { type: "button", text: label, "data-count": value });
+      this.on(b, "click", () => { this.count = value; this.renderCount(); });
+      return b;
+    }));
+  }
+
+  bind() {
+    const drop = $("easy-drop");
+    this.on($("open-easy"), "click", () => this.open());
+    this.on($("easy-close"), "click", () => this.dialog.close());
+    this.on($("easy-settings"), "click", () => { this.dialog.close(); this.app.settings.open("guide"); });
+    this.on($("easy-input"), "change", (e) => { this.addFiles([...e.target.files]); e.target.value = ""; });
+    this.on(drop, "dragover", (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add("over"); });
+    this.on(drop, "dragleave", () => drop.classList.remove("over"));
+    this.on(drop, "drop", (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); this.addFiles([...e.dataTransfer.files]); });
+    this.on($("easy-auto"), "change", (e) => { this.app.store.data.ui.easyAuto = e.target.checked; this.app.store.save(); });
+    this.on($("easy-run"), "click", () => this.run());
+  }
+
+  get autoOpen() { return this.app.store.data.ui.easyAuto !== false; }
+
+  open() {
+    $("easy-auto").checked = this.autoOpen;
+    setMsg($("easy-msg"), "");
+    this.renderConn();
+    this.renderThumbs();
+    this.renderCount();
+    if (!this.dialog.open) this.dialog.showModal();
+  }
+
+  copyPill(from, to) {
+    to.dataset.state = from.dataset.state;
+    const label = from.querySelector(".pill-label")?.textContent || "";
+    const app = from.querySelector(".pill-app")?.textContent || "";
+    to.textContent = `${label}：${app}`;
+  }
+
+  renderConn() {
+    this.copyPill($("pill-llm"), $("easy-llm"));
+    this.copyPill($("pill-sd"), $("easy-sd"));
+    const ok = $("pill-llm").dataset.state === "ok" && $("pill-sd").dataset.state === "ok";
+    $("easy-conn-note").textContent = ok ? this.cfg.connOk : this.cfg.connNg;
+  }
+
+  main() {
+    const lib = this.app.doc.library;
+    return lib.find((l) => l.id === this.app.doc.mainBase) || lib[0] || null;
+  }
+
+  renderThumbs() {
+    const main = this.main();
+    $("easy-thumbs").replaceChildren(...this.app.doc.library.map((item) => h("figure", {},
+      h("img", { src: this.app.assets.url(item.thumb), alt: item.name, title: item.name }),
+      item === main ? h("figcaption", { text: "★" }) : null)));
+  }
+
+  renderCount() {
+    $("easy-count").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.count === this.count)));
+  }
+
+  async addFiles(files) {
+    const items = await this.app.library.addFiles(files);
+    if (items[0] && !this.app.doc.mainBase) this.app.library.setMain(items[0]);
+    this.renderThumbs();
+  }
+
+  panelCount() {
+    if (this.count !== "auto") return Number(this.count);
+    const a = this.cfg.autoCount;
+    return Math.min(a.max, Math.max(a.min, this.app.doc.library.length + a.add));
+  }
+
+  template(n) {
+    const page = this.app.doc.page;
+    const fits = (t) => TemplateBuilder.quads(t.id, page).length === n;
+    return TemplateBuilder.filtered("base", page).find(fits) || TemplateBuilder.filtered(String(n), page)[0] || null;
+  }
+
+  async run() {
+    const app = this.app;
+    if (!app.doc.library.length) { setMsg($("easy-msg"), this.cfg.needImage, "err"); return; }
+    if (app.generator.busy || app.llmBusy || app.moss.busy) { setMsg($("easy-msg"), this.cfg.busy, "err"); return; }
+    const ui = app.store.data.ui;
+    Object.assign(ui, { tab: "panel", runTarget: "all" });
+    app.store.save();
+    app.syncMossMode();
+    const tpl = this.template(this.panelCount());
+    if (tpl) app.commit(() => Project.applyTemplate(app.doc, tpl.id));
+    app.inspector.render();
+    this.dialog.close();
+    app.status(this.cfg.started);
+    await app.runTargets();
+  }
+
+  destroy() {
+    this.observer.disconnect();
+    this.listeners.abort();
+  }
+}
+
 // ===== APP =====
 class App {
   constructor() {
@@ -9778,6 +9975,7 @@ class App {
     this.inspector = new InspectorView(this);
     this.library = new LibraryView(this);
     this.settings = new SettingsView(this);
+    this.easy = new EasyStart(this);
     this.buildLeft();
     this.applySideWidths();
     this.bindSplitters();
@@ -9789,11 +9987,12 @@ class App {
     if (this.store.fresh) {
       this.store.save();
       this.settings.open("guide");
+    } else if (this.easy.autoOpen && !this.doc.library.length) {
+      this.easy.open();
     }
     this.pruneTimer = setInterval(() => this.pruneAssets(), USER_SETTINGS.assetPrune.intervalMs);
   }
 
-  // ページにも「元に戻す／やり直す」の履歴にも残っていない画像をメモリから外す
   pruneAssets() {
     const haystack = [this.snapshot(), this.editSnap || "", ...this.history.undoStack, ...this.history.redoStack].join("\n");
     return this.assets.prune((id) => haystack.includes(id), USER_SETTINGS.assetPrune.minAgeMs);
@@ -9805,6 +10004,7 @@ class App {
 
   destroy() {
     clearInterval(this.pruneTimer);
+    this.easy.destroy();
     this.generator.cancel();
     this.moss.cancel();
     this.listeners.abort();
