@@ -10270,7 +10270,7 @@ class EasyStart {
     this.on($("easy-run"), "click", () => this.run());
   }
 
-  get autoOpen() { return this.app.store.data.ui.easyAuto !== false; }
+  get autoOpen() { return this.app.store.data.ui.easyAuto === true; }
 
   open() {
     $("easy-auto").checked = this.autoOpen;
