@@ -4,67 +4,98 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stillmange</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗯</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><filter id='mono'><feColorMatrix type='saturate' values='0'/></filter><text y='.9em' font-size='90' filter='url(%23mono)'>🗯</text></svg>">
 <style>
-/* ===== TOKENS ===== */
+/* ===== TOKENS =====
+   Astryx（Meta）neutral テーマの配色・角丸・影。モノクロ基調で、黒（ダークでは白）を主ボタンに使う */
 :root {
-  --bg: #e9e9e9;
-  --surface: #f5f5f5;
+  --bg: #f1f1f1;
+  --surface: #ffffff;
   --surface-2: #ffffff;
-  --head: #e1e1e1;
-  --ink: #2c2c2c;
-  --muted: #5a5a5a;
-  --line: #d0d0d0;
-  --line-strong: #a8a8a8;
-  --control: #ffffff;
-  --control-hover: #ececec;
-  --accent: #0d66d0;
-  --accent-hover: #0a58b5;
+  --head: #f7f7f7;
+  --section-head: #f7f7f7;
+  --ink: #000000;
+  --muted: #474747;
+  --disabled-ink: #919191;
+  --line: rgba(0, 0, 0, .08);
+  --line-strong: #d4d4d4;
+  --control: rgba(0, 0, 0, .06);
+  --control-hover: rgba(0, 0, 0, .11);
+  --accent: #1b1b1b;
+  --accent-hover: #3a3a3a;
   --on-accent: #ffffff;
-  --accent-text: #0d66d0;
-  --accent-soft: #dde9f8;
-  --on-accent-soft: #0a4a99;
+  --accent-text: #1b1b1b;
+  --accent-soft: #e2e2e2;
+  --on-accent-soft: #1b1b1b;
+  --link: #0067ce;
+  --focus: #1b1b1b;
+  --knob: #ffffff;
   --lamp: #e68619;
-  --danger: #c9252d;
-  --danger-soft: #fbe6e6;
-  --ok: #268e6c;
-  --warn-soft: #fdf0dc;
-  --on-warn-soft: #5c3a00;
+  --danger: #c0262c;
+  --danger-soft: #ffe1dd;
+  --danger-fill: #c9303a;
+  --danger-fill-hover: #a8222b;
+  --on-danger: #ffffff;
+  --ok: #2f7d33;
+  --ok-soft: #bce0bb;
+  --on-status: #ffffff;
+  --warn-soft: #fae19e;
+  --on-warn-soft: #4b3900;
   --stage: #3a3a3a;
-  --chip: #ececec;
-  --radius-s: 4px;
-  --radius-l: 6px;
-  --h-control: 28px;
+  --chip: #ebebeb;
+  --radius-xs: 6px;
+  --radius-s: 10px;
+  --radius-l: 12px;
+  --shadow-low: 0 2px 4px rgba(0, 0, 0, .05), 0 4px 8px rgba(0, 0, 0, .10), inset 0 0 0 1px rgba(0, 0, 0, .05);
+  --shadow-high: 0 4px 6px rgba(0, 0, 0, .10), 0 12px 24px rgba(0, 0, 0, .15), inset 0 0 0 1px rgba(0, 0, 0, .05);
+  --backdrop: rgba(0, 0, 0, .5);
+  --h-control: 32px;
   --run-height: 36px;
-  --topbar-h: 40px;
-  --font: "Source Han Sans JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --topbar-h: 48px;
+  --font: "Figtree", "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --num-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   color-scheme: light;
   box-sizing: border-box;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1b1b1b;
-    --surface: #2c2c2c;
-    --surface-2: #232323;
-    --head: #252525;
-    --ink: #e8e8e8;
-    --muted: #ababab;
-    --line: #3e3e3e;
-    --line-strong: #5a5a5a;
-    --control: #383838;
-    --control-hover: #454545;
-    --accent-hover: #1473e6;
-    --accent-text: #8cc8ff;
-    --accent-soft: #1d3554;
-    --on-accent-soft: #cfe3fb;
+    --surface: #262626;
+    --surface-2: #1b1b1b;
+    --head: #2e2e2e;
+    --section-head: #2e2e2e;
+    --ink: #ffffff;
+    --muted: #c6c6c6;
+    --disabled-ink: #7a7a7a;
+    --line: rgba(255, 255, 255, .10);
+    --line-strong: #525252;
+    --control: rgba(255, 255, 255, .10);
+    --control-hover: rgba(255, 255, 255, .16);
+    --accent: #f1f1f1;
+    --accent-hover: #ffffff;
+    --on-accent: #111111;
+    --accent-text: #f1f1f1;
+    --accent-soft: #303030;
+    --on-accent-soft: #f1f1f1;
+    --link: #a1caff;
+    --focus: #f1f1f1;
+    --knob: #262626;
     --lamp: #f0a63a;
-    --danger: #ff8a8a;
-    --danger-soft: #3d1c1c;
-    --ok: #6fd6a8;
-    --warn-soft: #3a2c10;
-    --on-warn-soft: #ffe0a8;
+    --danger: #ffaea7;
+    --danger-soft: #5b2b28;
+    --danger-fill: #ff705d;
+    --danger-fill-hover: #ff8f80;
+    --on-danger: #111111;
+    --ok: #90ca90;
+    --ok-soft: #2b422b;
+    --on-status: #111111;
+    --warn-soft: #453a1c;
+    --on-warn-soft: #eec448;
     --stage: #121212;
-    --chip: #383838;
+    --chip: #333333;
+    --shadow-low: 0 2px 4px rgba(0, 0, 0, .25), 0 4px 8px rgba(0, 0, 0, .40), inset 0 0 0 1px rgba(255, 255, 255, .08);
+    --shadow-high: 0 4px 6px rgba(0, 0, 0, .50), 0 12px 24px rgba(0, 0, 0, .70), inset 0 0 0 1px rgba(255, 255, 255, .08);
+    --backdrop: rgba(0, 0, 0, .8);
     color-scheme: dark;
   }
 }
@@ -507,6 +538,162 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
 .field > input, .field > select { color: var(--ink); }
 .dict-list { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
 .dict-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 28px; gap: 6px; align-items: center; font-size: 12px; }
+
+/* ===== THEME: ASTRYX ===== */
+body { font-variant-emoji: text; -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.icon-search::before { content: ""; width: 15px; height: 15px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center / contain no-repeat; }
+button, .filebtn {
+  border: 1px solid transparent; background: var(--control); border-radius: var(--radius-s); padding: 3px 12px;
+  font-size: 13px; font-weight: 500; white-space: nowrap; transition: background-color .175s, border-color .175s, color .175s;
+}
+button:hover:not(:disabled), .filebtn:hover { background: var(--control-hover); border-color: transparent; }
+button:active:not(:disabled) { transform: scale(.98); }
+button:disabled { opacity: .4; }
+button.primary, button.run { font-weight: 600; }
+button.danger { color: var(--on-danger); border-color: var(--danger-fill); background: var(--danger-fill); font-weight: 600; }
+button.danger:hover:not(:disabled) { background: var(--danger-fill-hover); border-color: var(--danger-fill-hover); color: var(--on-danger); }
+button.big { letter-spacing: .02em; }
+.help-btn { border-color: transparent; background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+input[type="text"], input[type="url"], input[type="number"], select, textarea { padding: 4px 10px; transition: border-color .175s, box-shadow .175s; }
+input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) { border-color: #919191; }
+input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+textarea { padding: 6px 10px; }
+input[type="checkbox"] { width: 36px; transition: background .175s; }
+input[type="checkbox"]::before { background: var(--knob); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .175s cubic-bezier(.24, 1, .4, 1); }
+input[type="checkbox"]:checked::before { transform: translateX(16px); }
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--focus); }
+input[type="checkbox"]:hover:not(:disabled) { border-color: transparent; }
+.numctl { grid-template-columns: 26px minmax(40px, 1fr) 26px minmax(52px, auto); gap: 6px; }
+.numctl.no-slider { grid-template-columns: 26px minmax(52px, 1fr) 26px; }
+.numctl-step { width: 26px; height: 26px; }
+.numctl-val, .numctl-edit { height: 28px; padding: 0 8px; border-radius: var(--radius-xs); }
+.numctl-val { border-color: var(--line-strong); }
+.numctl-val:hover { border-color: #919191; }
+code { background: var(--control); border-color: transparent; padding: 0 6px; border-radius: var(--radius-xs); }
+.seg { gap: 2px; padding: 2px; border: none; border-radius: var(--radius-s); background: var(--control); }
+.seg button { min-height: 28px; border: none; border-radius: calc(var(--radius-s) - 2px); padding: 2px 6px; color: var(--muted); background: transparent; }
+.seg button:hover:not(:disabled) { background: var(--control); color: var(--ink); }
+.seg button[aria-pressed="true"], .seg button[aria-pressed="true"]:hover:not(:disabled) { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-low); }
+.topbar { background: var(--surface); padding: 0 12px; }
+.topbar h1 { font-size: 16px; font-weight: 600; letter-spacing: 0; margin: 0 10px 0 4px; }
+.pill { min-height: 28px; padding: 1px 12px; background: var(--control); border-color: transparent; }
+.pill-label { font-weight: 600; }
+.psec-title { padding: 8px 14px; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--ink); background: var(--section-head); }
+.psec-body { padding: 12px 14px 14px; gap: 8px; }
+.side-foot { padding: 12px 14px; background: var(--surface); }
+.status-panel { padding: 8px 14px; }
+.progress { background: var(--control); border-radius: 999px; }
+.overall-pct { font-size: 12px; font-weight: 600; }
+.tabs-h { background: var(--surface); }
+.tabs-h button { min-height: 40px; color: var(--muted); }
+.tabs-h button:hover:not(:disabled) { background: var(--control); }
+.tabs-h button[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--ink); font-weight: 600; }
+dialog.big { border: none; box-shadow: var(--shadow-high); }
+dialog.big::backdrop { background: var(--backdrop); }
+.dlg-head { padding: 8px 12px 8px 20px; min-height: 52px; background: var(--surface); }
+.dlg-head h2 { font-size: 17px; font-weight: 600; }
+.tabs-v { padding: 10px 8px; gap: 2px; background: var(--bg); }
+.tabs-v button { padding: 3px 10px; font-weight: 500; color: var(--muted); }
+.tabs-v button:hover:not(:disabled) { background: var(--control); border-color: transparent; color: var(--ink); }
+.tabs-v button[aria-selected="true"], .tabs-v button[aria-selected="true"]:hover:not(:disabled) { background: var(--surface); border-color: transparent; color: var(--ink); font-weight: 600; box-shadow: var(--shadow-low); }
+.pane { padding: 20px 24px; }
+.pane h3 { font-size: 20px; font-weight: 600; }
+.lead a, .note a { color: var(--link); font-weight: 600; }
+.card { border-radius: var(--radius-l); padding: 12px 14px; }
+.card-title { font-size: 14px; font-weight: 600; }
+.kv dt { font-weight: 600; }
+.splitter:hover::after, .splitter.dragging::after { background: var(--on-accent); }
+button.mini { min-height: 24px; padding: 0 9px; }
+.llm-chips button.llm-chip { min-height: 28px; padding: 1px 12px; }
+button.llm-chip[aria-pressed="true"] { font-weight: 600; }
+button.llm-chip[aria-pressed="true"]::before { content: none; }
+.tool-group { gap: 6px; padding: 8px 10px; border-radius: var(--radius-l); }
+.tool-group-title { font-size: 12px; font-weight: 600; }
+.tpl, .shape-btn { border-radius: var(--radius-xs); }
+.lib-drop { border-radius: var(--radius-l); }
+.lib-drop.over, .g-field.drop-over textarea { border-color: var(--accent); background: var(--accent-soft); }
+.lib-item { border-radius: var(--radius-xs); }
+.lib-item.main { border-color: var(--accent); }
+.panel-row { border-color: var(--line); border-radius: var(--radius-l); padding: 8px; }
+.panel-row-open { border-radius: var(--radius-xs); }
+.panel-row-no { background: var(--accent); color: var(--on-accent); }
+.link-btn { color: var(--link); }
+.bubble-item[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.insp-sec { padding: 12px 14px; gap: 8px; }
+.insp-title { font-size: 13px; font-weight: 600; }
+.insp-head h2 { font-size: 17px; font-weight: 600; }
+.badge-lock, .state-badge { border-radius: 999px; padding: 0 8px; font-weight: 600; }
+.g-head .g-name { font-weight: 600; }
+.set-grid select, .set-grid input, .lora-row input[type="number"], .lora-row select, .lora-row input[type="text"] { min-height: 28px; padding: 1px 8px; }
+.img-thumb, .moss-strip-item { border-radius: var(--radius-xs); }
+.preview-pre, .moss-panel, .moss-loaded, .char-card, .board, .review-item, .check-box, .lora-pick-list, .lib-row, .pick-row { border-radius: var(--radius-l); }
+.moss-panel, .moss-loaded { padding: 8px 10px; }
+.moss-loaded { border-color: var(--accent); }
+.lora-picker .g-head button[aria-pressed="true"], .img-fade button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.review-fix { color: var(--ink); }
+.chip { background: var(--control); border-color: transparent; }
+.chip:hover { border-color: var(--line-strong); }
+.lib-row.over, .pick-row:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.lib-row-name { font-weight: 600; }
+dialog.pick { border: none; box-shadow: var(--shadow-high); }
+dialog.pick::backdrop { background: var(--backdrop); }
+.easy-step h3 { font-weight: 600; }
+.easy-drop { border-width: 1px; }
+.easy-drop.over { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+.help-sec h3 { font-weight: 600; }
+.help-sec .no { background: var(--accent); color: var(--on-accent); }
+.help-steps li::marker { color: var(--ink); }
+.panel-row-no { display: block; box-sizing: border-box; text-align: center; line-height: 1; font-family: var(--num-font); font-variant-numeric: lining-nums tabular-nums; text-box: trim-both cap alphabetic; padding-top: calc((22px - 1cap) / 2); }
+.easy-step h3 .no { display: block; box-sizing: border-box; text-align: center; line-height: 1; font-family: var(--num-font); font-variant-numeric: lining-nums tabular-nums; text-box: trim-both cap alphabetic; padding-top: calc((22px - 1cap) / 2); }
+.help-sec .no { display: block; box-sizing: border-box; text-align: center; line-height: 1; font-family: var(--num-font); font-variant-numeric: lining-nums tabular-nums; text-box: trim-both cap alphabetic; padding-top: calc((26px - 1cap) / 2); }
+
+/* ===== PANEL BAR (FOLD / SEPARATE WINDOW) ===== */
+.layout { --rail-w: 28px; }
+.panel-bar { flex: none; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 4px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.panel-collapse, .panel-pop {
+  min-height: 0; height: 24px; padding: 0 7px; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--muted);
+  font-size: 13px; font-weight: 600; line-height: 1; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.panel-collapse:hover:not(:disabled), .panel-pop:hover:not(:disabled) { background: var(--control); color: var(--ink); border: none; }
+.panel-collapse { letter-spacing: -.12em; }
+.panel-collapse .label { display: none; letter-spacing: 0; font-size: 12px; font-weight: 500; }
+.panel-pop .label { font-size: 12px; font-weight: 500; }
+.panel-pop::before, .panel-return::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.panel-pop { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E"); }
+.panel-pop.is-detached, .panel-return { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 3 12 12M12 6v6h6M18 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4'/%3E%3C/svg%3E"); }
+[data-panel] > .panel-bar { justify-content: flex-start; }
+[data-panel="left"] > .panel-bar > .panel-collapse { margin-left: auto; }
+[data-panel="right"] > .panel-bar > .panel-pop { margin-left: auto; }
+.layout.hide-left > [data-panel="left"] > :not(.panel-bar), .layout.hide-right > [data-panel="right"] > :not(.panel-bar) { display: none; }
+.layout.hide-left > [data-panel="left"] > .panel-bar, .layout.hide-right > [data-panel="right"] > .panel-bar { height: 100%; padding: 4px 2px; border-bottom: none; align-items: flex-start; justify-content: center; }
+.layout.hide-left > [data-panel="left"] .panel-pop, .layout.hide-right > [data-panel="right"] .panel-pop { display: none; }
+.layout.hide-left > [data-panel="left"] .panel-collapse, .layout.hide-right > [data-panel="right"] .panel-collapse { margin: 0; width: 100%; height: auto; padding: 8px 0; flex-direction: column; justify-content: flex-start; }
+.panel-ghost { background: var(--surface); }
+
+/* ===== PANEL IN A SEPARATE WINDOW ===== */
+html:has(> body.panel-window-body), body.panel-window-body { height: 100%; }
+body.panel-window-body { display: flex; flex-direction: column; overflow: hidden; padding-top: 0; }
+.layout.panel-window { display: flex; flex: 1 1 auto; min-height: 0; height: 100%; background: var(--surface); }
+.layout.panel-window > [data-panel] { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.layout.panel-window .side-scroll, .layout.panel-window .insp-scroll { overflow-y: auto; }
+.layout.panel-window .panel-collapse, .layout.panel-window .side-resizer { display: none; }
+.layout.panel-window [data-panel="right"] > .panel-bar > .panel-pop { margin-left: 0; }
+.layout.hide-left { grid-template-columns: var(--rail-w) 0 minmax(0, 1fr) 6px var(--right-w, 360px); }
+.layout.hide-right { grid-template-columns: var(--left-w, 300px) 6px minmax(0, 1fr) 0 var(--rail-w); }
+.layout.hide-left.hide-right { grid-template-columns: var(--rail-w) 0 minmax(0, 1fr) 0 var(--rail-w); }
+.layout.hide-left > .splitter[data-side="left"], .layout.hide-right > .splitter[data-side="right"] { visibility: hidden; }
+@media (max-width: 1100px) {
+  .layout.hide-left, .layout.hide-right, .layout.hide-left.hide-right { grid-template-columns: 1fr; }
+}
+@media (max-width: 1100px) {
+  .layout.hide-left > [data-panel="left"] > .panel-bar, .layout.hide-right > [data-panel="right"] > .panel-bar { height: 30px; align-items: center; justify-content: flex-start; }
+  .layout.hide-left > [data-panel="left"] .panel-collapse, .layout.hide-right > [data-panel="right"] .panel-collapse { flex-direction: row; width: auto; padding: 0 12px; }
+  .layout.hide-left .panel-collapse .label, .layout.hide-right .panel-collapse .label { display: inline; }
+}
+
+/* ===== HELP SWITCH (SAME TEXT LINE AS THE BUTTONS) ===== */
+.topbar .help-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0 4px; min-height: var(--h-control); padding: 3px 4px; font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--ink); white-space: nowrap; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -525,7 +712,8 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
 </header>
 
 <main class="layout">
-  <aside class="col-left" aria-label="テンプレートと編集">
+  <aside class="col-left" data-panel="left" aria-label="テンプレートと編集">
+    <div class="panel-bar"><button class="panel-pop" id="btn-pop-left" type="button"><span class="label"></span></button><button class="panel-collapse" id="btn-toggle-left" type="button" aria-expanded="true"><span class="arrow"></span><span class="label">左パネル</span></button></div>
     <div class="side-scroll">
       <section class="psec">
         <h2 class="psec-title">① ベースにする画像</h2>
@@ -674,7 +862,8 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
   </section>
   <div class="splitter" data-side="right" role="separator" aria-orientation="vertical" aria-label="右のパネルの幅（ドラッグで調整・ダブルクリックで元に戻す）" title="ドラッグで幅を調整（ダブルクリックで元に戻す）"></div>
 
-  <aside class="col-right" aria-label="プロンプトと設定">
+  <aside class="col-right" data-panel="right" aria-label="プロンプトと設定">
+    <div class="panel-bar"><button class="panel-collapse" id="btn-toggle-right" type="button" aria-expanded="true"><span class="arrow"></span><span class="label">右パネル</span></button><button class="panel-pop" id="btn-pop-right" type="button"><span class="label"></span></button></div>
     <div class="tabs-h" role="tablist">
       <button role="tab" data-tab="panel" aria-selected="true">このコマ</button>
       <button role="tab" data-tab="common" aria-selected="false">全コマ共通</button>
@@ -807,6 +996,15 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
         <li>生成設定は MOSS-Image のおすすめ（Euler・MOSS・50 ステップ・CFG 3・1.5MP、Base モデルはおすすめのネガティブ）が基本です。「おすすめ設定に戻す」でいつでも戻せます。</li>
       </ul>
     </section>
+    <section class="help-sec">
+      <h3><span class="no">9</span>画面を使いやすくする</h3>
+      <ul>
+        <li>上の「説明」をオフにすると、画面の説明文を隠します。</li>
+        <li>左右のパネルの上の « » でパネルを畳み、ページを広く表示できます。畳んだ細い帯の矢印で開きます。</li>
+        <li>「別ウィンドウ」で、そのパネルだけを別のウィンドウに出せます（2画面で使うときなど）。中身はそのまま使え、ウィンドウを閉じるか「メイン画面に戻す」で元に戻ります。</li>
+        <li>パネルの境目をドラッグすると幅を変えられます（ダブルクリックで元の幅）。</li>
+      </ul>
+    </section>
     <p class="help-foot">はじめて使うときは「設定」から、画像生成（WebUI / ComfyUI）と文章AI（ローカルLLM）の接続を確認してください。</p>
   </div>
 </dialog>
@@ -871,7 +1069,7 @@ dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860
       <h3>文章AI（LLM）</h3>
       <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・KoboldCpp・Ollama・llama.cpp など）が使えます。サーバーURLの下の候補を押すと切り替わります（緑の点は起動中）。ページを開いたとき・このページに戻ってきたとき・上部の「更新」を押したときに起動中のものを探します。変えるとすぐに保存されます。</p>
       <div class="card">
-        <div class="row"><button class="primary" id="llm-detect">🔍 自動で探す</button><span class="note" style="margin:0">文章AIのサーバーを起動してから押します</span></div>
+        <div class="row"><button class="primary icon-search" id="llm-detect">自動で探す</button><span class="note" style="margin:0">文章AIのサーバーを起動してから押します</span></div>
         <label class="field" style="margin-bottom:0">サーバーURL<input type="url" id="llm-url"></label>
         <div class="llm-chips" id="llm-chips" role="group" aria-label="接続先（押すと切り替わります）"></div>
         <label class="field">モデル<select id="llm-model"></select></label>
@@ -1922,6 +2120,25 @@ Rules:
   vramReloadTimeoutMs: 600000,
   numberControl: { repeatDelayMs: 400, repeatMs: 70 },
   sidePanels: { left: [220, 600, 300], right: [260, 720, 360], centerMin: 320, splitterPx: 6 },
+  panelWindow: {
+    pollMs: 1000,
+    minWidth: 280,
+    labels: { left: "左パネル", right: "右パネル" },
+    pop: "別ウィンドウ",
+    popTitle: "このパネルを別ウィンドウに表示します（中身はそのまま使えます。ウィンドウを閉じるとメイン画面に戻ります）",
+    back: "メイン画面に戻す",
+    backTitle: "このパネルをメイン画面に戻します",
+    ghostLabel: "別ウィンドウで表示中",
+    ghostTitle: "このパネルは別ウィンドウで表示中です（押すとメイン画面に戻します）",
+    blocked: "別ウィンドウを開けませんでした。ブラウザのポップアップのブロックを解除してください。",
+  },
+  panelFold: {
+    arrows: { left: ["«", "»"], right: ["»", "«"] },
+    titles: {
+      left: ["左のパネル（ベースの画像・コマ割り・生成ボタン）を隠して、ページを広く表示します", "左のパネルを出します"],
+      right: ["右のパネル（コマ・全コマ共通・吹き出し・MOSS）を隠して、ページを広く表示します", "右のパネルを出します"],
+    },
+  },
   llm: {
     defaults: { url: "http://localhost:1234/v1", model: "", modelByUrl: {}, apiKey: "", vision: true, temperature: 0.6, maxTokens: 8192, freeVram: true },
     redetectMs: 15000, // このページに戻ってきたとき、前回からこの時間がたっていれば文章AIを探し直す
@@ -2306,7 +2523,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
 };
 
 // ===== UTILITIES =====
-const $ = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id) || PanelWindow.find(id);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -2408,6 +2625,183 @@ function loadImage(url) {
     img.onerror = () => reject(new Error("画像として開けません"));
     img.src = url;
   });
+}
+
+// ===== PANEL WINDOW (SHOW A SIDE PANEL IN A SEPARATE WINDOW) =====
+class PanelWindow {
+  static active = new Set();
+  static mirrors = [];
+  static hooks = [];
+
+  static find(id) {
+    for (const panel of this.active) {
+      const el = panel.doc?.getElementById(id);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  static query(selector) {
+    const hit = document.querySelector(selector);
+    if (hit) return hit;
+    for (const panel of this.active) {
+      const el = panel.doc?.querySelector(selector);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  static queryAll(selector) {
+    const list = [...document.querySelectorAll(selector)];
+    for (const panel of this.active) if (panel.doc) list.push(...panel.doc.querySelectorAll(selector));
+    return list;
+  }
+
+  static mirror(type, fn, opts) {
+    this.mirrors.push({ type, fn, opts, onWindow: false });
+    return fn;
+  }
+
+  static mirrorWindow(type, fn, opts) {
+    this.mirrors.push({ type, fn, opts, onWindow: true });
+    return fn;
+  }
+
+  static onWindow(hook) {
+    this.hooks.push(hook);
+  }
+
+  constructor({ side, col, button, onChange }) {
+    this.cfg = USER_SETTINGS.panelWindow;
+    this.side = side;
+    this.col = col;
+    this.button = button;
+    this.onChange = onChange;
+    this.win = null;
+    this.doc = null;
+    this.ghost = null;
+    this.handlers = [];
+    this.disposers = [];
+    this.onButton = () => this.toggle();
+    this.button.addEventListener("click", this.onButton);
+    this.render();
+  }
+
+  get detached() {
+    return !!this.win;
+  }
+
+  toggle() {
+    if (this.win) this.dock();
+    else this.detach();
+  }
+
+  render() {
+    const c = this.cfg;
+    const on = this.detached;
+    const text = on ? c.backTitle : c.popTitle;
+    this.button.classList.toggle("is-detached", on);
+    this.button.title = text;
+    this.button.setAttribute("aria-label", text);
+    const label = this.button.querySelector(".label");
+    if (label) label.textContent = on ? c.back : c.pop;
+  }
+
+  listen(target, type, fn, opts) {
+    target.addEventListener(type, fn, opts);
+    this.handlers.push([target, type, fn, opts]);
+  }
+
+  detach() {
+    const c = this.cfg;
+    const rect = this.col.getBoundingClientRect();
+    const width = Math.max(c.minWidth, Math.round(rect.width));
+    const height = Math.round(window.innerHeight);
+    const left = Math.round(window.screenX + rect.left);
+    const top = Math.round(window.screenY + window.outerHeight - window.innerHeight);
+    const name = `${document.title}_${this.side}_panel`.replace(/\W+/g, "_");
+    const win = window.open("", name, `popup=yes,width=${width},height=${height},left=${left},top=${top}`);
+    if (!win) {
+      this.onChange?.(false, c.blocked);
+      return;
+    }
+    const doc = win.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html lang="${document.documentElement.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title></title></head><body></body></html>`);
+    doc.close();
+    doc.title = `${document.title} — ${c.labels[this.side]}`;
+    document.head.querySelectorAll('style, link[rel="stylesheet"], link[rel="icon"]').forEach((node) => doc.head.append(doc.importNode(node, true)));
+    const syncBody = () => { doc.body.className = `${document.body.className} panel-window-body`.trim(); };
+    syncBody();
+    this.bodySync = new MutationObserver(syncBody);
+    this.bodySync.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    const shell = doc.createElement("main");
+    shell.className = "layout panel-window";
+    doc.body.append(shell);
+    this.ghost = this.makeGhost();
+    this.col.replaceWith(this.ghost);
+    shell.append(this.col);
+    this.win = win;
+    this.doc = doc;
+    PanelWindow.active.add(this);
+    for (const m of PanelWindow.mirrors) this.listen(m.onWindow ? win : doc, m.type, m.fn, m.opts);
+    this.listen(doc, "dragover", (e) => e.preventDefault());
+    this.listen(doc, "drop", (e) => e.preventDefault());
+    this.listen(win, "pagehide", () => this.dock());
+    this.listen(window, "pagehide", () => this.dock());
+    this.disposers = PanelWindow.hooks.map((hook) => hook(doc, win)).filter(Boolean);
+    this.timer = setInterval(() => { if (win.closed) this.dock(); }, c.pollMs);
+    this.render();
+    this.onChange?.(true);
+    win.focus();
+  }
+
+  makeGhost() {
+    const c = this.cfg;
+    const ghost = document.createElement("aside");
+    ghost.className = `${this.col.className} panel-ghost`;
+    ghost.dataset.panel = this.side;
+    ghost.setAttribute("aria-label", c.ghostTitle);
+    const bar = document.createElement("div");
+    bar.className = "panel-bar";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "panel-collapse panel-return";
+    btn.title = c.ghostTitle;
+    btn.setAttribute("aria-label", c.ghostTitle);
+    const label = document.createElement("span");
+    label.className = "label";
+    label.textContent = c.ghostLabel;
+    btn.append(label);
+    btn.addEventListener("click", () => this.dock());
+    bar.append(btn);
+    ghost.append(bar);
+    return ghost;
+  }
+
+  dock() {
+    if (!this.win) return;
+    const win = this.win;
+    clearInterval(this.timer);
+    this.bodySync.disconnect();
+    for (const [target, type, fn, opts] of this.handlers) target.removeEventListener(type, fn, opts);
+    this.handlers = [];
+    for (const dispose of this.disposers) dispose();
+    this.disposers = [];
+    PanelWindow.active.delete(this);
+    this.win = null;
+    this.doc = null;
+    this.ghost.replaceWith(this.col);
+    this.ghost = null;
+    if (!win.closed) win.close();
+    this.render();
+    this.onChange?.(false);
+  }
+
+  destroy() {
+    this.dock();
+    this.button.removeEventListener("click", this.onButton);
+  }
 }
 
 function autoGrow(ta) {
@@ -3485,7 +3879,7 @@ class SettingsStore {
     const urls = Object.fromEntries(Object.entries(USER_SETTINGS.backends).map(([k, v]) => [k, v.url]));
     return {
       backend: USER_SETTINGS.defaultBackend, urls, tagDict: {}, tagCache: {}, llm: clone(USER_SETTINGS.llm.defaults),
-      ui: { tab: "panel", mode: "layout", runTarget: "all", settingsPane: "guide", useLlm: true, skipFilled: true },
+      ui: { tab: "panel", mode: "layout", runTarget: "all", settingsPane: "guide", useLlm: true, skipFilled: true, hideLeft: false, hideRight: false },
     };
   }
 
@@ -7592,7 +7986,7 @@ class CanvasView {
     this.on(this.svg, "dragstart", (e) => e.preventDefault());
     this.on(this.svg, "dragover", (e) => this.onDragOver(e));
     this.on(this.svg, "dragleave", (e) => { if (!this.svg.contains(e.relatedTarget)) this.endDrag(); });
-    this.on(document, "dragend", () => this.endDrag());
+    this.on(document, "dragend", PanelWindow.mirror("dragend", () => this.endDrag()));
     this.on(this.svg, "drop", (e) => this.onDrop(e));
   }
 
@@ -7972,7 +8366,7 @@ class InspectorView {
     this.app = app;
     this.box = $("inspector");
     this.listeners = new AbortController();
-    document.querySelectorAll(".tabs-h button").forEach((b) => b.addEventListener("click", () => {
+    PanelWindow.queryAll(".tabs-h button").forEach((b) => b.addEventListener("click", () => {
       this.app.store.data.ui.tab = b.dataset.tab;
       this.app.store.save();
       this.app.syncMossMode();
@@ -7988,13 +8382,14 @@ class InspectorView {
 
   render() {
     const tab = this.app.store.data.ui.tab;
-    document.querySelectorAll(".tabs-h button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+    PanelWindow.queryAll(".tabs-h button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     const sameTab = this.lastTab === tab;
     this.scrollByTab ??= {};
     if (this.lastTab) this.scrollByTab[this.lastTab] = this.box.scrollTop;
     this.lastTab = tab;
     const scrollTop = sameTab ? this.box.scrollTop : this.scrollByTab[tab] || 0;
-    const active = this.box.contains(document.activeElement) ? document.activeElement : null;
+    const focused = this.box.ownerDocument.activeElement;
+    const active = this.box.contains(focused) ? focused : null;
     const focusKey = active ? this.focusKeyOf(active) : null;
     const caret = focusKey && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd] : null;
     const panel = this.app.canvas.selected();
@@ -9496,15 +9891,15 @@ class SettingsView {
         this.app.status(USER_SETTINGS.messages.corsExtSaved[backend]);
       });
     }
-    document.querySelectorAll("#settings [data-copy]").forEach((b) => on(b, "click", () => {
+    PanelWindow.queryAll("#settings [data-copy]").forEach((b) => on(b, "click", () => {
       navigator.clipboard?.writeText($(b.dataset.copy).textContent);
       b.textContent = USER_SETTINGS.messages.copied;
     }));
-    document.querySelectorAll("#settings .tabs-v button").forEach((b) => on(b, "click", () => this.showPane(b.dataset.pane)));
+    PanelWindow.queryAll("#settings .tabs-v button").forEach((b) => on(b, "click", () => this.showPane(b.dataset.pane)));
     on($("settings-close"), "click", () => this.dialog.close());
     on(this.dialog, "click", (e) => { if (e.target === this.dialog) this.dialog.close(); });
     $("backend-seg").replaceChildren(...Object.entries(USER_SETTINGS.backends).map(([k, v]) => h("button", { type: "button", "data-backend": k, text: v.label })));
-    document.querySelectorAll("#backend-seg button").forEach((b) => on(b, "click", () => {
+    PanelWindow.queryAll("#backend-seg button").forEach((b) => on(b, "click", () => {
       this.app.store.data.backend = b.dataset.backend;
       this.app.store.save();
       this.fill();
@@ -9654,8 +10049,8 @@ class SettingsView {
   }
 
   showPane(name) {
-    document.querySelectorAll("#settings .tabs-v button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === name)));
-    document.querySelectorAll("#settings .pane").forEach((p) => { p.hidden = p.dataset.pane !== name; });
+    PanelWindow.queryAll("#settings .tabs-v button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === name)));
+    PanelWindow.queryAll("#settings .pane").forEach((p) => { p.hidden = p.dataset.pane !== name; });
     this.app.store.data.ui.settingsPane = name;
     this.app.store.save();
     if (name === "dict") this.renderDict();
@@ -9664,7 +10059,7 @@ class SettingsView {
 
   fill() {
     const d = this.app.store.data;
-    document.querySelectorAll("#backend-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.backend === d.backend)));
+    PanelWindow.queryAll("#backend-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.backend === d.backend)));
     $("backend-url").value = d.urls[d.backend];
     for (const backend of Object.keys(USER_SETTINGS.corsExtensions)) $(`cors-ext-${backend}-ping`).textContent = CorsExtension.pingUrl(backend, d.urls[backend]);
     $("llm-url").value = d.llm.url;
@@ -9703,13 +10098,15 @@ class SettingsView {
 class NumberControl {
   static watch(root) {
     root.querySelectorAll('input[type="range"], input[type="number"]').forEach((el) => this.enhance(el));
-    new MutationObserver((list) => {
+    const obs = new MutationObserver((list) => {
       for (const rec of list) for (const node of rec.addedNodes) {
         if (node.nodeType !== 1) continue;
         if (node.matches?.('input[type="range"], input[type="number"]')) this.enhance(node);
         node.querySelectorAll?.('input[type="range"], input[type="number"]').forEach((el) => this.enhance(el));
       }
-    }).observe(root, { childList: true, subtree: true });
+    });
+    obs.observe(root, { childList: true, subtree: true });
+    return obs;
   }
 
   static num(v) {
@@ -9980,6 +10377,7 @@ class App {
     this.buildLeft();
     this.applySideWidths();
     this.bindSplitters();
+    this.bindPanels();
     this.bind();
     this.refreshAll();
     this.refreshConnection();
@@ -10005,6 +10403,7 @@ class App {
 
   destroy() {
     clearInterval(this.pruneTimer);
+    for (const win of Object.values(this.panelWindows)) win.destroy();
     this.easy.destroy();
     this.generator.cancel();
     this.moss.cancel();
@@ -10373,19 +10772,67 @@ class App {
     this.inspector.render();
   }
 
+  // SIDE PANELS (FOLD / SEPARATE WINDOW)
+  bindPanels() {
+    PanelWindow.onWindow((doc, win) => {
+      const numbers = NumberControl.watch(doc.body);
+      const refit = () => doc.querySelectorAll("textarea.autogrow").forEach(autoGrow);
+      win.addEventListener("resize", refit);
+      return () => { numbers.disconnect(); win.removeEventListener("resize", refit); };
+    });
+    this.panelWindows = {};
+    for (const side of ["left", "right"]) {
+      this.on($(`btn-toggle-${side}`), "click", () => this.togglePanel(side));
+      this.panelWindows[side] = new PanelWindow({
+        side,
+        col: PanelWindow.query(`[data-panel="${side}"]`),
+        button: $(`btn-pop-${side}`),
+        onChange: (on, error) => {
+          if (error) this.status(error, true);
+          this.applyPanels();
+          PanelWindow.queryAll("textarea.autogrow").forEach(autoGrow);
+        },
+      });
+    }
+    this.applyPanels();
+  }
+
+  applyPanels() {
+    const ui = this.store.data.ui;
+    const cfg = USER_SETTINGS.panelFold;
+    const layout = PanelWindow.query(".layout");
+    for (const side of ["left", "right"]) {
+      const hidden = (side === "left" ? !!ui.hideLeft : !!ui.hideRight) || !!this.panelWindows?.[side]?.detached;
+      layout.classList.toggle(`hide-${side}`, hidden);
+      const btn = $(`btn-toggle-${side}`);
+      btn.setAttribute("aria-expanded", String(!hidden));
+      btn.querySelector(".arrow").textContent = cfg.arrows[side][hidden ? 1 : 0];
+      btn.title = cfg.titles[side][hidden ? 1 : 0];
+      btn.setAttribute("aria-label", cfg.titles[side][hidden ? 1 : 0]);
+    }
+  }
+
+  togglePanel(side) {
+    const ui = this.store.data.ui;
+    const key = side === "left" ? "hideLeft" : "hideRight";
+    ui[key] = !ui[key];
+    this.store.save();
+    this.applyPanels();
+  }
+
   // SIDE PANEL WIDTHS
   applySideWidths() {
     const ui = this.store.data.ui;
     const cfg = USER_SETTINGS.sidePanels;
-    const layout = document.querySelector(".layout");
+    const layout = PanelWindow.query(".layout");
     layout.style.setProperty("--left-w", `${ui.leftW || cfg.left[2]}px`);
     layout.style.setProperty("--right-w", `${ui.rightW || cfg.right[2]}px`);
   }
 
   bindSplitters() {
     const cfg = USER_SETTINGS.sidePanels;
-    const layout = document.querySelector(".layout");
-    document.querySelectorAll(".splitter").forEach((bar) => {
+    const layout = PanelWindow.query(".layout");
+    PanelWindow.queryAll(".splitter").forEach((bar) => {
       const side = bar.dataset.side;
       const key = side === "left" ? "leftW" : "rightW";
       const [min, max, initial] = cfg[side];
@@ -10523,7 +10970,7 @@ class App {
     pressed("panel-on", pg.single ? "off" : "on");
     $("page-w").value = pg.w; $("page-h").value = pg.h;
     $("custom-size").hidden = preset !== USER_SETTINGS.page.custom.id;
-    document.querySelectorAll(".multi-only").forEach((el) => { el.hidden = !!pg.single; });
+    PanelWindow.queryAll(".multi-only").forEach((el) => { el.hidden = !!pg.single; });
     $("gutter").value = pg.gutter; $("gutter-out").textContent = pg.gutter;
     $("line-width").value = pg.lineWidth; $("line-out").textContent = pg.lineWidth;
     $("margin").value = pg.margin; $("margin-out").textContent = pg.margin;
@@ -10657,22 +11104,22 @@ class App {
     this.on($("tilt-plus"), "click", withEdge((e) => this.commit(() => Layout.tilt(this.doc, e.panel, e.k, 1))));
     this.on($("tilt-reset"), "click", withEdge((e) => this.commit(() => Layout.straighten(this.doc, e.panel, e.k))));
     this.on($("merge-edge"), "click", withEdge((e) => this.mergeAcrossEdge(e)));
-    this.on(document, "focusin", (e) => { if (this.isDocField(e.target)) this.beginEdit(); });
-    this.on(document, "focusout", (e) => {
+    this.on(document, "focusin", PanelWindow.mirror("focusin", (e) => { if (this.isDocField(e.target)) this.beginEdit(); }));
+    this.on(document, "focusout", PanelWindow.mirror("focusout", (e) => {
       if (!this.isDocField(e.target)) return;
       this.endEdit();
       if (e.target.closest("#inspector")) this.updateTools();
-    });
-    this.on(document, "change", (e) => {
+    }));
+    this.on(document, "change", PanelWindow.mirror("change", (e) => {
       if (!this.isDocField(e.target) || e.target.type !== "range") return;
       this.endEdit();
       this.beginEdit();
       this.updateLeft();
-    });
-    this.on(document, "keydown", (e) => this.onKey(e));
-    this.on(document, "dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
-    this.on(document, "drop", (e) => this.onGlobalDrop(e));
-    this.on(document, "paste", (e) => this.onPaste(e));
+    }));
+    this.on(document, "keydown", PanelWindow.mirror("keydown", (e) => this.onKey(e)));
+    this.on(document, "dragover", PanelWindow.mirror("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); }));
+    this.on(document, "drop", PanelWindow.mirror("drop", (e) => this.onGlobalDrop(e)));
+    this.on(document, "paste", PanelWindow.mirror("paste", (e) => this.onPaste(e)));
     this.on(document, "visibilitychange", () => { if (document.visibilityState === "hidden") this.savePrefs(); });
     this.on(window, "pagehide", () => this.savePrefs());
     this.on(window, "beforeunload", (e) => {
@@ -10696,7 +11143,7 @@ class App {
       return;
     }
     if (mod && !typing && e.key.toLowerCase() === "y") { e.preventDefault(); this.redo(); return; }
-    if (typing || document.querySelector("dialog[open]")) return;
+    if (typing || PanelWindow.query("dialog[open]")) return;
     if ((e.key === "Delete" || e.key === "Backspace") && !this.canvas.cutTool && (this.canvas.bubble() || (this.canvas.selected() && this.store.data.ui.mode === "layout"))) {
       e.preventDefault();
       this.deleteSelection();
