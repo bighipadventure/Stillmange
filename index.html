@@ -24,6 +24,9 @@
   --accent: #1b1b1b;
   --accent-hover: #3a3a3a;
   --on-accent: #ffffff;
+  --primary: #0096fa;
+  --primary-hover: #0a84d6;
+  --on-primary: #ffffff;
   --accent-text: #1b1b1b;
   --accent-soft: #e2e2e2;
   --on-accent-soft: #1b1b1b;
@@ -73,6 +76,9 @@
     --control-hover: rgba(255, 255, 255, .16);
     --accent: #f1f1f1;
     --accent-hover: #ffffff;
+    --primary: #0096fa;
+    --primary-hover: #33aaff;
+    --on-primary: #ffffff;
     --on-accent: #111111;
     --accent-text: #f1f1f1;
     --accent-soft: #303030;
@@ -119,8 +125,8 @@ button, .filebtn {
 }
 button:hover:not(:disabled), .filebtn:hover { background: var(--control-hover); border-color: var(--muted); }
 button:disabled { opacity: .45; cursor: not-allowed; }
-button.primary, button.run { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
-button.primary:hover:not(:disabled), button.run:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
+button.primary, button.run { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 700; }
+button.primary:hover:not(:disabled), button.run:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--on-primary); }
 button.quiet { border-color: transparent; background: transparent; }
 button.quiet:hover:not(:disabled) { background: var(--control-hover); border-color: transparent; }
 button.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
