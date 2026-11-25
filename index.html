@@ -376,6 +376,8 @@ body.resizing * { user-select: none; }
 .set-grid { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 4px 6px; align-items: center; }
 .set-grid .prop-label { white-space: normal; line-height: 1.2; }
 .set-grid select, .set-grid input { min-height: 26px; padding: 1px 6px; font-size: 12px; }
+#settings .set-grid { grid-template-columns: 104px minmax(0, 1fr); gap: 6px; }
+#settings .set-grid select, #settings .set-grid input:not([type="checkbox"]) { min-height: var(--h-control); padding: 4px 10px; font-size: 13px; }
 .lora-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 24px; gap: 4px 6px; align-items: center; }
 .lora-row > .numctl { grid-row: 2; grid-column: 2 / 4; }
 .lora-row > button:last-child { grid-row: 1; grid-column: 3; }
@@ -434,16 +436,6 @@ body.resizing * { user-select: none; }
 .lint-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .lint-no { flex: none; min-width: 20px; height: 20px; border-radius: 10px; background: var(--surface-2); text-align: center; line-height: 20px; font-size: 11px; }
 .lint-text { flex: 1 1 auto; min-width: 0; }
-.lora-picker { display: grid; gap: 6px; margin-top: 6px; }
-.lora-picker .g-head { display: flex; align-items: center; gap: 6px; }
-.lora-picker .g-head button { margin-left: auto; }
-.lora-pick-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); }
-.lora-pick { padding: 4px 8px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
-.lora-pick:last-child { border-bottom: none; }
-.lora-picker .g-head button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.lora-pick-name { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; cursor: pointer; }
-.lora-pick-name span { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lora-pick-weight { padding-left: 22px; }
 .lora-typed { display: flex; gap: 6px; }
 .lora-typed { flex-wrap: nowrap; }
 .lora-typed input { flex: 1 1 auto; min-width: 0; width: auto; }
@@ -470,8 +462,7 @@ dialog.big {
 }
 dialog.big[open] { display: flex; flex-direction: column; }
 dialog.big::backdrop { background: rgba(0, 0, 0, .55); }
-dialog#settings { width: min(1600px, 94vw); height: min(1200px, 92dvh); }
-dialog.pick { width: min(520px, 100vw - 24px); max-height: min(720px, 100dvh - 24px); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-l); background: var(--surface); color: var(--ink); box-shadow: none; }
+dialog.pick { width: min(var(--dlg-s-w), 94vw); max-height: 92dvh; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-l); background: var(--surface); color: var(--ink); box-shadow: none; }
 dialog.pick[open] { display: flex; flex-direction: column; }
 dialog.pick::backdrop { background: rgba(0, 0, 0, .45); }
 .pick-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
@@ -482,8 +473,8 @@ dialog.pick::backdrop { background: rgba(0, 0, 0, .45); }
 .pick-empty { display: grid; place-items: center; font-size: 10px; color: var(--muted); background: rgba(127, 127, 127, .1); }
 .pick-text { font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pick-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
-dialog.help { width: min(880px, 100vw - 24px); height: min(900px, 100dvh - 24px); }
-dialog.easy { width: min(640px, 100vw - 24px); height: auto; max-height: min(860px, 100dvh - 24px); }
+dialog.help { width: min(var(--dlg-m-w), 94vw); height: min(var(--dlg-m-h), 92dvh); }
+dialog.easy { width: min(var(--dlg-s-w), 94vw); height: auto; max-height: 92dvh; }
 .easy-step { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .easy-step h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
 .easy-step h3 .no { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 12px; }
@@ -714,6 +705,108 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
 
 /* ===== DESIGN RULES 2 (RED FILL = WHITE TEXT / NO GRADIENT) ===== */
 .moss-strip-item .chk.ng { background: var(--danger-fill); color: var(--on-danger); }
+/* ===== MODEL PANEL (SAME IN 3 APPS) ===== */
+.mp { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mp-head { display: flex; align-items: center; gap: 6px; min-height: 28px; }
+.mp-title { font-weight: 700; font-size: 13px; }
+.mp-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.mp-btn { min-height: 26px; padding: 2px 10px; font-size: 12px; border: none; border-radius: var(--radius-s); background: var(--control); color: var(--ink); cursor: pointer; }
+.mp-btn:hover { background: var(--control-hover); }
+.mp-btn:active { scale: .98; }
+.mp-status { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.mp-status.off { color: var(--on-warn-soft); background: var(--warn-soft); padding: 4px 8px; border-radius: var(--radius-xs); }
+.mp-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 6px; align-items: center; min-width: 0; }
+.mp-row-top { align-items: start; }
+.mp-row-top > .mp-label { padding-top: 6px; }
+.mp-label { font-size: 12px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+.mp-select { width: 100%; min-width: 0; min-height: var(--h-control); font-size: 12px; }
+.mp-missing .mp-select { border-color: var(--danger); }
+.mp-warn { margin: 0 0 0 110px; font-size: 12px; line-height: 1.4; color: var(--danger); }
+.mp-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.mp-loras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mp-lora-list { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mp-lora { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); background: var(--surface-2); min-width: 0; }
+.mp-lora-line { display: grid; grid-template-columns: auto minmax(0, 1fr) 24px; gap: 6px; align-items: center; min-width: 0; }
+.mp-lora-weight { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: center; padding-left: 42px; min-width: 0; }
+.mp-weight-label { font-size: 12px; color: var(--muted); }
+.mp-lora.off .mp-select, .mp-lora.off .mp-weight-label { color: var(--disabled-ink); }
+.mp-lora .mp-warn, .mp-lora-label { margin: 0 0 0 42px; }
+.mp-del, .mp-del-space { width: 24px; height: 24px; }
+.mp-switch-space { width: 36px; height: 20px; }
+.mp-del { border: none; border-radius: var(--radius-xs); background: transparent; cursor: pointer; position: relative; padding: 0; }
+.mp-del::before { content: ""; position: absolute; inset: 5px; background: var(--muted); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.mp-del:hover { background: var(--control); }
+.mp-del:hover::before { background: var(--danger); }
+.mp-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.mp-tools button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mp-wf { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mp-wf-now { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.mp-wf-tag { flex: none; font-size: 11px; font-weight: 600; line-height: 18px; padding: 0 8px; border-radius: 999px; background: var(--control); color: var(--muted); }
+.mp-wf-now.custom .mp-wf-tag { background: var(--accent); color: var(--on-accent); }
+.mp-wf .note { margin: 0; }
+.mp-wf-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; margin: 0; font-size: 12px; }
+.mp-wf-list dt { font-weight: 600; }
+.mp-wf-list dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.mp-compact .mp-row { grid-template-columns: 76px minmax(0, 1fr); }
+.mp-compact .mp-warn { margin-left: 82px; }
+/* ===== SETTINGS SHELL AND DIALOG SIZES (SAME IN 3 APPS) ===== */
+:root { --dlg-l-w: 1600px; --dlg-l-h: 1200px; --dlg-m-w: 880px; --dlg-m-h: 900px; --dlg-s-w: 640px; --dlg-nav-w: 200px; }
+dialog.dlg-l, dialog#settings { width: min(var(--dlg-l-w), 94vw); height: min(var(--dlg-l-h), 92dvh); max-width: none; max-height: none; }
+dialog.dlg-m { width: min(var(--dlg-m-w), 94vw); height: min(var(--dlg-m-h), 92dvh); max-width: none; max-height: none; }
+dialog.dlg-s { width: min(var(--dlg-s-w), 94vw); height: auto; max-width: none; max-height: 92dvh; }
+dialog#settings { padding: 0; border: none; border-radius: var(--radius-l); background: var(--surface); color: var(--ink); overflow: hidden; box-shadow: var(--shadow-high); }
+dialog#settings[open] { display: flex; flex-direction: column; }
+dialog#settings::backdrop { background: var(--backdrop); }
+#settings > .dlg-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 20px; min-height: 52px; border-bottom: 1px solid var(--line); background: var(--surface); }
+#settings > .dlg-head h2 { margin: 0; flex: 1; font-size: 17px; font-weight: 600; }
+#settings > .dlg-head > button { background: var(--control); border-color: transparent; color: var(--ink); }
+#settings > .dlg-head > button:hover:not(:disabled) { background: var(--control-hover); border-color: transparent; }
+#settings > .dlg-split, #settings > .dlg-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--dlg-nav-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); padding: 0; gap: 0; overflow: hidden; }
+#settings [role="tablist"] { border-right: 1px solid var(--line); padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; background: var(--bg); }
+#settings .tab-group { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted); padding: 10px 10px 4px; }
+#settings .tab-group:first-child { padding-top: 2px; }
+#settings .tab-group:not(:first-child) { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 12px; }
+#settings [role="tablist"] > button { flex: none; justify-content: flex-start; text-align: left; border: 1px solid transparent; background: none; padding: 3px 10px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: none; }
+#settings [role="tablist"] > button:hover:not(:disabled) { background: var(--control); border-color: transparent; color: var(--ink); }
+#settings [role="tablist"] > button[aria-selected="true"], #settings [role="tablist"] > button[aria-selected="true"]:hover:not(:disabled) { background: var(--accent); border-color: transparent; color: var(--on-accent); font-weight: 600; box-shadow: none; }
+#settings .pane { padding-top: 20px; padding-left: 24px; padding-right: 24px; overflow-y: auto; scrollbar-gutter: stable; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+#settings .pane { padding-bottom: 20px; }
+#settings .pane-actions { position: static; margin: 2px 0 0; padding: 0; background: none; border-top: none; }
+#settings .pane > h3, #settings .pane-head h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+#settings .lead { margin: 0; font-size: 12px; color: var(--muted); max-width: 72ch; }
+#settings .card { border: 1px solid var(--line); border-radius: var(--radius-l); padding: 12px 14px; background: var(--surface-2); }
+#settings .cards > .card { padding-left: 42px; }
+#settings .card { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#settings .card > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+#settings .card > button, #settings .card > a.btn { align-self: flex-start; }
+#settings .card > .row + .check, #settings .card > .row + label:has(> input[type="checkbox"]) { margin-top: 4px !important; }
+#settings .card label.field { display: flex; flex-direction: column; gap: 2px; margin: 0; font-weight: 400; }
+#settings .card label.field > :is(input, select, textarea, .numctl) { margin-top: 0; }
+#settings .pane-head { display: flex; flex-direction: column; gap: 10px; }
+#settings .card .inline-field { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+#settings .card .inline-field > .field { align-self: stretch; }
+#settings .card-title { display: flex; align-items: flex-start; flex-wrap: nowrap; gap: 6px; font-size: 14px; font-weight: 600; line-height: 20px; }
+#settings .card-title .badge { flex: none; margin-top: 1px; }
+#settings .card > .prop { grid-template-columns: 104px minmax(0, 1fr); gap: 6px; }
+#settings .card-title .num { display: block; box-sizing: border-box; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; flex: none; text-align: center; line-height: 1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-variant-numeric: lining-nums tabular-nums; text-box: trim-both cap alphabetic; padding-top: calc((20px - 1cap) / 2); }
+#settings .badge { position: static; font-size: 11px; font-weight: 500; line-height: 18px; color: var(--muted); background: var(--control); border: 1px solid transparent; border-radius: 999px; padding: 0 8px; }
+#settings .sub-title { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; font-size: 13px; font-weight: 600; padding-top: 8px; border-top: 1px solid var(--line); }
+#settings .dropzone { display: grid; place-items: center; min-height: 70px; border: 1px dashed var(--line-strong); border-radius: var(--radius-l); cursor: pointer; text-align: center; padding: 8px; overflow: hidden; position: relative; background: var(--surface-2); transition: border-color .12s, background-color .12s; }
+#settings .dropzone:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+#settings .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+#settings .dropzone .hint { color: var(--muted); font-size: 12px; }
+#settings .dropzone .hint strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 2px; }
+#settings .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+@media (max-width: 700px) {
+  #settings > .dlg-split, #settings > .dlg-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  #settings [role="tablist"] { flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--line); }
+  #settings .tab-group { display: none; }
+  #settings .pane { padding-top: 12px; padding-left: 12px; padding-right: 12px; }
+}
+.topbar button.quiet { background: var(--control); border-color: transparent; }
+.topbar button.quiet:hover:not(:disabled) { background: var(--control-hover); border-color: transparent; }
+.topbar .pill { min-height: var(--h-control); font-size: 12px; }
+/* ===== END SETTINGS SHELL ===== */
 </style>
 </head>
 <body>
@@ -898,7 +991,7 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
 
 <dialog class="pick" id="panel-pick" aria-label="上書きするコマを選ぶ"></dialog>
 
-<dialog class="big" id="lib-dialog" aria-labelledby="lib-dlg-title">
+<dialog class="big dlg-l" id="lib-dialog" aria-labelledby="lib-dlg-title">
   <div class="dlg-head"><h2 id="lib-dlg-title">素材</h2><button class="close" id="lib-dlg-close">閉じる</button></div>
   <div class="dlg-body" id="lib-dlg-body"></div>
 </dialog>
@@ -1034,21 +1127,24 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
 <dialog class="big" id="settings" aria-labelledby="settings-title">
   <div class="dlg-head"><h2 id="settings-title">設定</h2><button class="close" id="settings-close">閉じる</button></div>
   <div class="dlg-split">
-    <nav class="tabs-v" role="tablist">
+    <nav class="tabs-v" role="tablist" aria-label="設定の項目">
+      <div class="tab-group" aria-hidden="true">使い方</div>
       <button role="tab" data-pane="guide" aria-selected="true">はじめに</button>
-      <button role="tab" data-pane="conn">画像生成の接続</button>
-      <button role="tab" data-pane="llm">文章AI（LLM）</button>
+      <div class="tab-group" aria-hidden="true">接続</div>
+      <button role="tab" data-pane="llm">文章AI</button>
+      <button role="tab" data-pane="conn">画像AI</button>
+      <div class="tab-group" aria-hidden="true">調整</div>
       <button role="tab" data-pane="dict">ジャンル分けの辞書</button>
     </nav>
     <section class="pane" data-pane="guide">
       <h3>はじめに</h3>
-      <p class="lead">このページはブラウザから、あなたのPCの Stable Diffusion WebUI（A1111 / Forge）か ComfyUI に直接つなぎます。画像や設定が外部のサーバーに送られることはありません。最初の1回だけ、次の準備をします。</p>
+      <p class="lead">このページはブラウザから、あなたのPCの Stable Diffusion WebUI（A1111 / Forge / Forge Neo）か ComfyUI に直接つなぎます。画像や設定が外部のサーバーに送られることはありません。最初の1回だけ、次の準備をします。</p>
       <div class="card">
-        <h4 class="card-title">1. 「ローカル ネットワーク上のデバイスへのアクセス」を許可する</h4>
+        <h4 class="card-title"><span class="num">1</span>「ローカル ネットワーク上のデバイスへのアクセス」を許可する</h4>
         <p class="note">初めて接続するときにブラウザに確認が出たら「許可」を押します。ブロックしたときは、アドレスバー左のアイコン →「サイトの設定」→「ローカル ネットワーク アクセス」を「許可」にして再読み込みします。Chrome か Edge で開いてください。</p>
       </div>
       <div class="card">
-        <h4 class="card-title">2. Stable Diffusion WebUI（A1111 / Forge / Forge Neo）を使う場合：拡張機能 web-app-cors を入れる</h4>
+        <h4 class="card-title"><span class="num">2</span>Stable Diffusion WebUI（A1111 / Forge / Forge Neo）を使う場合：拡張機能 web-app-cors を入れる</h4>
         <p class="note">接続を許可する小さな拡張機能を入れます（このページのアドレス <code id="cors-ext-a1111-origins"></code> だけを許可し、使えるのも画像生成やモデル一覧など、このアプリが使う窓口だけです）。画像生成用のAPIもこの拡張機能が有効にするので、起動オプションは空のままで使えます。</p>
         <button class="primary" id="cors-ext-a1111-download">web-app-cors（WebUI 用）をダウンロード（ZIP）</button>
         <ol class="steps">
@@ -1060,8 +1156,8 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
         <p class="note">ログに <code>could not enable API</code> と出た場合は、起動オプションに <code>--api</code> を足してください。ログに <code>Exception in thread … (webui_worker)</code> が出ている場合は、起動途中で止まっているため拡張機能が読み込まれません。エラーに名前が出ている拡張機能（例: sd-webui-ar）を外してください。</p>
       </div>
       <div class="card">
-        <h4 class="card-title">2'. ComfyUI を使う場合：カスタムノード web-app-cors を入れる</h4>
-        <p class="note">接続を許可する小さなカスタムノードを入れます（このページのアドレス <code id="cors-ext-comfy-origins"></code> だけを許可し、カスタムノードの追加などの窓口は断ります）。「設定」→「画像生成の接続」で ComfyUI を選んでください。</p>
+        <h4 class="card-title"><span class="num">3</span>ComfyUI を使う場合：カスタムノード web-app-cors を入れる</h4>
+        <p class="note">接続を許可する小さなカスタムノードを入れます（このページのアドレス <code id="cors-ext-comfy-origins"></code> だけを許可し、カスタムノードの追加などの窓口は断ります）。「設定」→「画像AI」で ComfyUI を選んでください。</p>
         <button class="primary" id="cors-ext-comfy-download">web-app-cors（ComfyUI 用）をダウンロード（ZIP）</button>
         <ol class="steps">
           <li>ZIP を ComfyUI の <code>custom_nodes</code> フォルダに展開し、<code>custom_nodes\web-app-cors\__init__.py</code> となるようにします（<code>web-app-cors</code> フォルダが二重にならないよう注意）。<br>Stability Matrix の場合: <code>Data\Packages\ComfyUI\custom_nodes</code></li>
@@ -1071,37 +1167,57 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
         </ol>
       </div>
       <div class="card">
-        <h4 class="card-title">3. 接続を確認する</h4>
+        <h4 class="card-title"><span class="num">4</span>接続を確認する</h4>
         <button class="primary" id="guide-test">いまの設定で接続を確認</button>
         <p class="msg" id="guide-msg"></p>
       </div>
     </section>
     <section class="pane" data-pane="conn" hidden>
-      <h3>画像生成の接続</h3>
-      <p class="lead">使う画像生成のソフトと URL です。変えるとすぐに保存されます。</p>
+      <h3>画像AI（SD WebUI / ComfyUI）</h3>
+      <p class="lead">画像を作る SD WebUI / ComfyUI の接続先と、使うモデルです。つながると、モデル・VAE・Text Encoder・LoRA の一覧を接続先から読み込みます。変えるとすぐに保存され、次に開いたときも使います。</p>
       <div class="card">
+        <h4 class="card-title"><span class="num">1</span>接続先</h4>
         <div class="seg" id="backend-seg" role="group" aria-label="画像生成のソフト"></div>
         <label class="field">URL<input type="url" id="backend-url"></label>
         <div class="row"><button id="conn-test">接続テスト</button><button id="conn-reload">モデル・LoRA の一覧を読み直す</button></div>
         <p class="note">生成した画像は、各ツールの標準の場所・名前で保存されます（SD WebUI: outputs/txt2img-images/日付フォルダ、ComfyUI: output/ComfyUI_00001_.png など）。</p>
         <p class="msg" id="conn-msg"></p>
       </div>
+      <div class="card">
+        <h4 class="card-title"><span class="num">2</span>モデル</h4>
+        <div id="conn-models"></div>
+      </div>
+      <div class="card">
+        <h4 class="card-title"><span class="num">3</span>画像の作り方</h4>
+        <div id="conn-gen"></div>
+      </div>
+      <div class="card" id="conn-workflow-card">
+        <h4 class="card-title"><span class="num">4</span>ワークフロー <span class="badge">ComfyUI のとき</span></h4>
+        <div id="conn-workflow"></div>
+      </div>
     </section>
     <section class="pane" data-pane="llm" hidden>
       <h3>文章AI（LLM）</h3>
       <p class="lead">コマごとの大まかな指示（「町の風景」「顔のアップ」など）を、画像生成用のプロンプトに書き直すローカルLLMです。OpenAI 互換サーバー（LM Studio・Bionic・KoboldCpp・Ollama・llama.cpp など）が使えます。サーバーURLの下の候補を押すと切り替わります（緑の点は起動中）。ページを開いたとき・このページに戻ってきたとき・上部の「更新」を押したときに起動中のものを探します。変えるとすぐに保存されます。</p>
       <div class="card">
+        <h4 class="card-title"><span class="num">1</span>接続先</h4>
         <div class="row"><button class="primary icon-search" id="llm-detect">自動で探す</button><span class="note" style="margin:0">文章AIのサーバーを起動してから押します</span></div>
         <label class="field" style="margin-bottom:0">サーバーURL<input type="url" id="llm-url"></label>
         <div class="llm-chips" id="llm-chips" role="group" aria-label="接続先（押すと切り替わります）"></div>
+        <p class="msg" id="llm-msg"></p>
+      </div>
+      <div class="card">
+        <h4 class="card-title"><span class="num">2</span>モデル</h4>
         <label class="field">モデル<select id="llm-model"></select></label>
-        <div class="row"><button id="llm-fetch">モデルの一覧を更新</button></div>
+        <div class="row"><button id="llm-fetch">一覧を更新</button></div>
         <label class="check"><input type="checkbox" id="llm-vision"> ベースの画像もAIに見せる（画像対応モデルのみ）</label>
+      </div>
+      <div class="card">
+        <h4 class="card-title"><span class="num">3</span>細かい調整 <span class="badge">変更しなくても動きます</span></h4>
         <label class="check"><input type="checkbox" id="llm-free-vram"> 文章AIが動く間は、画像生成のモデルをVRAMから外す（同じPCで両方動かすときの速度低下を防ぎます）</label>
         <label class="field">発想の自由度（温度）<input type="number" id="llm-temp" min="0" max="1.5" step="0.05"></label>
         <label class="field">最大トークン数（返事の長さの上限。考える過程を出すモデルは 8192 以上）<input type="number" id="llm-max-tokens" min="256" max="65536" step="256"></label>
         <label class="field">APIキー（ローカルなら空欄）<input type="text" id="llm-key" autocomplete="off"></label>
-        <p class="msg" id="llm-msg"></p>
       </div>
       <div class="card">
         <h4 class="card-title">CORS（このページからの接続）を許可する</h4>
@@ -1127,6 +1243,98 @@ body.panel-window-body { display: flex; flex-direction: column; overflow: hidden
 
 <script>
 const USER_SETTINGS = {
+  modelPanel: {
+    fileExt: /\.(safetensors|ckpt|pt|pth|bin|gguf|sft)$/i,
+    noiseWords: /(^|[_\-.\s])(fp\d+|bf\d+|int\d+|nvfp\d+|q\d+(_[a-z0-9])*|pruned|convrot|ema|e4m3fn|e5m2|scaled|awq|mixed|\d+p)(?=$|[_\-.\s])/g,
+    weightStep: 0.05,
+    weightMin: -2,
+    weightMax: 3,
+    sliderMin: 0,
+    sliderMax: 1.5,
+    weight: "強さ",
+    title: "モデル",
+    reload: "一覧を読み込む",
+    reloadTitle: "接続先にあるモデル・VAE・Text Encoder・LoRA の一覧を読み込み直します",
+    reset: "初期設定に戻す",
+    resetWorkflow: "ワークフローの値に戻す",
+    resetTitle: "基準の設定に戻します",
+    resetVideoTitle: "モデル・VAE・Text Encoder・LoRA を、基準のワークフローの値に戻します（追加した LoRA は外します）",
+    resetMossTitle: "MOSS 用の Checkpoint・VAE・Text Encoder を空欄（Forge で選んでいるもの）に戻し、LoRA を外します",
+    resetImageTitle: "Checkpoint を接続先で選んでいるもの、VAE・Text Encoder を Checkpoint 内蔵のものに戻し、LoRA を外します",
+    loaded: "接続先（{source}）にあるファイルから選びます。選んだものは覚えていて、次に開いたときも使います。",
+    offline: "接続先（{source}）の一覧をまだ読み込めていません。接続してから「一覧を読み込む」を押してください。",
+    notLoaded: "（一覧を読み込んでいません）",
+    missingItem: "{name}（接続先にありません）",
+    missingNote: "「{name}」は接続先にありません。一覧から選び直してください。",
+    substituted: "「{from}」が接続先に無いので、近い名前の「{to}」を選びました。",
+    lora: "LoRA",
+    loraUse: "{name} を使う",
+    loraFile: "LoRA のファイル",
+    loraWeight: "{name} の強さ",
+    loraRemove: "外す",
+    loraAdd: "LoRA を追加",
+    loraAddItem: "＋ LoRA を追加（{n} 個）",
+    loraNotLoaded: "（LoRA の一覧を読み込んでいません）",
+    checkpoint: "Checkpoint",
+    vae: "VAE",
+    textEncoder: "Text Encoder",
+    builtInVae: "Checkpoint 内蔵の VAE",
+    builtInTe: "Checkpoint 内蔵の Text Encoder",
+    noVae: "使わない（None）",
+    webuiModel: "（WebUI で選んでいるモデル）",
+    pickModel: "（選んでください）",
+    workflowValue: "（ワークフローのまま）",
+    teA1111: "この接続先では選べません（Forge Neo・ComfyUI で選べます）",
+    teComfy: "ComfyUI では Checkpoint の Text Encoder を使います",
+    teWorkflow: "このワークフローには Text Encoder を読み込むノードがありません",
+    kindLabels: { model: "モデル", te: "Text Encoder", vision: "CLIP Vision", vae: "VAE", audioVae: "音声 VAE" },
+    loaderKinds: {
+      model: [[/^(?!.*(upscale|interpol|vfi|film|rife|sam|clip|vision|depth|pose|detect|segment)).*$/i, "unet_name"], [/^(?!.*(upscale|interpol|vfi|film|rife|sam|clip|vision|depth|pose|detect|segment)).*$/i, "ckpt_name"], [/^(?!.*(upscale|interpol|vfi|film|rife|sam|clip|vision|depth|pose|detect|segment)).*$/i, "model_name"]],
+      vision: [[/vision/i, "clip_name"]],
+      te: [[/./, "clip_name"], [/./, "clip_name1"], [/./, "clip_name2"], [/./, "clip_name3"]],
+      vae: [[/./, "vae_name"]],
+      lora: [[/lora/i, "lora_name"]],
+    },
+    modelLoaderClass: /load/i,
+    audioTitle: /audio/i,
+    extraLoraClass: "LoraLoaderModelOnly",
+    extraLoraPrefix: "mp_lora_",
+    loraListClass: ["LoraLoaderModelOnly", "lora_name"],
+    workflow: {
+      textKeys: ["text", "text_g", "prompt"],
+      guiderClass: /guider/i,
+      samplerClass: /sampler|scheduler/i,
+      loadImageClass: /loadimage/i,
+      outputClass: /save|preview|combine|output/i,
+      saveClass: /^saveimage$/i,
+      clipLoaderClass: /checkpoint/i,
+      loraClipClass: "LoraLoader",
+      vaeNodeId: "mp_vae",
+      seedKeys: ["seed", "noise_seed"],
+      lengthKeys: ["length", "num_frames"],
+      autoNames: ["", "Automatic", "automatic", "Auto", "auto", "None"],
+      sizeClass: {
+        image: { include: /latent/i, exclude: /upscale/i },
+        video: { include: /./, exclude: /upscale|scale|resize|crop|pad|latentup/i },
+      },
+      partLabels: { positive: "プロンプト", negative: "ネガティブ", images: "元の画像", size: "大きさ", length: "長さ（フレーム数）", seed: "シード", steps: "ステップ数", cfg: "CFG", sampler: "サンプラー", scheduler: "スケジューラー", clipSkip: "CLIP スキップ", output: "画像・動画の保存（Save / Preview）" },
+      notJson: "JSON として読めませんでした。ComfyUI で書き出したワークフローの JSON を選んでください。",
+      notApi: "ComfyUI の API 形式のワークフローではありません。ComfyUI で「ワークフロー」→「エクスポート（API）」で保存し直してください。",
+      missing: "このワークフローには、アプリが値を書き込む場所（{list}）が見つかりません。",
+      pick: "ワークフローの JSON を選ぶ",
+      drop: "API形式のワークフローJSONをドロップ",
+      dropSub: "クリックして選ぶこともできます",
+      tagBuiltIn: "組み込み",
+      tagCustom: "手持ち",
+      reset: "組み込みのワークフローに戻す",
+      exportLabel: "このワークフローを書き出す（ComfyUI 用 JSON）",
+      apiHow: "手持ちのワークフローは、ComfyUI の「ワークフロー」→「エクスポート（API）」で保存した JSON を使います。プロンプト・大きさ・シードなどはアプリの値を書き込み、モデル・VAE・Text Encoder・LoRA はこの画面で選んだものに差し替えます。",
+      mapTitle: "書き込み先",
+      mapBadge: "自動で選ばれます",
+      loaded: "「{name}」を使います。",
+      cleared: "組み込みのワークフローに戻しました。",
+    },
+  },
   appName: "Stillmange",
   storageKey: "stillmange.settings.v1",
   legacyStorageKeys: ["komagen.settings.v1"],
@@ -1138,7 +1346,7 @@ const USER_SETTINGS = {
   shareHandoff: { db: "stillmotion-handoff", store: "videos", importName: "stillmange", keyPrefix: "sg", tags: ["Stillmange"] },
   pagesOrigin: "https://bighipadventure.github.io",
   backends: {
-    a1111: { label: "SD WebUI（A1111 / Forge）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}", corsAny: "--api --cors-allow-origins-regex=.*" },
+    a1111: { label: "SD WebUI（A1111 / Forge / Forge Neo）", short: "SD WebUI", url: "http://127.0.0.1:7860", cors: "--api --cors-allow-origins={origin}", corsAny: "--api --cors-allow-origins-regex=.*" },
     comfy: { label: "ComfyUI", short: "ComfyUI", url: "http://127.0.0.1:8188", cors: "--enable-cors-header {origin}", corsAny: "--enable-cors-header *" },
   },
   defaultBackend: "a1111",
@@ -1153,7 +1361,7 @@ const USER_SETTINGS = {
 
 A1111 / Forge / Forge Neo に、次のWebアプリ（__ORIGINS_TEXT__）からの接続を許可します。
 ほかのサイトからの接続は許可しません。
-許可したサイトから使えるのは、画像生成・モデル一覧など Stillmange / Stillmotion が使う窓口だけです
+許可したサイトから使えるのは、画像生成・モデル一覧など Stillmange / Stillmotion / Stillsheet が使う窓口だけです
 （設定画面・拡張機能の管理などの窓口は断ります）。
 起動オプションに --api を書かなくても、画像生成用のAPIを有効にします。
 
@@ -1197,7 +1405,7 @@ ALLOW_ALL = False
 ENABLE_API = True
 
 # ===== 許可したサイトから使える窓口 =====
-# Stillmange / Stillmotion が使うものだけを並べています。ここに無い窓口（設定画面・拡張機能の管理など）は、
+# Stillmange / Stillmotion / Stillsheet が使うものだけを並べています。ここに無い窓口（設定画面・拡張機能の管理など）は、
 # 許可したサイトからでも 403 で断ります。WebUI 自身の画面（同じアドレスから開いたページ）には影響しません。
 ALLOWED_PATHS = {
     "/web-app-cors/ping",
@@ -1409,7 +1617,7 @@ script_callbacks.on_app_started(on_app_started)
 
 ComfyUI に、次のWebアプリ（__ORIGINS_TEXT__）からの接続を許可します。
 ほかのサイトからの接続は許可しません。
-許可したサイトから使えるのは、ワークフローの実行・画像の受け渡し・モデル一覧など Stillmange / Stillmotion が使う窓口だけです
+許可したサイトから使えるのは、ワークフローの実行・画像の受け渡し・モデル一覧など Stillmange / Stillmotion / Stillsheet が使う窓口だけです
 （ComfyUI Manager によるカスタムノードの追加や、設定の書き換えなどの窓口は断ります）。
 
 入れ方
@@ -1448,7 +1656,7 @@ LOCALHOST_PATTERN = r"^https?://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?$"
 ALLOW_ALL = False
 
 # ===== 許可したサイトから使える窓口 =====
-# Stillmange / Stillmotion が使うものだけを並べています（先頭に /api が付いた形も同じ扱い。/ws は生成の進み具合の受け取り）。
+# Stillmange / Stillmotion / Stillsheet が使うものだけを並べています（先頭に /api が付いた形も同じ扱い。/ws は生成の進み具合の受け取り）。
 # ここに無い窓口（ComfyUI Manager によるカスタムノードの追加、設定やユーザーデータの書き換えなど）は、
 # 許可したサイトからでも 403 で断ります。ComfyUI 自身の画面（同じアドレスから開いたページ）には影響しません。
 ALLOWED_PATHS = {
@@ -1747,7 +1955,7 @@ If the user chose characters, they star in the page (the protagonist is the main
 {"style": "...", "summary": "...", "panels": {"1": {"caption": "...", "characters": ["..."], "instruction": ""}, "2": {"caption": "...", "characters": []}}, "bubbles": {"1": "...", "2": "..."}, "cast": {"1": "..."}}`,
     messages: {
       tab: "MOSS",
-      needForge: "MOSS-Image のページ生成は、いまは SD WebUI（Forge Neo）に接続しているときだけ使えます。「設定」→「画像生成の接続」で SD WebUI を選んでください。",
+      needForge: "MOSS-Image のページ生成は、いまは SD WebUI（Forge Neo）に接続しているときだけ使えます。「設定」→「画像AI」で SD WebUI を選んでください。",
       needModel: "MOSS-Image 用の Checkpoint が選ばれていません。右の「MOSS」タブで選んでください（anima などほかのモデルでは MOSS のプロンプトは使えません）。",
       needModules: "選んだ Text Encoder / VAE が Forge の一覧に見つかりません。「MOSS」タブの「モデル（MOSS 専用）」で選び直すか、空欄にして Forge で選んでいるものを使ってください。",
       badOverride: "手で直したJSONが読めません（{err}）。直すか、「手で直したJSONで生成する」をオフにしてください。",
@@ -2381,6 +2589,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     combinedScheduler: /\s(Karras|Exponential|SGM Uniform)$/,
   },
   autoValues: ["", "Automatic", "None", "automatic", "none"],
+  vaeLike: /(vae|(^|[_\-.])ae([_\-.]|$))/i,
   megapixels: [[0.25, "0.25（SD1.5 の 512×512 相当）"], [0.4, "0.4"], [0.6, "0.6"], [0.8, "0.8"], [1, "1.0（SDXL の 1024×1024 相当）"], [1.25, "1.25"], [1.5, "1.5"]],
   settingFields: [
     { key: "sampler", label: "サンプラー", type: "select", list: "samplers" },
@@ -2402,6 +2611,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     negative: "",
   },
   comfy: { filePrefix: "ComfyUI", defaultUpscale: "nearest-exact" },
+  workflowCard: { builtIn: "Checkpoint → KSampler のシンプルな txt2img（アプリが毎回組み立てます）", file: "stillmange_txt2img.json", size: 1024, note: "手持ちのワークフローでは、アプリの Hires.fix は使いません（必要ならワークフローの中で組んでください）。" },
   lockGroups: { negative: "ネガティブ", model: "モデル・VAE", loras: "LoRA", settings: "生成設定" },
   messages: {
     probeOk: "接続OK",
@@ -2475,7 +2685,7 @@ Output ONLY one JSON object, with no explanation and no markdown. Write every va
     refreshedLists: "一覧を読み直しました（Checkpoint {models} 個・LoRA {loras} 個）。",
     loraApiMissing: "Forge に LoRA 一覧の窓口がありません。「設定」から拡張機能 web-app-cors の最新版（v4）をダウンロードして入れ替え、Forge を起動し直してください（または起動オプションに --api を付けます）",
     loraListFailed: " LoRA の一覧を受け取れませんでした（{err}）。Forge の画面の LoRA タブで更新ボタンを押してから、「設定」の「モデル・LoRA の一覧を読み直す」を押してください。",
-    needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI（LLM）」で設定してください。",
+    needLlmModel: "文章AIのモデルが選ばれていません。「設定」→「文章AI」で設定してください。",
     llmBadJson: "文章AIの返事からプロンプト（JSON）を読み取れませんでした（自動でもう一度頼んでもだめでした）。",
     llmTruncated: "返事が途中で切れています（最大トークン数に達しました）。「設定」→「文章AI」の最大トークン数を増やしてください（考える過程を出すモデルは 8192 以上が目安）。",
     llmReplyHead: "\n文章AIの返事の先頭: 「{head}」",
@@ -3850,7 +4060,7 @@ class Names {
 // ===== LAST-USED GENERATION SETTINGS (RESTORED ON THE NEXT VISIT) =====
 class Prefs {
   static mossKeys = ["enabled", "model", "textEncoder", "vae", "loras", "negative", "settings", "onlyMoss", "textMode", "mono", "meta", "workType", "batch", "autoCheck", "reviseSameSeed", "maskOutside"];
-  static commonKeys = ["family", "model", "vae", "loras", "negative", "settings", "use"];
+  static commonKeys = ["family", "model", "vae", "textEncoder", "loras", "negative", "settings", "use"];
 
   static pick(src, keys) {
     return Object.fromEntries(keys.filter((k) => src?.[k] !== undefined).map((k) => [k, clone(src[k])]));
@@ -4041,7 +4251,7 @@ class A1111Client {
     const override = { CLIP_stop_at_last_layers: s.clipSkip };
     if (spec.model) override.sd_model_checkpoint = spec.model;
     if (spec.vae) override.sd_vae = spec.vae;
-    if (spec.modules?.length) override.forge_additional_modules = spec.modules;
+    if (Array.isArray(spec.modules)) override.forge_additional_modules = spec.modules;
     const prompt = spec.loraFirst ? [loraTags, spec.prompt].filter(Boolean).join(" ") : [spec.prompt, loraTags].filter(Boolean).join(", ");
     const payload = {
       prompt, negative_prompt: spec.negative,
@@ -4115,7 +4325,14 @@ class ComfyClient {
       this.inputList("KSampler", "sampler_name"), this.inputList("KSampler", "scheduler"),
       this.inputList("VAELoader", "vae_name"), this.inputList("LatentUpscaleBy", "upscale_method"),
     ]);
-    return { models, loras, samplers, schedulers, vaes, upscalers };
+    if (!this.custom) return { models, loras, samplers, schedulers, vaes, upscalers };
+    const own = await CustomWorkflow.imageLists((cls, key) => this.inputList(cls, key), this.custom.workflow);
+    return { models: own.models, loras, samplers, schedulers, vaes: own.vaes, upscalers, textEncoders: own.textEncoders, workflowTe: own.hasTe, custom: true };
+  }
+
+  workflowFor(spec) {
+    if (!this.custom) return this.graph(spec);
+    return CustomWorkflow.image(this.custom.workflow, spec, { prefix: USER_SETTINGS.comfy.filePrefix });
   }
 
   async currentSettings() {
@@ -4164,10 +4381,10 @@ class ComfyClient {
   }
 
   async generate(spec, { signal, onProgress }) {
-    if (!spec.model) throw new UserError(USER_SETTINGS.messages.needModelComfy);
+    if (!spec.model && !this.custom) throw new UserError(USER_SETTINGS.messages.needModelComfy);
     const res = await fetch(`${this.base}/prompt`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: this.graph(spec), client_id: this.clientId }), signal,
+      body: JSON.stringify({ prompt: this.workflowFor(spec), client_id: this.clientId }), signal,
     });
     if (!res.ok) throw new Error(`ComfyUI がワークフローを受け付けませんでした（${res.status}）: ${(await res.text()).slice(0, 600)}`);
     const promptId = (await res.json()).prompt_id;
@@ -6652,7 +6869,7 @@ class MossRunner {
     const seed = this.seedOverride ?? Number(s.seed);
     return {
       prompt: MossLayout.prompt(doc), negative: this.negative(), model: Names.match(m.model, res.models), vae: "",
-      modules: files, loraFirst: true,
+      modules: files.length ? files : undefined, loraFirst: true,
       loras: (m.loras || []).filter((l) => l.name && l.on !== false).map((l) => ({ name: Names.match(l.name, res.loras), weight: Number(l.weight ?? 1) })),
       settings: {
         sampler: pick(s.sampler, res.samplers, map.samplers) || defaults.sampler,
@@ -7263,6 +7480,8 @@ class Project {
     const ownLoras = (panel.loras || []).filter((l) => l.name);
     const loras = (c.use.loras ? c.loras : (ownLoras.length ? ownLoras : c.loras)).filter((l) => l.name && l.on !== false).concat(inline.loras);
     const settings = this.settingsFor(doc, panel);
+    const forgeNeo = backend === "a1111" && !!resources.forgeNeo;
+    const moduleFile = (n) => (USER_SETTINGS.autoValues.includes(n || "") ? "" : resources.moduleFiles?.[Names.match(n, resources.modules)] || "");
     const map = USER_SETTINGS.nameMap;
     settings.sampler = Names.choice(settings.sampler, resources.samplers, map.samplers);
     settings.scheduler = Names.choice(settings.scheduler, resources.schedulers, map.schedulers);
@@ -7278,7 +7497,9 @@ class Project {
     const bbox = Geo.bbox(Layout.insetPts(doc, panel));
     return {
       prompt: inline.text.replace(/\s*(,\s*)+/g, ", ").replace(/^,\s*|,\s*$/g, "").trim(), negative,
-      model: Names.match(model, resources.models), vae: this.vaeFor(vae, resources, backend),
+      model: Names.match(model, resources.models), vae: forgeNeo ? "" : this.vaeFor(vae, resources, backend),
+      modules: forgeNeo ? [moduleFile(c.textEncoder), moduleFile(vae)].filter(Boolean) : undefined,
+      textEncoder: resources.custom && !USER_SETTINGS.autoValues.includes(c.textEncoder || "") ? Names.match(c.textEncoder, resources.textEncoders) : "",
       loras: loras.map((l) => ({ name: Names.match(l.name, resources.loras), weight: Number(l.weight ?? 1) })),
       settings, size: this.genSize(bbox, settings.megapixels), panelBox: bbox,
     };
@@ -8420,6 +8641,7 @@ class InspectorView {
     else if (tab === "moss") this.box.replaceChildren(...this.mossForm());
     else if (panel) this.box.replaceChildren(...this.form("panel", panel));
     else this.box.replaceChildren(this.panelList());
+    if (this.app.settings?.dialog?.open && this.app.store.data.ui.settingsPane === "conn") this.app.settings.renderModels();
     this.box.querySelectorAll("textarea.autogrow").forEach(autoGrow);
     this.box.scrollTop = scrollTop;
     const again = focusKey ? this.findFocus(focusKey) : null;
@@ -8489,7 +8711,7 @@ class InspectorView {
     out.push(this.genreSection(kind, target));
     out.push(this.negativeSection(kind, target));
     if (kind === "panel") out.push(this.modelSection(kind, target));
-    out.push(this.loraSection(kind, target));
+    if (kind === "panel") out.push(this.loraSection(kind, target));
     out.push(this.settingsSection(kind, target));
     if (kind === "panel") out.push(this.previewSection(target));
     return out;
@@ -8963,37 +9185,41 @@ class InspectorView {
         h("h3", { class: "insp-title", text: "Checkpoint（全コマ共通）" }),
         h("p", { class: "note keep", text: `UI Preset: ${fam.id || "未選択"} ／ Checkpoint: ${current}。変えるときは「全コマ共通」タブで選びます。` }));
     }
+    const T = USER_SETTINGS.modelPanel;
+    const app = this.app;
+    const comfy = backend === "comfy";
+    const own = comfy && !!this.app.store.data.comfyWorkflow;
+    const loaded = !!(res.models?.length || res.samplers?.length || res.loras?.length);
+    const named = (list) => (list || []).filter((v) => !USER_SETTINGS.autoValues.includes(v));
     const family = h("select", { "aria-label": "UI Preset" });
     fillSelect(family, USER_SETTINGS.modelFamilies.map((f) => [f.id, f.label]), fam.id);
     family.addEventListener("change", () => { this.app.setFamily(family.value); this.render(); });
-    const model = this.choice(res.models, c.model || "", ["", backend === "comfy" ? "（選んでください）" : "（WebUI で選んでいるモデル）"], (v) => {
-      c.model = v;
-      this.app.setFamily(Project.guessFamily(v));
-      this.render();
+    const styleRow = fam.style
+      ? h("p", { class: "mp-note", text: `文章AIの書き方: ${(USER_SETTINGS.promptStyles.find(([v]) => v === Project.promptStyle(this.doc)) || [])[1]}（UI Preset から自動）` })
+      : ModelPanel.el("div", { class: "mp-row" }, ModelPanel.el("span", { class: "mp-label", text: "プロンプトの書き方" }), h("div", { class: "seg", role: "group", "aria-label": "プロンプトの書き方" },
+        USER_SETTINGS.promptStyles.map(([v, label]) => h("button", { type: "button", text: label, "aria-pressed": String(Project.promptStyle(this.doc) === v), onclick: () => this.app.commit(() => { this.doc.story.style = v; }) }))));
+    const panel = ModelPanel.render({
+      loaded, source: USER_SETTINGS.backends[backend].short,
+      actions: [ModelPanel.el("button", { type: "button", class: "mp-btn", text: "自動で探す", title: `接続中の ${USER_SETTINGS.backends[backend].short} で選んでいる設定（${USER_SETTINGS.webuiSync[backend].map((k) => USER_SETTINGS.webuiSync.labels[k]).join("・")}）を読み込みます`, onclick: () => this.app.detectFromWebui() })],
+      onReload: () => app.loadResources({ refresh: true }),
+      onReset: () => app.commit(() => { Object.assign(c, { model: "", vae: "", textEncoder: "" }); c.loras.splice(0); }, { inspector: true }),
+      resetTitle: T.resetImageTitle,
+      slots: [
+        { key: "model", label: T.checkpoint, list: res.models, value: c.model || "", specials: [["", own ? T.workflowValue : comfy ? T.pickModel : T.webuiModel]], attrs: { "data-key": "model" },
+          onChange: (v) => { app.commit(() => { c.model = v; app.setFamily(Project.guessFamily(v)); }, { inspector: true }); } },
+        { key: "vae", label: T.vae, list: named(res.vaes), value: c.vae || "Automatic", specials: own ? [["Automatic", T.workflowValue]] : comfy ? [["Automatic", T.builtInVae]] : [["Automatic", T.builtInVae], ["None", T.noVae]], attrs: { "data-key": "vae" },
+          onChange: (v) => app.commit(() => { c.vae = v === "Automatic" ? "" : v; }, { inspector: true }) },
+        { key: "textEncoder", label: T.textEncoder, list: own ? res.textEncoders : res.forgeNeo ? (res.modules || []).filter((n) => !USER_SETTINGS.vaeLike.test(n)) : [], value: c.textEncoder || "Automatic", specials: [["Automatic", own ? T.workflowValue : T.builtInTe]], attrs: { "data-key": "textEncoder" },
+          disabledNote: own ? (loaded && !res.workflowTe ? T.teWorkflow : "") : comfy ? T.teComfy : loaded && !res.forgeNeo ? T.teA1111 : "", onChange: (v) => app.commit(() => { c.textEncoder = v === "Automatic" ? "" : v; }, { inspector: true }) },
+      ],
+      loras: this.loraSpec(c.loras, {}),
+      extra: [
+        ModelPanel.el("div", { class: "mp-row" }, ModelPanel.el("span", { class: "mp-label", text: "UI Preset" }), family),
+        styleRow,
+        h("p", { class: "mp-note note", text: "UI Preset は Checkpoint 名から Prompt Reel と同じ決まりで自動で選びます（当てはまらないときは「未選択」）。" }),
+      ],
     });
-    model.setAttribute("aria-label", "Checkpoint");
-    const vae = this.choice(res.vaes, c.vae || "", ["", "（自動）"], (v) => { c.vae = v; });
-    vae.setAttribute("aria-label", "VAE");
-    const styleLabel = (USER_SETTINGS.promptStyles.find(([v]) => v === Project.promptStyle(this.doc)) || [])[1];
-    const sec = h("div", { class: "insp-sec" },
-      h("h3", { class: "insp-title" }, "Checkpoint（全コマ共通）",
-        h("button", { class: "mini title-action", text: "自動で探す", title: `接続中の ${USER_SETTINGS.backends[backend].short} で選んでいる設定を読み込みます`, onclick: () => this.app.detectFromWebui() })),
-      h("div", { class: "set-grid" },
-        h("span", { class: "prop-label", text: "UI Preset" }), family,
-        h("span", { class: "prop-label", text: "Checkpoint" }), model,
-        h("span", { class: "prop-label", text: "VAE" }), vae));
-    sec.append(h("p", { class: "note", text: "UI Preset は Checkpoint 名から Prompt Reel と同じ決まりで自動で選びます（当てはまらないときは「未選択」）。" }));
-    sec.append(h("p", { class: "note", text: `「自動で探す」で、接続中の ${USER_SETTINGS.backends[backend].short} の設定（${USER_SETTINGS.webuiSync[backend].map((k) => USER_SETTINGS.webuiSync.labels[k]).join("・")}）を読み込みます。` }));
-    if (fam.style) {
-      sec.append(h("p", { class: "note keep", text: `文章AIの書き方: ${styleLabel}（UI Preset から自動）` }));
-    } else {
-      sec.append(h("span", { class: "prop-label", text: "プロンプトの書き方" }), h("div", { class: "seg", role: "group", "aria-label": "プロンプトの書き方" },
-        USER_SETTINGS.promptStyles.map(([v, label]) => h("button", {
-          type: "button", text: label, "aria-pressed": String(Project.promptStyle(this.doc) === v),
-          onclick: () => this.app.commit(() => { this.doc.story.style = v; }),
-        }))));
-    }
-    return sec;
+    return h("div", { class: "insp-sec" }, h("h3", { class: "insp-title", text: "モデル（全コマ共通）" }), panel);
   }
 
   loraSection(kind, target) {
@@ -9258,65 +9484,52 @@ class InspectorView {
     const c = USER_SETTINGS.moss;
     const res = app.resources;
     const runner = app.moss;
+    const T = USER_SETTINGS.modelPanel;
     const filtered = (list, pattern) => m.onlyMoss && (list || []).some((x) => pattern.test(x));
-    const model = this.choice(runner.candidates(res.models, c.modelPattern), m.model, ["", "（選んでください）"], (v) => app.commit(() => { m.model = v; }));
-    model.setAttribute("aria-label", "MOSS 用の Checkpoint");
-    const te = this.choice(runner.candidates(res.modules, c.textEncoderPattern), m.textEncoder, ["", "（Forge で選んでいるもの）"], (v) => app.commit(() => { m.textEncoder = v; }));
-    te.setAttribute("aria-label", "Text Encoder");
-    const vae = this.choice(runner.candidates(res.modules, c.vaePattern), m.vae, ["", "（Forge で選んでいるもの）"], (v) => app.commit(() => { m.vae = v; }));
-    vae.setAttribute("aria-label", "VAE");
-    const sec = h("div", { class: "insp-sec" },
-      h("h3", { class: "insp-title", text: "モデル（MOSS 専用）" }),
-      h("p", { class: "note", text: c.messages.modelNote }),
-      this.mossCheck("Checkpoint は MOSS 用のものだけ表示する", m.onlyMoss, (v) => app.commit(() => { m.onlyMoss = v; })),
-      h("div", { class: "set-grid" },
-        h("span", { class: "prop-label", text: "Checkpoint" }), model,
-        h("span", { class: "prop-label", text: "Text Encoder" }), te,
-        h("span", { class: "prop-label", text: "VAE" }), vae),
-      h("p", { class: "note", text: c.messages.modulesNote }));
-    if (filtered(res.models, c.modelPattern)) sec.append(h("p", { class: "note", text: c.messages.onlyMossNote }));
-    sec.append(this.mossLoraPicker());
-    return sec;
+    const loaded = !!(res.models?.length || res.modules?.length);
+    const keep = [["", "（Forge で選んでいるもの）"]];
+    const panel = ModelPanel.render({
+      loaded, source: USER_SETTINGS.backends[app.store.data.backend].short,
+      onReload: () => app.loadResources({ refresh: true }),
+      onReset: () => app.commit(() => { Object.assign(m, { model: "", textEncoder: "", vae: "" }); m.loras.splice(0); }, { inspector: true }),
+      resetTitle: T.resetMossTitle,
+      slots: [
+        { key: "mossModel", label: T.checkpoint, list: runner.candidates(res.models, c.modelPattern), value: m.model, specials: [["", T.pickModel]], attrs: { "aria-label": "MOSS 用の Checkpoint" }, onChange: (v) => app.commit(() => { m.model = v; }) },
+        { key: "mossVae", label: T.vae, list: runner.candidates(res.modules, c.vaePattern), value: m.vae, specials: keep, onChange: (v) => app.commit(() => { m.vae = v; }) },
+        { key: "mossTe", label: T.textEncoder, list: runner.candidates(res.modules, c.textEncoderPattern), value: m.textEncoder, specials: keep, onChange: (v) => app.commit(() => { m.textEncoder = v; }) },
+      ],
+      loras: this.loraSpec(m.loras, { mossFilter: true }),
+      extra: [
+        this.mossCheck("Checkpoint は MOSS 用のものだけ表示する", m.onlyMoss, (v) => app.commit(() => { m.onlyMoss = v; })),
+        filtered(res.models, c.modelPattern) ? h("p", { class: "note", text: c.messages.onlyMossNote }) : null,
+        h("p", { class: "note", text: c.messages.modelNote }),
+        h("p", { class: "note", text: c.messages.modulesNote }),
+      ].filter(Boolean),
+    });
+    return h("div", { class: "insp-sec" }, h("h3", { class: "insp-title", text: "モデル（MOSS 専用）" }), panel);
   }
 
-  mossLoraPicker() {
-    return this.loraPicker(this.doc.moss.loras, { title: "LoRA（MOSS 用）", mossFilter: true, note: "使う LoRA をプルダウンから選ぶと上に並び、強さを決められます。「moss を含むものだけ」で、名前に moss が入った LoRA に絞り込めます。" });
-  }
-
-  loraPicker(list, { title = "LoRA", note = "", disabled = false, mossFilter = false } = {}) {
+  loraSpec(list, { disabled = false, mossFilter = false, note = "" } = {}) {
     const app = this.app;
     const ui = app.store.data.ui;
     const only = mossFilter && !!ui.loraMossOnly;
     const all = [...(app.resources.loras || [])].filter((n) => !only || /moss/i.test(n));
-    const rows = list.map((l, i) => {
-      const on = h("input", { type: "checkbox", checked: l.on !== false, title: "使う", disabled, "aria-label": `${l.name} を使う` });
-      on.addEventListener("change", () => { l.on = on.checked; });
-      const missing = all.length && !all.includes(l.name);
-      const weight = h("input", { type: "number", step: 0.05, value: l.weight ?? 1, disabled, "aria-label": `${l.name} の強さ`, "data-slider-min": -1, "data-slider-max": 2 });
-      weight.addEventListener("input", () => { l.weight = Number(weight.value); });
-      const del = h("button", { class: "mini", type: "button", text: "×", title: "外す", disabled, "aria-label": `${l.name} を外す`, onclick: () => app.commit(() => list.splice(i, 1), { inspector: true }) });
-      return h("div", { class: "lora-pick on" },
-        h("div", { class: "lora-pick-name", title: l.name }, on, h("span", { text: Infotext.displayName(l.name || "（未選択）") + (missing ? "（一覧にありません）" : "") }), del),
-        h("div", { class: "lora-pick-weight" }, weight));
-    });
-    const filterBtn = mossFilter ? h("button", { class: "mini", type: "button", "aria-pressed": String(only), text: "moss を含むものだけ", title: "名前に moss が入った LoRA だけをプルダウンに出します", onclick: () => { ui.loraMossOnly = !only; app.store.save(); this.render(); } }) : null;
-    const out = h("div", { class: "lora-picker" },
-      h("div", { class: "g-head" }, h("span", { class: "prop-label", text: `${title}・${list.length} 個選択中` }), filterBtn),
-      rows.length ? h("div", { class: "lora-pick-list" }, rows) : null);
-    if (!disabled) {
-      const add = h("select", { "aria-label": "LoRA を追加" });
-      const rest = all.filter((n) => !list.some((l) => l.name === n));
-      fillSelect(add, [["", all.length ? `（LoRA を選んで追加・${rest.length} 個）` : only ? "（moss を含む LoRA がありません）" : "（LoRA が読み込まれていません）"], ...rest.map((n) => [n, Infotext.displayName(n)])], "");
-      add.disabled = !rest.length;
-      add.addEventListener("change", () => { if (add.value) { const name = add.value; app.commit(() => list.push({ name, weight: 1, on: true }), { inspector: true }); } });
-      out.append(add);
-    }
-    if (app.resources.loraError) out.append(h("p", { class: "msg err", text: fmt(USER_SETTINGS.messages.loraListFailed, { err: app.resources.loraError }).trim() }));
-    if (note) out.append(h("p", { class: "note", text: note }));
-    return out;
+    const tools = mossFilter ? [h("button", { class: "mini", type: "button", "aria-pressed": String(only), text: "moss を含むものだけ", title: "名前に moss が入った LoRA だけをプルダウンに出します", onclick: () => { ui.loraMossOnly = !only; app.store.save(); this.render(); } })] : [];
+    const extra = [];
+    if (app.resources.loraError) extra.push(h("p", { class: "msg err", text: fmt(USER_SETTINGS.messages.loraListFailed, { err: app.resources.loraError }).trim() }));
+    if (note) extra.push(h("p", { class: "note", text: note }));
+    return {
+      list: all, items: list, disabled, tools: [...tools, ...extra],
+      emptyText: only ? "（moss を含む LoRA がありません）" : undefined,
+      onSet: (i, patch) => app.commit(() => Object.assign(list[i], patch), { inspector: true }),
+      onRemove: (i) => app.commit(() => list.splice(i, 1), { inspector: true }),
+      onAdd: (name) => app.commit(() => list.push({ name, weight: 1, on: true }), { inspector: true }),
+    };
   }
 
-
+  loraPicker(list, opts = {}) {
+    return h("div", { class: "mp" }, ModelPanel.loraEditor({ ...this.loraSpec(list, opts), label: opts.title }));
+  }
 
   mossSettingsSection() {
     const app = this.app;
@@ -9980,7 +10193,7 @@ class SettingsView {
     }
     const entries = models.map((m) => [m, m]);
     if (cfg.model && !models.includes(cfg.model)) entries.unshift([cfg.model, `${cfg.model}（一覧にない）`]);
-    if (!entries.length) entries.push(["", "（「モデルの一覧を更新」で取得）"]);
+    if (!entries.length) entries.push(["", "（「一覧を更新」で取得）"]);
     fillSelect($("llm-model"), entries, cfg.model);
   }
 
@@ -10077,6 +10290,46 @@ class SettingsView {
     this.app.store.save();
     if (name === "dict") this.renderDict();
     if (name === "llm") { this.fetchModels(true); this.fillServers(); }
+    if (name === "conn") this.renderModels();
+  }
+
+  renderModels() {
+    const box = $("conn-models");
+    if (box) box.replaceChildren(this.app.inspector.modelSection("common", this.app.doc.common).querySelector(".mp"));
+    const gen = $("conn-gen");
+    if (gen) {
+      const grid = this.app.inspector.settingsSection("common", this.app.doc.common).querySelector(".set-grid");
+      grid.addEventListener("change", () => { this.app.savePrefsSoon(); this.app.inspector.render(); });
+      gen.replaceChildren(grid);
+    }
+    this.renderWorkflow();
+  }
+
+  renderWorkflow() {
+    const box = $("conn-workflow");
+    if (!box) return;
+    const app = this.app;
+    const d = app.store.data;
+    const W = USER_SETTINGS.modelPanel.workflow;
+    const S = USER_SETTINGS.workflowCard;
+    $("conn-workflow-card").hidden = d.backend !== "comfy";
+    const use = (value, text) => {
+      d.comfyWorkflow = value;
+      app.store.save();
+      app.loadResources();
+      this.renderModels();
+      app.status(text);
+    };
+    box.replaceChildren(WorkflowCard.render({
+      kind: "image", custom: d.comfyWorkflow || null, builtIn: S.builtIn, exportNote: S.note, attrs: { "data-workflow": "image" },
+      onLoad: (value) => use(value, fmt(W.loaded, { name: value.name })),
+      onReset: () => use(null, W.cleared),
+      onExport: () => {
+        const spec = app.exportSpec();
+        const wf = d.comfyWorkflow ? d.comfyWorkflow.workflow : app.client().workflowFor(spec);
+        downloadBlob(new Blob([JSON.stringify(wf, null, 2)], { type: "application/json" }), d.comfyWorkflow ? d.comfyWorkflow.name : S.file);
+      },
+    }));
   }
 
   fill() {
@@ -10115,6 +10368,483 @@ class SettingsView {
     }));
   }
 }
+
+// ===== MODEL PANEL (SAME CODE IN STILLSHEET / STILLMOTION / STILLMANGE) =====
+class ModelPanel {
+  static get T() { return USER_SETTINGS.modelPanel; }
+
+  static el(tag, attrs = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === "text") e.textContent = v;
+      else if (k === "class") e.className = v;
+      else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, "");
+      else e.setAttribute(k, String(v));
+    }
+    for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) e.append(kid);
+    return e;
+  }
+
+  static norm(name) {
+    return String(name ?? "").replace(/\s*\[[0-9a-f]+\]$/i, "").split(/[\\/]/).pop().replace(ModelPanel.T.fileExt, "").toLowerCase().trim();
+  }
+
+  static words(name) {
+    return new Set(ModelPanel.norm(name).split(/[^a-z0-9]+/).filter(Boolean));
+  }
+
+  static has(list, value) {
+    return (list || []).map(String).includes(String(value));
+  }
+
+  static core(name) {
+    return new Set(ModelPanel.norm(name).replace(ModelPanel.T.noiseWords, " ").split(/[^a-z0-9]+/).filter(Boolean));
+  }
+
+  static closest(list, wanted) {
+    const items = (list || []).map(String);
+    if (!items.length || wanted === undefined || wanted === null || wanted === "") return null;
+    if (items.includes(String(wanted))) return String(wanted);
+    const key = ModelPanel.norm(wanted);
+    const same = items.find((x) => ModelPanel.norm(x) === key);
+    if (same) return same;
+    const want = ModelPanel.core(wanted);
+    const inside = (a, b) => [...a].every((t) => b.has(t));
+    const all = ModelPanel.words(wanted);
+    let best = null, score = 0;
+    for (const x of items) {
+      const c = ModelPanel.core(x);
+      if (!c.size || !want.size || !(inside(c, want) || inside(want, c))) continue;
+      const w = ModelPanel.words(x);
+      const s = ([...w].filter((t) => all.has(t)).length + 1) / (new Set([...w, ...all]).size + 1);
+      if (s > score) { best = x; score = s; }
+    }
+    return best;
+  }
+
+  static display(name) {
+    return String(name ?? "").split(/[\\/]/).pop();
+  }
+
+  static fill(select, list, value, specials = []) {
+    const T = ModelPanel.T;
+    const items = (list || []).map(String);
+    const special = specials.some(([v]) => String(v) === String(value ?? ""));
+    const missing = !special && value !== undefined && value !== null && value !== "" && !items.includes(String(value));
+    const entries = [...specials.map(([v, label]) => [String(v), label]), ...items.map((x) => [x, x])];
+    if (missing) entries.push([String(value), items.length ? T.missingItem.replace("{name}", ModelPanel.display(value)) : ModelPanel.display(value)]);
+    if (!entries.length) entries.push(["", T.notLoaded]);
+    fillSelect(select, entries, String(value ?? ""));
+    return missing && items.length > 0;
+  }
+
+  static slotRow(slot) {
+    const T = ModelPanel.T;
+    const select = ModelPanel.el("select", { class: "mp-select", "aria-label": slot.label, ...(slot.attrs || {}) });
+    let warn = null;
+    if (slot.disabledNote) {
+      fillSelect(select, [["", slot.disabledNote]], "");
+      select.disabled = true;
+    } else {
+      const missing = ModelPanel.fill(select, slot.list, slot.value, slot.specials || []);
+      if (missing) warn = ModelPanel.el("p", { class: "mp-warn", text: T.missingNote.replace("{name}", ModelPanel.display(slot.value)) });
+      select.addEventListener("change", () => slot.onChange?.(select.value));
+    }
+    const row = ModelPanel.el("div", { class: `mp-row${warn ? " mp-missing" : ""}`, "data-slot": slot.key },
+      ModelPanel.el("span", { class: "mp-label", text: slot.label, title: slot.title || null }), select);
+    return [row, warn, slot.note ? ModelPanel.el("p", { class: "mp-note", text: slot.note }) : null];
+  }
+
+  static loraEditor(spec) {
+    const T = ModelPanel.T;
+    const list = (spec.list || []).map(String);
+    const items = spec.items || [];
+    const rows = items.map((item, i) => {
+      const missing = list.length > 0 && !!item.name && !list.includes(String(item.name));
+      const on = ModelPanel.el("input", { type: "checkbox", class: "mp-switch", "aria-label": T.loraUse.replace("{name}", ModelPanel.display(item.name)) });
+      on.checked = item.on !== false;
+      on.disabled = !!spec.disabled;
+      on.addEventListener("change", () => spec.onSet?.(i, { on: on.checked }));
+      const lead = spec.noSwitch ? ModelPanel.el("span", { class: "mp-switch-space", "aria-hidden": "true" }) : on;
+      const sel = ModelPanel.el("select", { class: "mp-select", "aria-label": T.loraFile });
+      ModelPanel.fill(sel, list, item.name);
+      sel.disabled = !!spec.disabled || !!item.fixedName;
+      sel.addEventListener("change", () => spec.onSet?.(i, { name: sel.value }));
+      const weight = ModelPanel.el("input", { type: "number", class: "mp-weight", step: T.weightStep, min: T.weightMin, max: T.weightMax, "data-slider-min": T.sliderMin, "data-slider-max": T.sliderMax, "aria-label": T.loraWeight.replace("{name}", ModelPanel.display(item.name)) });
+      const hasWeight = item.weight !== undefined && item.weight !== null;
+      weight.value = hasWeight ? item.weight : 1;
+      weight.disabled = !!spec.disabled || !hasWeight;
+      weight.addEventListener("change", () => {
+        const v = Number(weight.value);
+        if (weight.value === "" || !Number.isFinite(v)) return;
+        spec.onSet?.(i, { weight: v });
+      });
+      const del = item.fixed || spec.disabled ? ModelPanel.el("span", { class: "mp-del-space", "aria-hidden": "true" })
+        : ModelPanel.el("button", { type: "button", class: "mp-del", title: T.loraRemove, "aria-label": T.loraRemove, onclick: () => spec.onRemove?.(i) });
+      const row = ModelPanel.el("div", { class: `mp-lora${on.checked ? "" : " off"}${missing ? " mp-missing" : ""}`, title: item.label || item.name || "" },
+        ModelPanel.el("div", { class: "mp-lora-line" }, lead, sel, del),
+        hasWeight ? ModelPanel.el("div", { class: "mp-lora-weight" }, ModelPanel.el("span", { class: "mp-weight-label", text: T.weight }), weight) : null,
+        item.label ? ModelPanel.el("p", { class: "mp-note mp-lora-label", text: item.label }) : null,
+        missing ? ModelPanel.el("p", { class: "mp-warn", text: T.missingNote.replace("{name}", ModelPanel.display(item.name)) }) : null);
+      on.addEventListener("change", () => row.classList.toggle("off", !on.checked));
+      return row;
+    });
+    const box = ModelPanel.el("div", { class: "mp-lora-list" }, rows);
+    if (!spec.disabled && spec.onAdd) {
+      const used = new Set(items.map((x) => String(x.name)));
+      const rest = spec.showUsed ? list : list.filter((n) => !used.has(n));
+      const add = ModelPanel.el("select", { class: "mp-select mp-add", "aria-label": T.loraAdd, ...(spec.addAttrs || {}) });
+      fillSelect(add, [["", list.length ? T.loraAddItem.replace("{n}", rest.length) : spec.emptyText || T.loraNotLoaded], ...rest.map((n) => [n, n])], "");
+      add.disabled = !rest.length;
+      add.addEventListener("change", () => { const name = add.value; add.value = ""; if (name) spec.onAdd(name); });
+      box.append(add);
+    }
+    if (spec.tools?.length) box.append(ModelPanel.el("div", { class: "mp-tools" }, spec.tools));
+    if (!items.length && spec.emptyNote) box.prepend(ModelPanel.el("p", { class: "mp-note", text: spec.emptyNote }));
+    return ModelPanel.el("div", { class: "mp-loras", "data-slot": "loras" },
+      ModelPanel.el("span", { class: "mp-label", text: spec.label || T.lora }), box);
+  }
+
+  static render(spec) {
+    const T = ModelPanel.T;
+    const actions = [
+      ...(spec.actions || []),
+      spec.onReload ? ModelPanel.el("button", { type: "button", class: "mp-btn", "data-mp": "reload", text: T.reload, title: T.reloadTitle, onclick: () => spec.onReload() }) : null,
+      spec.onReset ? ModelPanel.el("button", { type: "button", class: "mp-btn", "data-mp": "reset", text: spec.resetLabel || T.reset, title: spec.resetTitle || T.resetTitle, onclick: () => spec.onReset() }) : null,
+    ].filter(Boolean);
+    const status = spec.loaded === undefined ? null
+      : ModelPanel.el("p", { class: `mp-status${spec.loaded ? "" : " off"}`, text: (spec.loaded ? T.loaded : T.offline).replace("{source}", spec.source || "") });
+    const root = ModelPanel.el("div", { class: `mp${spec.compact ? " mp-compact" : ""}`, ...(spec.attrs || {}) },
+      spec.title || actions.length ? ModelPanel.el("div", { class: "mp-head" }, spec.title ? ModelPanel.el("span", { class: "mp-title", text: spec.title }) : null, actions.length ? ModelPanel.el("span", { class: "mp-actions" }, actions) : null) : null,
+      status,
+      ...(spec.slots || []).map((s) => ModelPanel.slotRow(s)),
+      spec.loras ? ModelPanel.loraEditor(spec.loras) : null,
+      spec.note ? ModelPanel.el("p", { class: "mp-note", text: spec.note }) : null,
+      ...(spec.extra || []));
+    return root;
+  }
+}
+
+// ===== WORKFLOW MODELS (LOADER NODES OF A COMFYUI API WORKFLOW) =====
+class WorkflowModels {
+  static isLink(v) {
+    return Array.isArray(v) && v.length === 2 && typeof v[0] === "string" && typeof v[1] === "number";
+  }
+
+  static kindOf(classType, key) {
+    for (const [kind, rules] of Object.entries(USER_SETTINGS.modelPanel.loaderKinds)) {
+      if (rules.some(([cls, k]) => cls.test(classType) && k === key)) return kind;
+    }
+    return null;
+  }
+
+  static find(wf) {
+    const T = USER_SETTINGS.modelPanel;
+    const out = [];
+    for (const [id, node] of Object.entries(wf || {})) {
+      for (const [key, value] of Object.entries(node?.inputs || {})) {
+        if (typeof value !== "string") continue;
+        const kind = WorkflowModels.kindOf(node.class_type, key);
+        if (!kind || kind === "lora") continue;
+        const title = node._meta?.title || node.class_type;
+        const audio = kind === "vae" && T.audioTitle.test(`${title} ${value}`);
+        out.push({ id, key, path: `${id}|${key}`, classType: node.class_type, kind: audio ? "audioVae" : kind, value, title });
+      }
+    }
+    const order = Object.keys(T.kindLabels);
+    out.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+    const counts = {};
+    for (const s of out) counts[s.kind] = (counts[s.kind] || 0) + 1;
+    for (const s of out) s.label = counts[s.kind] > 1 ? `${T.kindLabels[s.kind]}（${s.title}）` : T.kindLabels[s.kind];
+    return out;
+  }
+
+  static loraNodes(wf) {
+    const out = [];
+    for (const [id, node] of Object.entries(wf || {})) {
+      const inputs = node?.inputs || {};
+      if (typeof inputs.lora_name === "string" && WorkflowModels.kindOf(node.class_type, "lora_name") === "lora") {
+        const strengthKey = ["strength_model", "strength", "lora_strength"].find((k) => typeof inputs[k] === "number");
+        out.push({ id, classType: node.class_type, title: node._meta?.title || node.class_type, name: inputs.lora_name, strengthKey, weight: strengthKey ? inputs[strengthKey] : null });
+      }
+    }
+    return out;
+  }
+
+  static modelLoaders(wf) {
+    return Object.entries(wf || {}).filter(([, n]) => USER_SETTINGS.modelPanel.modelLoaderClass.test(n?.class_type || "") && Object.entries(n?.inputs || {}).some(([k, v]) => typeof v === "string" && WorkflowModels.kindOf(n.class_type, k) === "model")).map(([id]) => id);
+  }
+
+  static insertLoras(wf, loras) {
+    const use = (loras || []).filter((l) => l && l.name && l.on !== false);
+    if (!use.length) return wf;
+    const T = USER_SETTINGS.modelPanel;
+    for (const tail of WorkflowModels.modelLoaders(wf)) {
+      const consumers = [];
+      for (const [nid, node] of Object.entries(wf)) {
+        for (const [k, v] of Object.entries(node.inputs || {})) {
+          if (WorkflowModels.isLink(v) && v[0] === tail && v[1] === 0) consumers.push([nid, k]);
+        }
+      }
+      let prev = [tail, 0];
+      use.forEach((l, i) => {
+        const id = `${T.extraLoraPrefix}${tail}_${i}`;
+        wf[id] = { class_type: T.extraLoraClass, inputs: { lora_name: l.name, strength_model: Number(l.weight ?? 1), model: prev }, _meta: { title: `LoRA ${ModelPanel.norm(l.name)}` } };
+        prev = [id, 0];
+      });
+      for (const [nid, k] of consumers) wf[nid].inputs[k] = [...prev];
+    }
+    return wf;
+  }
+
+  static async lists(comfy, slots, extraClasses = []) {
+    const pairs = [...slots.map((s) => [s.classType, s.key]), ...extraClasses];
+    const uniq = [...new Map(pairs.map((p) => [p.join("|"), p])).values()];
+    const got = await Promise.all(uniq.map(async ([cls, key]) => [`${cls}|${key}`, await comfy(cls, key)]));
+    return Object.fromEntries(got);
+  }
+}
+
+// ===== CUSTOM WORKFLOW (USER'S OWN COMFYUI API WORKFLOW) =====
+class CustomWorkflow {
+  static get T() { return USER_SETTINGS.modelPanel.workflow; }
+
+  static parse(text) {
+    const T = CustomWorkflow.T;
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error(T.notJson); }
+    if (data && typeof data.prompt === "object" && !Array.isArray(data.prompt) && Object.values(data.prompt).some((n) => n?.class_type)) data = data.prompt;
+    if (Array.isArray(data?.nodes) && Array.isArray(data?.links)) throw new Error(T.notApi);
+    const nodes = Object.entries(data && typeof data === "object" ? data : {})
+      .filter(([, n]) => n && typeof n === "object" && typeof n.class_type === "string" && n.inputs && typeof n.inputs === "object");
+    if (!nodes.length) throw new Error(T.notApi);
+    return Object.fromEntries(nodes);
+  }
+
+  static title(wf, id) {
+    return wf[id]?._meta?.title || wf[id]?.class_type || id;
+  }
+
+  static each(wf, test) {
+    const out = [];
+    for (const [id, n] of Object.entries(wf || {})) {
+      for (const [key, v] of Object.entries(n?.inputs || {})) if (test(n, key, v)) out.push({ id, key });
+    }
+    return out;
+  }
+
+  static upstream(wf, start, test) {
+    const seen = new Set();
+    const queue = [start];
+    while (queue.length) {
+      const id = queue.shift();
+      if (seen.has(id) || !wf[id]) continue;
+      seen.add(id);
+      const hit = test(id, wf[id]);
+      if (hit) return hit;
+      for (const v of Object.values(wf[id].inputs || {})) if (WorkflowModels.isLink(v)) queue.push(v[0]);
+    }
+    return null;
+  }
+
+  static textOf(wf, link) {
+    if (!WorkflowModels.isLink(link)) return null;
+    const keys = CustomWorkflow.T.textKeys;
+    return CustomWorkflow.upstream(wf, link[0], (id, n) => {
+      const key = keys.find((k) => typeof n.inputs?.[k] === "string");
+      return key ? { id, key } : null;
+    });
+  }
+
+  static detect(wf, kind) {
+    const T = CustomWorkflow.T;
+    let positive = null, negative = null;
+    for (const n of Object.values(wf || {})) {
+      const inp = n?.inputs || {};
+      positive ??= CustomWorkflow.textOf(wf, inp.positive) || (T.guiderClass.test(n.class_type) ? CustomWorkflow.textOf(wf, inp.conditioning) : null);
+      negative ??= CustomWorkflow.textOf(wf, inp.negative);
+    }
+    positive ??= CustomWorkflow.each(wf, (n, k, v) => k === "prompt" && typeof v === "string")[0] || null;
+    if (negative && positive && negative.id === positive.id && negative.key === positive.key) negative = null;
+    const num = (keys, cls) => CustomWorkflow.each(wf, (n, k, v) => keys.includes(k) && typeof v === "number" && (!cls || cls.test(n.class_type)));
+    const str = (keys, cls) => CustomWorkflow.each(wf, (n, k, v) => keys.includes(k) && typeof v === "string" && (!cls || cls.test(n.class_type)));
+    const sizeClass = T.sizeClass[kind];
+    const parts = {
+      positive, negative,
+      size: CustomWorkflow.each(wf, (n, k, v) => k === "width" && typeof v === "number" && typeof n.inputs.height === "number" && sizeClass.include.test(n.class_type) && !sizeClass.exclude.test(n.class_type)).map((p) => p.id),
+      length: kind === "video" ? num(T.lengthKeys) : [],
+      seed: num(T.seedKeys),
+      steps: num(["steps"], T.samplerClass),
+      cfg: num(["cfg"]),
+      sampler: str(["sampler_name"]),
+      scheduler: str(["scheduler"], T.samplerClass),
+      clipSkip: num(["stop_at_clip_layer"]),
+      images: str(["image"], T.loadImageClass),
+      output: Object.values(wf || {}).some((n) => T.outputClass.test(n?.class_type || "")),
+    };
+    const need = kind === "video" ? { images: parts.images.length, positive: parts.positive, output: parts.output } : { positive: parts.positive, size: parts.size.length, output: parts.output };
+    parts.missing = Object.entries(need).filter(([, ok]) => !ok).map(([k]) => T.partLabels[k]);
+    return parts;
+  }
+
+  static found(wf, parts) {
+    const T = CustomWorkflow.T;
+    const at = (list) => [...new Set(list.map((p) => CustomWorkflow.title(wf, p.id ?? p)))].join("、");
+    const rows = [
+      ["positive", parts.positive ? [parts.positive] : []], ["negative", parts.negative ? [parts.negative] : []],
+      ["images", parts.images], ["size", parts.size], ["length", parts.length], ["seed", parts.seed],
+      ["steps", parts.steps], ["cfg", parts.cfg], ["sampler", parts.sampler], ["scheduler", parts.scheduler], ["clipSkip", parts.clipSkip],
+    ];
+    return rows.filter(([, list]) => list.length).map(([k, list]) => [T.partLabels[k], at(list)]);
+  }
+
+  static setAll(wf, list, value) {
+    for (const { id, key } of list) wf[id].inputs[key] = value;
+  }
+
+  static redirect(wf, from, to) {
+    for (const node of Object.values(wf)) {
+      for (const [k, v] of Object.entries(node.inputs || {})) {
+        if (WorkflowModels.isLink(v) && v[0] === from[0] && v[1] === from[1]) node.inputs[k] = [...to];
+      }
+    }
+  }
+
+  static bypass(wf, id) {
+    const n = wf[id];
+    if (!n) return wf;
+    const outs = { 0: n.inputs.model, 1: n.inputs.clip };
+    delete wf[id];
+    for (const [i, src] of Object.entries(outs)) if (WorkflowModels.isLink(src)) CustomWorkflow.redirect(wf, [id, Number(i)], src);
+    return wf;
+  }
+
+  static addLoras(wf, loras) {
+    const T = USER_SETTINGS.modelPanel;
+    const use = (loras || []).filter((l) => l && l.name && l.on !== false);
+    if (!use.length) return wf;
+    for (const tail of WorkflowModels.modelLoaders(wf)) {
+      const withClip = CustomWorkflow.T.clipLoaderClass.test(wf[tail].class_type);
+      const users = (out) => CustomWorkflow.each(wf, (n, k, v) => WorkflowModels.isLink(v) && v[0] === tail && v[1] === out);
+      const modelUsers = users(0), clipUsers = withClip ? users(1) : [];
+      let m = [tail, 0], c = [tail, 1];
+      use.forEach((l, i) => {
+        const id = `${T.extraLoraPrefix}${tail}_${i}`;
+        const w = Number(l.weight ?? 1);
+        wf[id] = withClip
+          ? { class_type: CustomWorkflow.T.loraClipClass, inputs: { lora_name: l.name, strength_model: w, strength_clip: w, model: m, clip: c }, _meta: { title: `LoRA ${ModelPanel.norm(l.name)}` } }
+          : { class_type: T.extraLoraClass, inputs: { lora_name: l.name, strength_model: w, model: m }, _meta: { title: `LoRA ${ModelPanel.norm(l.name)}` } };
+        m = [id, 0];
+        if (withClip) c = [id, 1];
+      });
+      for (const { id, key } of modelUsers) wf[id].inputs[key] = [...m];
+      for (const { id, key } of clipUsers) wf[id].inputs[key] = [...c];
+    }
+    return wf;
+  }
+
+  static named(v) {
+    return !!v && !CustomWorkflow.T.autoNames.includes(String(v));
+  }
+
+  static image(base, spec, { samplerName = (v) => v, schedulerName = (v) => v, prefix } = {}) {
+    const wf = structuredClone(base);
+    const p = CustomWorkflow.detect(wf, "image");
+    const s = spec.settings || {};
+    const size = spec.size || { width: spec.width, height: spec.height };
+    if (p.positive) wf[p.positive.id].inputs[p.positive.key] = spec.prompt ?? "";
+    if (p.negative) wf[p.negative.id].inputs[p.negative.key] = spec.negative ?? "";
+    for (const id of p.size) {
+      Object.assign(wf[id].inputs, { width: size.width, height: size.height });
+      if (typeof wf[id].inputs.batch_size === "number") wf[id].inputs.batch_size = 1;
+    }
+    const seed = Number(spec.seed ?? s.seed);
+    if (Number.isFinite(seed) && seed >= 0) CustomWorkflow.setAll(wf, p.seed, seed);
+    if (Number(s.steps) > 0) CustomWorkflow.setAll(wf, p.steps, Number(s.steps));
+    if (Number(s.cfg) > 0) CustomWorkflow.setAll(wf, p.cfg, Number(s.cfg));
+    if (s.sampler) CustomWorkflow.setAll(wf, p.sampler, samplerName(s.sampler));
+    if (s.scheduler) CustomWorkflow.setAll(wf, p.scheduler, schedulerName(s.scheduler));
+    if (Number(s.clipSkip) > 0) CustomWorkflow.setAll(wf, p.clipSkip, -Math.max(1, Number(s.clipSkip)));
+    const slots = WorkflowModels.find(wf);
+    const slot = (kind) => slots.find((x) => x.kind === kind);
+    if (CustomWorkflow.named(spec.model) && slot("model")) wf[slot("model").id].inputs[slot("model").key] = spec.model;
+    if (CustomWorkflow.named(spec.textEncoder) && slot("te")) wf[slot("te").id].inputs[slot("te").key] = spec.textEncoder;
+    if (CustomWorkflow.named(spec.vae)) {
+      if (slot("vae")) wf[slot("vae").id].inputs[slot("vae").key] = spec.vae;
+      else {
+        const id = CustomWorkflow.T.vaeNodeId;
+        const users = CustomWorkflow.each(wf, (n, k, v) => k === "vae" && WorkflowModels.isLink(v));
+        wf[id] = { class_type: "VAELoader", inputs: { vae_name: spec.vae }, _meta: { title: "VAE" } };
+        for (const u of users) wf[u.id].inputs[u.key] = [id, 0];
+      }
+    }
+    CustomWorkflow.addLoras(wf, spec.loras);
+    if (prefix) for (const n of Object.values(wf)) if (CustomWorkflow.T.saveClass.test(n.class_type) && typeof n.inputs.filename_prefix === "string") n.inputs.filename_prefix = prefix;
+    return wf;
+  }
+
+  static video(base, { image, prompt, size, length, seed }) {
+    const wf = structuredClone(base);
+    const p = CustomWorkflow.detect(wf, "video");
+    if (image) CustomWorkflow.setAll(wf, p.images, image);
+    if (p.positive) wf[p.positive.id].inputs[p.positive.key] = prompt ?? "";
+    if (size) for (const id of p.size) Object.assign(wf[id].inputs, { width: size.width, height: size.height });
+    if (length) CustomWorkflow.setAll(wf, p.length, length);
+    if (Number.isFinite(seed) && seed >= 0) CustomWorkflow.setAll(wf, p.seed, seed);
+    return wf;
+  }
+
+  static async imageLists(comfy, wf) {
+    const T = USER_SETTINGS.modelPanel;
+    const slots = WorkflowModels.find(wf);
+    const of = (kind) => slots.find((s) => s.kind === kind);
+    const list = (s) => (s ? comfy(s.classType, s.key) : Promise.resolve([]));
+    const [models, textEncoders, vaes] = await Promise.all([list(of("model")), list(of("te")), of("vae") ? list(of("vae")) : comfy("VAELoader", "vae_name")]);
+    return { models, textEncoders, vaes, hasTe: !!of("te"), loraClass: T.loraListClass };
+  }
+}
+
+// ===== WORKFLOW CARD (DROP / RESET / EXPORT A CUSTOM WORKFLOW) =====
+class WorkflowCard {
+  static render({ kind, custom, builtIn, onLoad, onReset, onExport, exportNote, attrs }) {
+    const T = CustomWorkflow.T;
+    const el = ModelPanel.el;
+    const msg = el("p", { class: "msg" });
+    const input = el("input", { type: "file", accept: ".json,application/json", "aria-label": T.pick });
+    const zone = el("label", { class: "dropzone mp-drop" }, input,
+      el("span", { class: "hint" }, el("strong", { text: T.drop }), T.dropSub));
+    const read = async (file) => {
+      if (!file) return;
+      try {
+        const wf = CustomWorkflow.parse(await file.text());
+        const parts = CustomWorkflow.detect(wf, kind);
+        if (parts.missing.length) throw new Error(T.missing.replace("{list}", parts.missing.join("・")));
+        await onLoad({ name: file.name, workflow: wf });
+      } catch (err) {
+        setMsg(msg, err.message || String(err), "err");
+      }
+    };
+    input.addEventListener("change", () => { read(input.files[0]); input.value = ""; });
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+    zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("over"); read(e.dataTransfer.files[0]); });
+    const found = custom ? CustomWorkflow.found(custom.workflow, CustomWorkflow.detect(custom.workflow, kind)) : [];
+    return el("div", { class: "mp-wf", ...(attrs || {}) },
+      el("p", { class: `mp-wf-now${custom ? " custom" : ""}` }, el("span", { class: "mp-wf-tag", text: custom ? T.tagCustom : T.tagBuiltIn }), el("span", { text: custom ? custom.name : builtIn })),
+      zone,
+      el("div", { class: "row" },
+        el("button", { type: "button", "data-wf": "reset", text: T.reset, disabled: !custom, onclick: () => onReset() }),
+        onExport ? el("button", { type: "button", "data-wf": "export", text: T.exportLabel, onclick: () => onExport() }) : null),
+      el("p", { class: "note", text: [T.apiHow, exportNote].filter(Boolean).join("") }),
+      msg,
+      found.length ? el("div", { class: "mp-wf-map" },
+        el("h5", { class: "sub-title" }, T.mapTitle, el("span", { class: "badge", text: T.mapBadge })),
+        el("dl", { class: "mp-wf-list" }, found.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]))) : null);
+  }
+}
+// ===== END SHARED WORKFLOW CODE =====
 
 // ===== NUMBER CONTROL (SLIDER + STEPPER + CLICK TO TYPE) =====
 class NumberControl {
@@ -10440,7 +11170,7 @@ class App {
   client() {
     const d = this.store.data;
     const Cls = d.backend === "comfy" ? ComfyClient : A1111Client;
-    return new Cls(d.urls[d.backend]);
+    return Object.assign(new Cls(d.urls[d.backend]), { custom: d.backend === "comfy" ? d.comfyWorkflow || null : null });
   }
 
   // DOCUMENT HISTORY
@@ -11966,6 +12696,13 @@ class App {
     } catch {
       return false;
     }
+  }
+
+  exportSpec() {
+    const panel = this.doc.panels[0];
+    if (panel) return Project.spec(this.doc, panel, this.resources, this.store.data.backend);
+    const c = this.doc.common;
+    return { prompt: "", negative: c.negative || "", model: c.model, vae: c.vae, loras: [], settings: { ...Project.settingsFor(this.doc, {}), seed: 0 }, size: { width: USER_SETTINGS.workflowCard.size, height: USER_SETTINGS.workflowCard.size } };
   }
 
   onBackendChanged() {
